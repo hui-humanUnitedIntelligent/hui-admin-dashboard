@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <title>HUI Admin</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0F1117;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: sans-serif;
+      color: #8892A4;
+      font-size: 13px;
+    }
+  </style>
+  <script>
+    // Einziger Einstiegspunkt für das HUI Admin Dashboard
+    // Kein Verweis auf öffentliche Webseiten
+    (function () {
+      const token = localStorage.getItem('hui_admin_token');
+      if (token) {
+        window.location.replace('/dashboard');
+      } else {
+        window.location.replace('/login');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <noscript>Bitte JavaScript aktivieren, um das Admin-Dashboard zu nutzen.</noscript>
+  <p>Weiterleitung…</p>
+</body>
+</html>
