@@ -1,49 +1,23 @@
-'use client';
-
-// test commit
-
-import { useEffect } from 'react';
+import type { Metadata } from 'next';
 import '../styles/globals.css';
+import AuthGuard from './AuthGuard';
 
-export const metadata = {
-  title: 'HUI Admin',
-  description: 'HUI Platform Administration',
-  robots: 'noindex, nofollow',
+export const metadata: Metadata = {
+    title: 'HUI Admin',
+    description: 'HUI Platform Administration',
+    robots: { index: false, follow: false },
 };
 
-const PUBLIC_PATHS = ['/login'];
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    const token =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('hui_admin_token')
-        : null;
-
-    const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-
-    if (!token && !isPublic) {
-      router.replace('/login');
-    }
-    if (token && isPublic) {
-      router.replace('/dashboard');
-    }
-  }, [pathname, router]);
-
-  return (
-    <html lang="de">
-      <head>
-        <meta name="robots" content="noindex, nofollow" />
-        <meta name="referrer" content="no-referrer" />
-      </head>
-      <body>{children}</body>
-    </html>
-  );
-}
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+    return (
+          <html lang="de">
+                <head>
+                        <meta name="robots" content="noindex, nofollow" />
+                        <meta name="referrer" content="no-referrer" />
+                </head>head>
+                <body>
+                        <AuthGuard>{children}</AuthGuard>AuthGuard>
+                </body>body>
+          </html>html>
+        );
+}</html>
