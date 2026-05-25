@@ -1,5 +1,7 @@
 'use client';
 
+// test commit
+
 import { useEffect } from 'react';
 import '../styles/globals.css';
 
