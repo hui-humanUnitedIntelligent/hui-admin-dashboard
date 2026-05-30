@@ -102,7 +102,7 @@ export default function TalentsPage() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {p.location && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>📍 {p.location}</span>}
                 <Badge variant={p.is_available ? 'success' : 'neutral'}>{p.is_available ? 'Verfügbar' : 'Nicht verfügbar'}</Badge>
-                {p.has_talent_profile && <Badge variant="accent">Profil ✓</Badge>}
+                {p.has_talent_profile && <Badge variant="info">Profil ✓</Badge>}
               </div>
               <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>
                 Impact: €{(p.impact_eur || 0).toFixed(0)}
@@ -144,3 +144,4 @@ export default function TalentsPage() {
     </DashboardLayout>
   );
 }
+
