@@ -1,240 +1,161 @@
+// frontend/src/app/settings/page.tsx
 'use client';
 
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Button from '@/components/ui/Button';
+import { SUPABASE_URL } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
-import { useAuth } from '@/lib/hooks/useAuth';
-
-const PERMS_DEFAULT = [
-  { name: 'User sperren/entsperren',    on: true  },
-  { name: 'Transaktionen einsehen',     on: true  },
-  { name: 'Impact Pool verwalten',      on: true  },
-  { name: 'Admin-Einstellungen',        on: false },
-  { name: 'Daten exportieren',          on: true  },
-];
 
 export default function SettingsPage() {
-  const { logout } = useAuth();
-  const [perms, setPerms] = useState(PERMS_DEFAULT);
-  const [name, setName]   = useState('Michael Admin');
-  const [email, setEmail] = useState('admin@hui-platform.io');
-  const [currentPw, setCurrentPw] = useState('');
-  const [newPw, setNewPw]         = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [refreshRate, setRefreshRate] = useState('30');
+  const [pageSize, setPageSize] = useState('50');
 
-  const handleSaveProfile = () => {
-    showToast('Profil gespeichert ✓');
-  };
-
-  const handleSavePassword = () => {
-    if (!currentPw || !newPw || !confirmPw) {
-      showToast('Bitte alle Felder ausfüllen', 'error');
-      return;
+  const handleSave = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hui_admin_refresh', refreshRate);
+      localStorage.setItem('hui_admin_pagesize', pageSize);
     }
-    if (newPw !== confirmPw) {
-      showToast('Passwörter stimmen nicht überein', 'error');
-      return;
-    }
-    if (newPw.length < 8) {
-      showToast('Passwort muss mindestens 8 Zeichen haben', 'error');
-      return;
-    }
-    showToast('Passwort geändert ✓');
-    setCurrentPw(''); setNewPw(''); setConfirmPw('');
-  };
-
-  const togglePerm = (i: number) => {
-    setPerms((prev) => prev.map((p, idx) => idx === i ? { ...p, on: !p.on } : p));
-    showToast(`"${perms[i].name}" ${perms[i].on ? 'deaktiviert' : 'aktiviert'}`);
+    setSaved(true);
+    showToast('Einstellungen gespeichert', 'success');
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%',
     padding: '8px 12px',
     background: 'var(--bg-tertiary)',
     border: '1px solid var(--border)',
     borderRadius: 8,
     fontSize: 12,
     color: 'var(--text-primary)',
-    fontFamily: 'DM Sans, sans-serif',
+    fontFamily: 'var(--font-body)',
     outline: 'none',
-    transition: 'border-color 0.15s',
+    width: '100%',
     boxSizing: 'border-box',
+    transition: 'border-color 0.15s',
   };
 
-  const cardStyle: React.CSSProperties = {
+  const sectionStyle: React.CSSProperties = {
     background: 'var(--bg-secondary)',
     border: '1px solid var(--border)',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
   };
 
-  const sectionLabel: React.CSSProperties = {
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: '1px',
-    textTransform: 'uppercase',
-    color: 'var(--text-muted)',
-    marginBottom: 14,
-    paddingBottom: 8,
+  const sectionHeaderStyle: React.CSSProperties = {
+    padding: '14px 18px',
     borderBottom: '1px solid var(--border)',
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'var(--text-primary)',
   };
 
-  const formLabel: React.CSSProperties = {
-    display: 'block',
-    fontSize: 11,
-    fontWeight: 500,
-    color: 'var(--text-secondary)',
-    marginBottom: 5,
+  const rowStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 18px',
+    borderBottom: '1px solid var(--border)',
+    gap: 20,
   };
 
   return (
     <DashboardLayout title="Einstellungen">
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
-        {/* Linke Spalte */}
-        <div>
-          {/* Profil */}
-          <div style={cardStyle}>
-            <div style={sectionLabel}>Admin-Profil</div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={formLabel}>Vollständiger Name</label>
-              <input
-                style={inputStyle}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
+      {/* Connection Config */}
+      <div style={sectionStyle}>
+        <div style={sectionHeaderStyle}>🔌 Verbindungs-Konfiguration</div>
+        <div style={{ padding: 18 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>
+              Supabase URL
+            </label>
+            <input
+              readOnly
+              value={SUPABASE_URL || '(nicht gesetzt — ENV-Variable fehlt)'}
+              style={{ ...inputStyle, color: SUPABASE_URL ? 'var(--green)' : 'var(--red)', cursor: 'default' }}
+            />
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+              Gesetzt via: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>NEXT_PUBLIC_SUPABASE_URL</code>
             </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={formLabel}>E-Mail</label>
-              <input
-                style={inputStyle}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={formLabel}>Rolle</label>
-              <input
-                style={{ ...inputStyle, opacity: 0.6, cursor: 'not-allowed' }}
-                value="Super Admin"
-                readOnly
-              />
-            </div>
-            <Button variant="primary" onClick={handleSaveProfile}>Profil speichern</Button>
           </div>
-
-          {/* Passwort */}
-          <div style={cardStyle}>
-            <div style={sectionLabel}>Passwort ändern</div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={formLabel}>Aktuelles Passwort</label>
-              <input style={inputStyle} type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="••••••••"
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>
+              Supabase Anon Key
+            </label>
+            <input
+              readOnly
+              value={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '••••••••••••••••••••••••••' : '(nicht gesetzt)'}
+              style={{ ...inputStyle, color: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'var(--green)' : 'var(--red)', cursor: 'default' }}
+            />
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+              Gesetzt via: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={formLabel}>Neues Passwort</label>
-              <input style={inputStyle} type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min. 8 Zeichen"
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={formLabel}>Bestätigen</label>
-              <input style={inputStyle} type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="••••••••"
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-            </div>
-            <Button variant="ghost" onClick={handleSavePassword}>Passwort ändern</Button>
+          </div>
+          <div style={{ padding: '10px 14px', background: 'var(--bg-tertiary)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            ℹ️ Umgebungsvariablen werden in <strong>Vercel → Settings → Environment Variables</strong> gesetzt. Das Dashboard liest nur — Supabase-Credentials nie im Code speichern.
           </div>
         </div>
+      </div>
 
-        {/* Rechte Spalte */}
-        <div>
-          {/* Berechtigungen */}
-          <div style={cardStyle}>
-            <div style={sectionLabel}>Berechtigungen</div>
-            {perms.map((perm, i) => (
-              <div
-                key={i}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: i < perms.length - 1 ? '1px solid var(--border)' : 'none' }}
-              >
-                <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{perm.name}</span>
-                <div
-                  onClick={() => togglePerm(i)}
-                  style={{
-                    width: 34,
-                    height: 18,
-                    borderRadius: 9,
-                    cursor: 'pointer',
-                    position: 'relative',
-                    background: perm.on ? 'var(--accent)' : 'var(--bg-card)',
-                    border: perm.on ? 'none' : '1px solid var(--border-hover)',
-                    transition: 'background 0.2s',
-                    flexShrink: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 2,
-                      left: perm.on ? 18 : 2,
-                      width: 14,
-                      height: 14,
-                      borderRadius: '50%',
-                      background: '#fff',
-                      transition: 'left 0.2s',
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+      {/* Dashboard Preferences */}
+      <div style={sectionStyle}>
+        <div style={sectionHeaderStyle}>⚙️ Dashboard-Einstellungen</div>
+        <div style={rowStyle}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Auto-Refresh Intervall</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Wie oft werden Live-Daten aktualisiert?</div>
           </div>
+          <select
+            value={refreshRate}
+            onChange={(e) => setRefreshRate(e.target.value)}
+            style={{ ...inputStyle, width: 120 }}
+          >
+            <option value="10">10 Sek.</option>
+            <option value="30">30 Sek.</option>
+            <option value="60">1 Min.</option>
+            <option value="300">5 Min.</option>
+          </select>
+        </div>
+        <div style={rowStyle}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Einträge pro Seite</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Standard für Tabellen</div>
+          </div>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(e.target.value)}
+            style={{ ...inputStyle, width: 120 }}
+          >
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div style={{ padding: 18 }}>
+          <Button variant="primary" onClick={handleSave}>
+            {saved ? '✓ Gespeichert' : 'Speichern'}
+          </Button>
+        </div>
+      </div>
 
-          {/* System */}
-          <div style={cardStyle}>
-            <div style={sectionLabel}>System</div>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.6 }}>
-              API-Endpunkte sind konfiguriert (Dummy-Modus). Live-Verbindungen werden separat aktiviert, wenn Backend und Datenbank verbunden sind.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <Button variant="ghost" fullWidth icon="⚡" onClick={() => showToast('API-Status: Dummy-Modus · alle Endpunkte konfiguriert')}>
-                API-Status prüfen
-              </Button>
-              <Button variant="ghost" fullWidth icon="⬇" onClick={() => showToast('System-Log wird exportiert…')}>
-                System-Log exportieren
-              </Button>
-              <Button variant="danger" fullWidth icon="⏏" onClick={logout}>
-                Abmelden
-              </Button>
+      {/* Info */}
+      <div style={sectionStyle}>
+        <div style={sectionHeaderStyle}>ℹ️ Dashboard-Info</div>
+        <div style={{ padding: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 10 }}>
+          {[
+            ['Version',       'v2.0.0-live'],
+            ['Mode',          SUPABASE_URL ? 'Live — Supabase' : 'Demo'],
+            ['Framework',     'Next.js 14'],
+            ['Charts',        'Chart.js'],
+            ['Build',         new Date().toLocaleDateString('de-DE')],
+          ].map(([k, v]) => (
+            <div key={k} style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{k}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{v}</div>
             </div>
-          </div>
-
-          {/* Version Info */}
-          <div style={{ ...cardStyle, marginBottom: 0 }}>
-            <div style={sectionLabel}>System-Info</div>
-            {[
-              ['Version',     'v1.0.0 (Dummy-Modus)'],
-              ['Umgebung',    'Development'],
-              ['Backend',     'Nicht verbunden'],
-              ['Datenbank',   'PostgreSQL (konfiguriert)'],
-              ['JWT-Gültigkeit', '8 Stunden'],
-            ].map(([key, val]) => (
-              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 11 }}>
-                <span style={{ color: 'var(--text-muted)' }}>{key}</span>
-                <span style={{ color: 'var(--text-secondary)', fontFamily: 'Space Mono, monospace', fontSize: 10 }}>{val}</span>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
     </DashboardLayout>
