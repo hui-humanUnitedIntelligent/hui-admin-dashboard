@@ -179,7 +179,7 @@ export default function UsersPage() {
                       : <Badge variant="neutral">User</Badge>}
                     </td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                      {u.is_wirker ? <Badge variant="accent">⭐ Wirker</Badge> : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}
+                      {u.is_wirker ? <Badge variant="info">⭐ Wirker</Badge> : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                       <Badge variant={u.membership_type === 'free' ? 'neutral' : 'info'}>
@@ -302,3 +302,4 @@ export default function UsersPage() {
     </DashboardLayout>
   );
 }
+
