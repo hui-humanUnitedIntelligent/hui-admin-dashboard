@@ -4,10 +4,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useSystemHealth, useKPIs } from '@/lib/hooks/useSupabase';
-import { SUPABASE_URL } from '@/lib/api';
+import { SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
 
-function StatusDot({ status }: { status: 'ok' | 'error' | 'unknown' | 'checking' }) {
-  const colors: Record<string, string> = {
+type CheckStatus = 'ok' | 'error' | 'unknown' | 'checking';
+
+interface ServiceCheck {
+  name: string;
+  status: CheckStatus;
+  latency: number;
+  detail: string;
+}
+
+function StatusDot({ status }: { status: CheckStatus }) {
+  const colors: Record<CheckStatus, string> = {
     ok:       'var(--green)',
     error:    'var(--red)',
     unknown:  'var(--text-muted)',
@@ -16,66 +25,63 @@ function StatusDot({ status }: { status: 'ok' | 'error' | 'unknown' | 'checking'
   return (
     <span style={{
       display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-      background: colors[status] || 'var(--text-muted)',
+      background: colors[status],
       animation: status === 'checking' ? 'pulse 1s ease-in-out infinite' : status === 'ok' ? 'blink 3s ease-in-out infinite' : 'none',
     }} />
   );
 }
 
+const INITIAL_CHECKS: ServiceCheck[] = [
+  { name: 'Supabase DB',      status: 'checking', latency: 0, detail: 'Prüfe...' },
+  { name: 'Supabase Auth',    status: 'checking', latency: 0, detail: 'Prüfe...' },
+  { name: 'Supabase Storage', status: 'checking', latency: 0, detail: 'Prüfe...' },
+  { name: 'API REST Layer',   status: 'checking', latency: 0, detail: 'Prüfe...' },
+];
+
 export default function SystemPage() {
-  const health   = useSystemHealth(15000);
-  const kpis     = useKPIs(60000);
-  const [checks, setChecks] = useState<Array<{ name: string; status: 'ok'|'error'|'unknown'|'checking'; latency: number; detail: string }>>([
-    { name: 'Supabase DB',      status: 'checking', latency: 0, detail: 'Prüfe...' },
-    { name: 'Supabase Auth',    status: 'checking', latency: 0, detail: 'Prüfe...' },
-    { name: 'Supabase Storage', status: 'checking', latency: 0, detail: 'Prüfe...' },
-    { name: 'API REST Layer',   status: 'checking', latency: 0, detail: 'Prüfe...' },
-  ]);
+  const health = useSystemHealth(15000);
+  const kpis   = useKPIs(60000);
+  const [checks, setChecks] = useState<ServiceCheck[]>(INITIAL_CHECKS);
 
   const runChecks = useCallback(async () => {
-    const results = [...checks].map((c) => ({ ...c, status: 'checking' as const }));
-    setChecks(results);
+    setChecks(INITIAL_CHECKS.map((c) => ({ ...c, status: 'checking' as CheckStatus })));
 
-    // Check DB
+    const results: ServiceCheck[] = [...INITIAL_CHECKS];
+
+    // 1. Check DB
     const t0 = Date.now();
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`, {
-        headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-        },
+        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
       });
       results[0] = { name: 'Supabase DB', status: r.ok ? 'ok' : 'error', latency: Date.now() - t0, detail: r.ok ? `HTTP ${r.status}` : `Fehler ${r.status}` };
     } catch (e: unknown) {
       results[0] = { name: 'Supabase DB', status: 'error', latency: Date.now() - t0, detail: (e as Error).message };
     }
 
-    // Check Auth
+    // 2. Check Auth
     const t1 = Date.now();
     try {
       const r = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
-        headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '' },
+        headers: { apikey: SUPABASE_ANON },
       });
       results[1] = { name: 'Supabase Auth', status: r.ok ? 'ok' : 'error', latency: Date.now() - t1, detail: r.ok ? 'Healthy' : `HTTP ${r.status}` };
     } catch (e: unknown) {
       results[1] = { name: 'Supabase Auth', status: 'error', latency: Date.now() - t1, detail: (e as Error).message };
     }
 
-    // Check Storage
+    // 3. Check Storage
     const t2 = Date.now();
     try {
       const r = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
-        headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-        },
+        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
       });
       results[2] = { name: 'Supabase Storage', status: r.ok ? 'ok' : 'error', latency: Date.now() - t2, detail: r.ok ? 'Reachable' : `HTTP ${r.status}` };
     } catch (e: unknown) {
       results[2] = { name: 'Supabase Storage', status: 'error', latency: Date.now() - t2, detail: (e as Error).message };
     }
 
-    // Check configured
+    // 4. Config check
     results[3] = {
       name: 'API REST Layer',
       status: SUPABASE_URL ? 'ok' : 'error',
@@ -86,7 +92,7 @@ export default function SystemPage() {
     setChecks(results);
   }, []);
 
-  useEffect(() => { runChecks(); }, []);
+  useEffect(() => { runChecks(); }, [runChecks]);
 
   const allOk = checks.every((c) => c.status === 'ok');
 
@@ -146,10 +152,10 @@ export default function SystemPage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }} className="grid-4">
           {[
-            { label: 'User gesamt',     value: kpis.loading ? '…' : kpis.totalUsers.toLocaleString('de-DE'), color: 'var(--accent)' },
-            { label: 'Aktive Wirker',   value: kpis.loading ? '…' : kpis.activeWirker.toLocaleString('de-DE'), color: 'var(--purple)' },
-            { label: 'Works publiziert',value: kpis.loading ? '…' : kpis.totalWorks.toLocaleString('de-DE'), color: 'var(--gold)' },
-            { label: 'Mitglieder',      value: kpis.loading ? '…' : kpis.activeMembers.toLocaleString('de-DE'), color: 'var(--green)' },
+            { label: 'User gesamt',      value: kpis.loading ? '…' : kpis.totalUsers.toLocaleString('de-DE'),   color: 'var(--accent)' },
+            { label: 'Aktive Wirker',    value: kpis.loading ? '…' : kpis.activeWirker.toLocaleString('de-DE'), color: 'var(--purple)' },
+            { label: 'Works publiziert', value: kpis.loading ? '…' : kpis.totalWorks.toLocaleString('de-DE'),   color: 'var(--gold)' },
+            { label: 'Mitglieder',       value: kpis.loading ? '…' : kpis.activeMembers.toLocaleString('de-DE'),color: 'var(--green)' },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ padding: 14, background: 'var(--bg-tertiary)', borderRadius: 8, textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
@@ -164,15 +170,14 @@ export default function SystemPage() {
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 12 }}>
           Environment-Konfiguration
         </div>
-        {[
-          ['NEXT_PUBLIC_SUPABASE_URL',             SUPABASE_URL ? '✅ Gesetzt' : '❌ Fehlt'],
-          ['NEXT_PUBLIC_SUPABASE_ANON_KEY',         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Gesetzt' : '❌ Fehlt'],
-          ['NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY', process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ? '✅ Gesetzt (Admin)' : '⚠️ Optional'],
-          ['NEXT_PUBLIC_API_URL',                   process.env.NEXT_PUBLIC_API_URL ? `✅ ${process.env.NEXT_PUBLIC_API_URL}` : 'ℹ️ Nicht gesetzt (Supabase-Modus)'],
-        ].map(([key, val]) => (
+        {([
+          ['NEXT_PUBLIC_SUPABASE_URL',              SUPABASE_URL ? '✅ Gesetzt'       : '❌ Fehlt'],
+          ['NEXT_PUBLIC_SUPABASE_ANON_KEY',          SUPABASE_ANON ? '✅ Gesetzt'     : '❌ Fehlt'],
+          ['NEXT_PUBLIC_API_URL',                    process.env.NEXT_PUBLIC_API_URL ? `✅ ${process.env.NEXT_PUBLIC_API_URL}` : 'ℹ️ Nicht gesetzt (Supabase-Modus)'],
+        ] as [string, string][]).map(([key, val]) => (
           <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
             <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: 11 }}>{key}</span>
-            <span style={{ color: String(val).startsWith('✅') ? 'var(--green)' : String(val).startsWith('❌') ? 'var(--red)' : 'var(--gold)', fontSize: 11 }}>{val}</span>
+            <span style={{ color: val.startsWith('✅') ? 'var(--green)' : val.startsWith('❌') ? 'var(--red)' : 'var(--gold)', fontSize: 11 }}>{val}</span>
           </div>
         ))}
       </div>
