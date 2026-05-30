@@ -1,125 +1,209 @@
+// frontend/src/app/impact/page.tsx
 'use client';
 
 import { useEffect, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import KPICard from '@/components/ui/KPICard';
-import { DUMMY_IMPACT, DUMMY_PROJECTS } from '@/lib/dummy/data';
+import { useImpactProjects, usePayments } from '@/lib/hooks/useSupabase';
+
+function fmtEur(n: number) {
+  return `€${n.toLocaleString('de-DE', { minimumFractionDigits: 0 })}`;
+}
 
 export default function ImpactPage() {
-  const chartRef = useRef<HTMLCanvasElement>(null);
+  const { projects, loading: projLoading, refetch } = useImpactProjects(30000);
+  const { payments, loading: payLoading } = usePayments({ refreshInterval: 30000, limit: 500 });
 
+  const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartInstance = useRef<unknown>(null);
+
+  // Aggregate impact stats from payments
+  const totalImpact   = payments.reduce((s, p) => s + (p.impact_amount || 0), 0);
+  const completedPay  = payments.filter((p) => p.status === 'completed');
+  const monthImpact   = completedPay.reduce((s, p) => s + (p.impact_amount || 0), 0);
+  const totalProjects = projects.length;
+  const activeProj    = projects.filter((p) => p.status === 'active').length;
+
+  // Build chart
   useEffect(() => {
-    let chart: unknown;
-    const load = async () => {
+    if (!projects.length) return;
+    (async () => {
       const { Chart, registerables } = await import('chart.js');
       Chart.register(...registerables);
       if (chartRef.current) {
-        chart = new Chart(chartRef.current, {
-          type: 'bar',
+        if (chartInstance.current) (chartInstance.current as { destroy: () => void }).destroy();
+        chartInstance.current = new Chart(chartRef.current, {
+          type: 'doughnut',
           data: {
-            labels: DUMMY_IMPACT.history.labels,
-            datasets: [
-              { label: 'Einzahlungen', data: DUMMY_IMPACT.history.deposits,     backgroundColor: 'rgba(78,205,196,0.7)',  borderRadius: 4, borderSkipped: false },
-              { label: 'Auszahlungen', data: DUMMY_IMPACT.history.withdrawals,  backgroundColor: 'rgba(255,107,107,0.5)', borderRadius: 4, borderSkipped: false },
-            ],
+            labels: projects.slice(0, 6).map((p) => p.name),
+            datasets: [{
+              data: projects.slice(0, 6).map((p) => p.votes || 1),
+              backgroundColor: projects.slice(0, 6).map((p) => p.color || '#4ECDC4'),
+              borderWidth: 0,
+              hoverOffset: 6,
+            }],
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid: { display: false }, ticks: { color: '#8892A4', font: { size: 10 } } },
-              y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#8892A4', font: { size: 10 }, callback: (v) => `€${v}` } },
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { color: '#8892A4', font: { size: 11 }, padding: 12 },
+              },
             },
           },
         });
       }
-    };
-    load();
-    return () => (chart as { destroy?: () => void })?.destroy?.();
-  }, []);
+    })();
+  }, [projects.map((p) => p.id).join(',')]);
 
   return (
-    <DashboardLayout title="Impact Pool">
-      {/* Hero */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg,rgba(78,205,196,.15),rgba(78,205,196,.05))',
-          border: '1px solid rgba(78,205,196,.3)',
-          borderRadius: 16,
-          padding: '24px',
-          textAlign: 'center',
-          marginBottom: 20,
-        }}
-      >
-        <div style={{ fontSize: 11, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>
-          🌱 Impact Pool — Gesamtstand
+    <DashboardLayout
+      title="Impact Pool"
+      headerActions={
+        <button onClick={refetch} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5 }}>
+          ↻ Refresh
+        </button>
+      }
+    >
+      {/* Hero Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(78,205,196,.18), rgba(78,205,196,.05))',
+        border: '1px solid rgba(78,205,196,.25)',
+        borderRadius: 16, padding: '24px', textAlign: 'center', marginBottom: 18,
+      }}>
+        <div style={{ fontSize: 11, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>
+          🌱 Impact Pool — Live Stand
         </div>
-        <div style={{ fontSize: 40, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'Space Mono, monospace', letterSpacing: '-2px' }}>
-          €{DUMMY_IMPACT.balance.toLocaleString('de-DE')}
+        <div style={{ fontSize: 42, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-2px' }}>
+          {payLoading ? '—' : fmtEur(totalImpact)}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
-          Stand: Mai 2025 · Dummy-Modus aktiv
+          Aus {completedPay.length} abgeschlossenen Zahlungen · Live aus Supabase
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-        <KPICard label="Einzahlungen (Monat)"  value="€2.840" delta="18%"  deltaPositive icon="↓" accentColor="#4ECDC4" accentDim="rgba(78,205,196,0.12)" />
-        <KPICard label="Auszahlungen (Monat)"  value="€1.120" delta="4%"   deltaPositive={false} icon="↑" accentColor="#F7B731" accentDim="rgba(247,183,49,0.12)" />
-        <KPICard label="Projekte unterstützt"  value="14"     delta="3 neu" deltaPositive icon="🎯" accentColor="#74C0FC" accentDim="rgba(116,192,252,0.12)" />
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }} className="grid-4">
+        <KPICard label="Impact (Monat)"     value={payLoading ? '—' : fmtEur(monthImpact)}  delta="Live"     deltaPositive icon="↓" accentColor="#4ECDC4" accentDim="rgba(78,205,196,0.12)" />
+        <KPICard label="Projekte total"     value={projLoading ? '—' : String(totalProjects)} delta="gesamt"  deltaPositive icon="🎯" accentColor="#74C0FC" accentDim="rgba(116,192,252,0.12)" />
+        <KPICard label="Aktive Projekte"    value={projLoading ? '—' : String(activeProj)}   delta="aktiv"   deltaPositive icon="✅" accentColor="#51CF66" accentDim="rgba(81,207,102,0.12)" />
+        <KPICard label="Zahlungen (Impact)" value={payLoading ? '—' : String(completedPay.length)} delta="completed" deltaPositive icon="€" accentColor="#F7B731" accentDim="rgba(247,183,49,0.12)" />
       </div>
 
-      {/* Chart + Projekte */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12 }}>
-        {/* Chart */}
+      {/* Chart + Projects */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 12, marginBottom: 18 }} className="grid-2-1">
+        {/* Doughnut */}
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-          <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Pool-Verlauf</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Letzte 6 Monate</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, fontSize: 11 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(78,205,196,0.7)', display: 'inline-block' }} /> Einzahlungen
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(255,107,107,0.5)', display: 'inline-block' }} /> Auszahlungen
-              </span>
-            </div>
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 4 }}>Votes-Verteilung</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14 }}>Top-Projekte nach Stimmen</div>
           <div style={{ position: 'relative', height: 200 }}>
-            <canvas ref={chartRef} />
+            {projLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 12 }}>Lade…</div>
+            ) : projects.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 12 }}>Keine Projekte</div>
+            ) : (
+              <canvas ref={chartRef} />
+            )}
           </div>
         </div>
 
-        {/* Projekte */}
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>
-            Unterstützte Projekte
+        {/* Project List */}
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Impact-Projekte</div>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{totalProjects} total</span>
           </div>
-          <div>
-            {DUMMY_PROJECTS.map((proj) => (
-              <div
-                key={proj.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}
-              >
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: `${proj.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                  {proj.icon}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>{proj.name}</div>
-                  <div style={{ height: 4, background: 'var(--bg-tertiary)', borderRadius: 2 }}>
-                    <div style={{ height: '100%', width: `${proj.progress}%`, background: proj.color, borderRadius: 2, transition: 'width 0.6s ease' }} />
+          <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+            {projLoading ? (
+              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Lade…</div>
+            ) : projects.length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Keine Projekte vorhanden</div>
+            ) : (
+              projects.map((proj) => {
+                const goal = proj.goal_eur || 0;
+                const awarded = proj.awarded_eur || 0;
+                const pct = goal > 0 ? Math.min(100, Math.round((awarded / goal) * 100)) : 0;
+                return (
+                  <div key={proj.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', transition: 'background 0.1s' }}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--bg-tertiary)')}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: proj.color || 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                        {proj.icon || '🎯'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {proj.name}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                          {proj.category || '—'} · {proj.votes || 0} Votes · {proj.status}
+                        </div>
+                      </div>
+                      {goal > 0 && (
+                        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--accent)', flexShrink: 0 }}>
+                          {fmtEur(awarded)} / {fmtEur(goal)}
+                        </div>
+                      )}
+                    </div>
+                    {goal > 0 && (
+                      <div style={{ height: 4, background: 'var(--bg-tertiary)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: proj.color || 'var(--accent)', borderRadius: 2, transition: 'width 0.5s' }} />
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{proj.progress}% Ziel erreicht</div>
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--green)', fontFamily: 'Space Mono, monospace', flexShrink: 0 }}>
-                  €{proj.amount.toLocaleString('de-DE')}
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
+        </div>
+      </div>
+
+      {/* All projects table */}
+      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Alle Projekte — Detailtabelle</div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr>
+                {['Projekt', 'Kategorie', 'Votes', 'Status', 'Ziel', 'Vergeben', 'Monat'].map((h) => (
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {projLoading ? (
+                <tr><td colSpan={7} style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Lade…</td></tr>
+              ) : projects.length === 0 ? (
+                <tr><td colSpan={7} style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Keine Projekte</td></tr>
+              ) : (
+                projects.map((p) => (
+                  <tr key={p.id} className="tr-hover">
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>{p.icon || '🎯'}</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{p.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>{p.category || '—'}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--accent)', fontFamily: 'var(--font-mono)', borderBottom: '1px solid var(--border)' }}>{p.votes || 0}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: p.status === 'active' ? 'var(--green-dim)' : 'var(--bg-tertiary)', color: p.status === 'active' ? 'var(--green)' : 'var(--text-muted)' }}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>{p.goal_eur ? fmtEur(p.goal_eur) : '—'}</td>
+                    <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green)', borderBottom: '1px solid var(--border)' }}>{p.awarded_eur ? fmtEur(p.awarded_eur) : '—'}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{p.month || '—'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </DashboardLayout>
