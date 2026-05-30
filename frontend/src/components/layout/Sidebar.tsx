@@ -1,285 +1,218 @@
+// frontend/src/components/layout/Sidebar.tsx
 'use client';
 
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useSystemHealth } from '@/lib/hooks/useSupabase';
 
 interface NavItem {
   href: string;
   label: string;
   icon: string;
-  badge?: number;
+  group: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard',     label: 'Dashboard',       icon: '⊞' },
-  { href: '/users',         label: 'Users',            icon: '◎', badge: 12 },
-  { href: '/transactions',  label: 'Transaktionen',    icon: '⇄' },
-  { href: '/impact',        label: 'Impact Pool',      icon: '◈' },
-  { href: '/settings',      label: 'Einstellungen',    icon: '⚙' },
+const NAV: NavItem[] = [
+  { href: '/dashboard',    label: 'Dashboard',       icon: '⊞', group: 'Übersicht'  },
+  { href: '/users',        label: 'User-Management', icon: '◎', group: 'Management' },
+  { href: '/talents',      label: 'Talent-Pool',     icon: '⭐', group: 'Management' },
+  { href: '/transactions', label: 'Transaktionen',   icon: '⇄', group: 'Management' },
+  { href: '/bookings',     label: 'Buchungen',       icon: '📅', group: 'Management' },
+  { href: '/impact',       label: 'Impact Pool',     icon: '🌱', group: 'Management' },
+  { href: '/works',        label: 'Works & Content', icon: '🎨', group: 'Content'    },
+  { href: '/memberships',  label: 'Mitgliedschaften',icon: '🏅', group: 'Content'    },
+  { href: '/audit',        label: 'Audit Logs',      icon: '📋', group: 'System'     },
+  { href: '/system',       label: 'System Status',   icon: '🔧', group: 'System'     },
+  { href: '/settings',     label: 'Einstellungen',   icon: '⚙',  group: 'System'     },
 ];
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+const GROUPS = ['Übersicht', 'Management', 'Content', 'System'];
+
+function getInitials(name: string) {
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { logout, currentUser } = useAuth();
+  const { supabase: dbStatus } = useSystemHealth(60000);
+
+  const grouped = GROUPS.reduce<Record<string, NavItem[]>>((acc, g) => {
+    acc[g] = NAV.filter((n) => n.group === g);
+    return acc;
+  }, {});
 
   return (
-    <aside
-      style={{
-        width: 220,
-        minWidth: 220,
-        background: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-      }}
-    >
-      {/* Logo */}
-      <div
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            zIndex: 999, display: 'none',
+          }}
+          className="hide-desktop"
+        />
+      )}
+
+      <aside
         style={{
-          padding: '20px 20px 16px',
-          borderBottom: '1px solid var(--border)',
+          width: 230,
+          minWidth: 230,
+          background: 'var(--bg-secondary)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          transition: 'transform 0.3s ease',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              background: 'var(--accent)',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'Space Mono, monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#0F1117',
-              letterSpacing: '0.5px',
-            }}
-          >
-            HUI
-          </div>
-          <div>
+        {/* ── Logo ── */}
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
               style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--text-primary)',
+                width: 36, height: 36,
+                background: 'linear-gradient(135deg, var(--accent), #2BC5BB)',
+                borderRadius: 9,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11, fontWeight: 700,
+                color: '#0F1117', letterSpacing: '0.5px',
+                boxShadow: '0 0 12px rgba(78,205,196,0.3)',
               }}
             >
-              HUI Admin
+              HUI
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                color: 'var(--text-muted)',
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-              }}
-            >
-              Control Center
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto' }}>
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '1.5px',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            padding: '8px 20px 4px',
-          }}
-        >
-          Übersicht
-        </div>
-        <Link
-          href="/dashboard"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '9px 20px',
-            textDecoration: 'none',
-            fontSize: 13,
-            borderLeft: `2px solid ${pathname === '/dashboard' ? 'var(--accent)' : 'transparent'}`,
-            background: pathname === '/dashboard' ? 'var(--accent-dim)' : 'transparent',
-            color: pathname === '/dashboard' ? 'var(--accent)' : 'var(--text-secondary)',
-            transition: 'all 0.15s',
-          }}
-        >
-          <span style={{ fontSize: 15 }}>⊞</span> Dashboard
-        </Link>
-
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '1.5px',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            padding: '12px 20px 4px',
-          }}
-        >
-          Management
-        </div>
-
-        {NAV_ITEMS.slice(1, 4).map((item) => {
-          const active = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '9px 20px',
-                textDecoration: 'none',
-                fontSize: 13,
-                borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
-                background: active ? 'var(--accent-dim)' : 'transparent',
-                color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 15, width: 18 }}>{item.icon}</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge && (
-                <span
-                  style={{
-                    background: 'var(--accent)',
-                    color: '#0F1117',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: 10,
-                  }}
-                >
-                  {item.badge}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Admin Control
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                <span className="live-dot" style={{ width: 5, height: 5 }} />
+                <span style={{ fontSize: 10, color: dbStatus === 'ok' ? 'var(--green)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                  {dbStatus === 'ok' ? 'Live' : dbStatus === 'error' ? 'Offline' : 'Connecting'}
                 </span>
-              )}
-            </Link>
-          );
-        })}
-
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '1.5px',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            padding: '12px 20px 4px',
-          }}
-        >
-          System
+              </div>
+            </div>
+          </div>
         </div>
-        <Link
-          href="/settings"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '9px 20px',
-            textDecoration: 'none',
-            fontSize: 13,
-            borderLeft: `2px solid ${pathname === '/settings' ? 'var(--accent)' : 'transparent'}`,
-            background: pathname === '/settings' ? 'var(--accent-dim)' : 'transparent',
-            color: pathname === '/settings' ? 'var(--accent)' : 'var(--text-secondary)',
-            transition: 'all 0.15s',
-          }}
-        >
-          <span style={{ fontSize: 15 }}>⚙</span> Einstellungen
-        </Link>
-      </nav>
 
-      {/* Footer: Admin-User */}
-      <div
-        style={{
-          padding: '12px 20px',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '8px 10px',
-            background: 'var(--bg-tertiary)',
-            borderRadius: 8,
-            border: '1px solid var(--border)',
-          }}
-        >
+        {/* ── Navigation ── */}
+        <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto' }}>
+          {GROUPS.map((group) => (
+            <div key={group}>
+              <div
+                style={{
+                  fontSize: 9, fontWeight: 700,
+                  letterSpacing: '1.8px', textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  padding: '10px 20px 4px',
+                }}
+              >
+                {group}
+              </div>
+              {grouped[group].map((item) => {
+                const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 9,
+                      padding: '8px 20px',
+                      textDecoration: 'none',
+                      fontSize: 12.5,
+                      borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
+                      background: active ? 'var(--accent-dim)' : 'transparent',
+                      color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                      transition: 'all 0.12s',
+                      fontWeight: active ? 500 : 400,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!active) {
+                        (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)';
+                        (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active) {
+                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: 14, width: 18, textAlign: 'center', flexShrink: 0 }}>
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        {/* ── Footer: Admin User ── */}
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
           <div
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#0F1117',
-              flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px',
+              background: 'var(--bg-tertiary)',
+              borderRadius: 10,
+              border: '1px solid var(--border)',
             }}
           >
-            {getInitials(currentUser?.name || 'Admin')}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--text-primary)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                width: 30, height: 30, borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--accent), #2BC5BB)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 700, color: '#0F1117', flexShrink: 0,
               }}
             >
-              {currentUser?.name || 'Admin'}
+              {getInitials(currentUser?.name || 'Admin')}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-              Super Admin
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 11.5, fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}
+              >
+                {currentUser?.name || 'Admin'}
+              </div>
+              <div style={{ fontSize: 9.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                {currentUser?.role || 'Super Admin'}
+              </div>
             </div>
+            <button
+              onClick={logout}
+              title="Abmelden"
+              style={{
+                background: 'none', border: 'none',
+                cursor: 'pointer', color: 'var(--text-muted)',
+                fontSize: 14, padding: 2, lineHeight: 1,
+                transition: 'color 0.15s',
+                borderRadius: 4,
+              }}
+              onMouseEnter={(e) => ((e.target as HTMLElement).style.color = 'var(--red)')}
+              onMouseLeave={(e) => ((e.target as HTMLElement).style.color = 'var(--text-muted)')}
+            >
+              ⏏
+            </button>
           </div>
-          <button
-            onClick={logout}
-            title="Abmelden"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-              fontSize: 14,
-              padding: 2,
-              lineHeight: 1,
-            }}
-          >
-            ⏏
-          </button>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
