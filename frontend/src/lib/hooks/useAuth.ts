@@ -1,65 +1,82 @@
+// frontend/src/lib/hooks/useAuth.ts
 'use client';
 
 import { useState, useCallback } from 'react';
-import api, { storeAuth, clearAuth, getStoredUser } from '../api';
+import api, { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL } from '../api';
 
 export interface AdminUser {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   role: string;
 }
 
+const DEMO_ADMIN: AdminUser = {
+  id: 0,
+  name: 'HUI Admin',
+  email: 'admin@hui-platform.io',
+  role: 'super_admin',
+};
+
+// Check if Supabase is configured
+const hasSupabase = () => !!(SUPABASE_URL);
+
 export function useAuth() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
-  const login = useCallback(
-    async (email: string, password: string): Promise<boolean> => {
-      setLoading(true);
-      setError(null);
-      try {
-        // In Dummy-Modus: Demo-Login ohne echten API-Call
-        if (
-          process.env.NEXT_PUBLIC_ENV !== 'production' ||
-          !process.env.NEXT_PUBLIC_API_URL
-        ) {
-          if (email === 'admin@hui-platform.io' && password === 'admin123') {
-            const dummyToken = 'dummy-jwt-token-' + Date.now();
-            const dummyUser: AdminUser = {
-              id: 1,
-              name: 'Michael Admin',
-              email,
-              role: 'super_admin',
-            };
-            storeAuth(dummyToken, dummyUser);
-            return true;
-          }
-          setError('Ungültige Anmeldedaten');
-          return false;
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1. Try Supabase Auth (live HUI app users)
+      if (hasSupabase()) {
+        const supaRes = await supabaseAdminLogin(email, password);
+        if (supaRes?.access_token) {
+          const user: AdminUser = {
+            id: supaRes.user?.id || 0,
+            name: supaRes.user?.user_metadata?.full_name || supaRes.user?.email || 'Admin',
+            email: supaRes.user?.email || email,
+            role: supaRes.user?.role || 'admin',
+          };
+          storeAuth(supaRes.access_token, user);
+          return true;
         }
-
-        // Live-API-Call
-        const { data } = await api.post('/auth/login', { email, password });
-        storeAuth(data.token, data.admin);
-        return true;
-      } catch (err: unknown) {
-        const msg =
-          err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen';
-        setError(msg);
-        return false;
-      } finally {
-        setLoading(false);
       }
-    },
-    []
-  );
+
+      // 2. Try legacy backend
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        const { data } = await api.post('/auth/login', { email, password });
+        if (data?.token) {
+          storeAuth(data.token, data.admin);
+          return true;
+        }
+      }
+
+      // 3. Demo mode (only if no live backends configured)
+      if (!hasSupabase() && !process.env.NEXT_PUBLIC_API_URL) {
+        if (email === 'admin@hui-platform.io' && password === 'admin123') {
+          storeAuth('demo-token-' + Date.now(), DEMO_ADMIN);
+          return true;
+        }
+      }
+
+      setError('Ungültige Anmeldedaten');
+      return false;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen';
+      setError(msg);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/auth/logout');
-    } catch {
-      // Token löschen auch wenn API-Call fehlschlägt
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        await api.post('/auth/logout').catch(() => {});
+      }
     } finally {
       clearAuth();
       window.location.href = '/login';
