@@ -240,12 +240,13 @@ export function useKPIs(refreshInterval = 30000) {
 export function useProfiles(opts: {
   search?: string;
   role?: string;
+  status?: 'all' | 'active' | 'blocked' | 'deleted';
   is_wirker?: boolean;
   page?: number;
   limit?: number;
   refreshInterval?: number;
 } = {}) {
-  const { search, role, is_wirker, page = 0, limit = 50, refreshInterval = 0 } = opts;
+  const { search, role, status = 'active', is_wirker, page = 0, limit = 50, refreshInterval = 0 } = opts;
   const [profiles, setProfiles] = useState<HuiProfile[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -257,8 +258,20 @@ export function useProfiles(opts: {
       const params: Record<string, string> = {};
       if (role && role !== 'all') params['role'] = `eq.${role}`;
       if (is_wirker !== undefined) params['is_wirker'] = `eq.${is_wirker}`;
-      // Exclude soft-deleted users
-      params['trust_score'] = 'not.eq.-999';
+
+      // Status-based filtering
+      if (status === 'deleted') {
+        params['trust_score'] = 'eq.-999';
+      } else if (status === 'blocked') {
+        params['role'] = 'eq.blocked';
+        // remove any role filter override
+      } else if (status === 'active') {
+        params['trust_score'] = 'not.eq.-999';
+        if (!params['role']) params['role'] = 'not.eq.blocked';
+      } else {
+        // 'all' — exclude only deleted
+        params['trust_score'] = 'not.eq.-999';
+      }
 
       const select = 'id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,created_at,updated_at,skills,focus_type';
 
@@ -290,7 +303,7 @@ export function useProfiles(opts: {
     } finally {
       setLoading(false);
     }
-  }, [search, role, is_wirker, page, limit]);
+  }, [search, role, status, is_wirker, page, limit]);
 
   useEffect(() => {
     fetch();
@@ -595,5 +608,6 @@ export function useSystemHealth(refreshInterval = 30000) {
 
   return health;
 }
+
 
 
