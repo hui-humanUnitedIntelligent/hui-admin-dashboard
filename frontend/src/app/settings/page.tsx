@@ -1,255 +1,240 @@
 // frontend/src/app/settings/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Button from '@/components/ui/Button';
-import { SUPABASE_URL } from '@/lib/api';
 import { showToast } from '@/components/ui/Toast';
+import { useSettings, Theme, Lang } from '@/components/providers/ThemeProvider';
 
 const STORAGE_KEY_REFRESH  = 'hui_admin_refresh';
 const STORAGE_KEY_PAGESIZE = 'hui_admin_pagesize';
-const STORAGE_KEY_THEME    = 'hui_admin_theme';
-const STORAGE_KEY_LANG     = 'hui_admin_lang';
 
 export default function SettingsPage() {
-  const [saved, setSaved]           = useState(false);
-  const [refreshRate, setRefreshRate] = useState('30');
-  const [pageSize, setPageSize]       = useState('50');
-  const [theme, setTheme]             = useState('dark');
-  const [lang, setLang]               = useState('de');
-  const [loaded, setLoaded]           = useState(false);
+  const { theme, lang, setTheme, setLang, t } = useSettings();
 
-  // ── Load saved values on mount ──────────────────────────────
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const r  = localStorage.getItem(STORAGE_KEY_REFRESH);
-      const ps = localStorage.getItem(STORAGE_KEY_PAGESIZE);
-      const th = localStorage.getItem(STORAGE_KEY_THEME);
-      const lg = localStorage.getItem(STORAGE_KEY_LANG);
-      if (r)  setRefreshRate(r);
-      if (ps) setPageSize(ps);
-      if (th) setTheme(th);
-      if (lg) setLang(lg);
-    }
-    setLoaded(true);
-  }, []);
+  const [refreshRate, setRefreshRate] = useState(
+    () => (typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_REFRESH)  || '30' : '30')
+  );
+  const [pageSize, setPageSize] = useState(
+    () => (typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_PAGESIZE) || '50' : '50')
+  );
 
-  // ── Save all settings ────────────────────────────────────────
   const handleSave = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY_REFRESH,  refreshRate);
       localStorage.setItem(STORAGE_KEY_PAGESIZE, pageSize);
-      localStorage.setItem(STORAGE_KEY_THEME,    theme);
-      localStorage.setItem(STORAGE_KEY_LANG,     lang);
     }
-    setSaved(true);
-    showToast('✅ Einstellungen gespeichert', 'success');
-    setTimeout(() => setSaved(false), 3000);
+    showToast(t('settings.saved'), 'success');
   };
 
-  // ── Reset to defaults ────────────────────────────────────────
   const handleReset = () => {
-    setRefreshRate('30');
-    setPageSize('50');
     setTheme('dark');
     setLang('de');
+    setRefreshRate('30');
+    setPageSize('50');
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY_REFRESH);
       localStorage.removeItem(STORAGE_KEY_PAGESIZE);
-      localStorage.removeItem(STORAGE_KEY_THEME);
-      localStorage.removeItem(STORAGE_KEY_LANG);
     }
-    showToast('Einstellungen zurückgesetzt', 'info');
+    showToast(t('settings.resetDone'), 'info');
   };
 
-  const inputStyle: React.CSSProperties = {
-    padding: '8px 12px',
-    background: 'var(--bg-tertiary)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    fontSize: 12,
-    color: 'var(--text-primary)',
-    fontFamily: 'var(--font-body)',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-  };
-
-  const sectionStyle: React.CSSProperties = {
+  // ── Styles ───────────────────────────────────────────────────────────────
+  const section: React.CSSProperties = {
     background: 'var(--bg-secondary)',
     border: '1px solid var(--border)',
     borderRadius: 12,
     marginBottom: 16,
     overflow: 'hidden',
   };
-
-  const sectionHeaderStyle: React.CSSProperties = {
-    padding: '14px 18px',
-    borderBottom: '1px solid var(--border)',
-    fontSize: 13,
-    fontWeight: 500,
-    color: 'var(--text-primary)',
+  const row: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '18px 20px', borderBottom: '1px solid var(--border)',
+  };
+  const rowLast: React.CSSProperties = { ...row, borderBottom: 'none' };
+  const label: React.CSSProperties = {
+    fontSize: 13, fontWeight: 500, color: 'var(--text-primary)',
+  };
+  const desc: React.CSSProperties = {
+    fontSize: 11, color: 'var(--text-muted)', marginTop: 2,
+  };
+  const selectStyle: React.CSSProperties = {
+    padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+    background: 'var(--bg-tertiary)', border: '1px solid var(--border-strong)',
+    color: 'var(--text-primary)', fontFamily: 'var(--font-body)',
+    outline: 'none', cursor: 'pointer', minWidth: 130,
   };
 
-  const rowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 18px',
-    borderBottom: '1px solid var(--border)',
-    gap: 20,
-  };
+  // Theme toggle cards
+  const themeCard = (value: Theme, icon: string, labelText: string): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
+    border: `2px solid ${theme === value ? 'var(--accent)' : 'var(--border)'}`,
+    background: theme === value ? 'var(--accent-dim)' : 'var(--bg-tertiary)',
+    color: theme === value ? 'var(--accent)' : 'var(--text-secondary)',
+    fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)',
+    transition: 'all 0.2s', userSelect: 'none',
+  });
 
-  if (!loaded) return null;
+  const langCard = (value: Lang): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
+    border: `2px solid ${lang === value ? 'var(--accent)' : 'var(--border)'}`,
+    background: lang === value ? 'var(--accent-dim)' : 'var(--bg-tertiary)',
+    color: lang === value ? 'var(--accent)' : 'var(--text-secondary)',
+    fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)',
+    transition: 'all 0.2s', userSelect: 'none',
+  });
 
   return (
-    <DashboardLayout title="Einstellungen">
+    <DashboardLayout title={t('settings.title')}>
+      <div style={{ maxWidth: 680 }}>
 
-      {/* ── Connection Config ─────────────────────────────── */}
-      <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>🔌 Verbindungs-Konfiguration</div>
-        <div style={{ padding: 18 }}>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>
-              Supabase URL
-            </label>
-            <input
-              readOnly
-              value={SUPABASE_URL || '(nicht gesetzt — ENV-Variable fehlt)'}
-              style={{ ...inputStyle, color: SUPABASE_URL ? 'var(--green)' : 'var(--red)', cursor: 'default' }}
-            />
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
-              Gesetzt via: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>NEXT_PUBLIC_SUPABASE_URL</code>
+        {/* ── Appearance ── */}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, fontWeight: 600 }}>
+          {lang === 'de' ? 'Erscheinungsbild' : 'Appearance'}
+        </div>
+        <div style={section}>
+          {/* Theme */}
+          <div style={row}>
+            <div>
+              <div style={label}>{t('settings.theme')}</div>
+              <div style={desc}>{t('settings.theme.desc')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={themeCard('dark',  '🌙', t('settings.theme.dark'))}  onClick={() => setTheme('dark')}>
+                🌙 {t('settings.theme.dark')}
+              </button>
+              <button style={themeCard('light', '☀️', t('settings.theme.light'))} onClick={() => setTheme('light')}>
+                ☀️ {t('settings.theme.light')}
+              </button>
             </div>
           </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>
-              Supabase Anon Key
-            </label>
-            <input
-              readOnly
-              value={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '••••••••••••••••••••••••••' : '(nicht gesetzt)'}
-              style={{ ...inputStyle, color: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'var(--green)' : 'var(--red)', cursor: 'default' }}
-            />
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
-              Gesetzt via: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
+
+          {/* Language */}
+          <div style={rowLast}>
+            <div>
+              <div style={label}>{t('settings.lang')}</div>
+              <div style={desc}>{t('settings.lang.desc')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={langCard('de')} onClick={() => setLang('de')}>
+                🇩🇪 Deutsch
+              </button>
+              <button style={langCard('en')} onClick={() => setLang('en')}>
+                🇬🇧 English
+              </button>
             </div>
           </div>
-          <div style={{ padding: '10px 14px', background: 'var(--bg-tertiary)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            ℹ️ Umgebungsvariablen werden in <strong>Vercel → Settings → Environment Variables</strong> gesetzt.
-          </div>
-        </div>
-      </div>
-
-      {/* ── Dashboard Preferences ─────────────────────────── */}
-      <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>⚙️ Dashboard-Einstellungen</div>
-
-        <div style={rowStyle}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Auto-Refresh Intervall</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Wie oft werden Live-Daten aktualisiert?</div>
-          </div>
-          <select value={refreshRate} onChange={(e) => setRefreshRate(e.target.value)} style={{ ...inputStyle, width: 130 }}>
-            <option value="10">10 Sek.</option>
-            <option value="30">30 Sek.</option>
-            <option value="60">1 Min.</option>
-            <option value="300">5 Min.</option>
-          </select>
         </div>
 
-        <div style={rowStyle}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Einträge pro Seite</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Standard für Tabellen</div>
+        {/* ── Data ── */}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, marginTop: 24, fontWeight: 600 }}>
+          {lang === 'de' ? 'Daten & Performance' : 'Data & Performance'}
+        </div>
+        <div style={section}>
+          {/* Refresh Rate */}
+          <div style={row}>
+            <div>
+              <div style={label}>{t('settings.refresh')}</div>
+              <div style={desc}>{lang === 'de' ? 'Wie oft werden Live-Daten aktualisiert' : 'How often live data is refreshed'}</div>
+            </div>
+            <select
+              style={{ ...selectStyle, minWidth: 100 }}
+              value={refreshRate}
+              onChange={(e) => setRefreshRate(e.target.value)}
+            >
+              {['10','15','30','60','120'].map((v) => (
+                <option key={v} value={v}>{v}s</option>
+              ))}
+            </select>
           </div>
-          <select value={pageSize} onChange={(e) => setPageSize(e.target.value)} style={{ ...inputStyle, width: 130 }}>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
+
+          {/* Page Size */}
+          <div style={rowLast}>
+            <div>
+              <div style={label}>{t('settings.pagesize')}</div>
+              <div style={desc}>{lang === 'de' ? 'Anzahl der Einträge in Tabellen' : 'Number of entries shown in tables'}</div>
+            </div>
+            <select
+              style={{ ...selectStyle, minWidth: 100 }}
+              value={pageSize}
+              onChange={(e) => setPageSize(e.target.value)}
+            >
+              {['25','50','100','200'].map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div style={rowStyle}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Theme</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Erscheinungsbild des Dashboards</div>
+        {/* ── Connection Info ── */}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, marginTop: 24, fontWeight: 600 }}>
+          {lang === 'de' ? 'Verbindung' : 'Connection'}
+        </div>
+        <div style={section}>
+          <div style={row}>
+            <div>
+              <div style={label}>Supabase</div>
+              <div style={{ ...desc, fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+                {process.env.NEXT_PUBLIC_SUPABASE_URL || 'gxztrhvhcxhmunhhkfjd.supabase.co'}
+              </div>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--green)', background: 'var(--green-dim)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--green-dim)' }}>
+              ● {lang === 'de' ? 'Verbunden' : 'Connected'}
+            </span>
           </div>
-          <select value={theme} onChange={(e) => setTheme(e.target.value)} style={{ ...inputStyle, width: 130 }}>
-            <option value="dark">Dark (Standard)</option>
-            <option value="light">Light</option>
-          </select>
+          <div style={rowLast}>
+            <div>
+              <div style={label}>Service Role</div>
+              <div style={desc}>{lang === 'de' ? 'Server-seitige Admin-Schreibrechte' : 'Server-side admin write access'}</div>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--green)', background: 'var(--green-dim)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--green-dim)' }}>
+              ● {lang === 'de' ? 'Aktiv' : 'Active'}
+            </span>
+          </div>
         </div>
 
-        <div style={{ ...rowStyle, borderBottom: 'none' }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>Sprache</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dashboard-Sprache</div>
+        {/* ── Preview ── */}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, marginTop: 24, fontWeight: 600 }}>
+          {lang === 'de' ? 'Vorschau' : 'Preview'}
+        </div>
+        <div style={{
+          ...section,
+          padding: 20,
+          display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--accent-dim)', border: '1px solid var(--accent)', color: 'var(--accent)', fontSize: 12 }}>
+            Accent
           </div>
-          <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ ...inputStyle, width: 130 }}>
-            <option value="de">Deutsch</option>
-            <option value="en">English</option>
-          </select>
+          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 12 }}>
+            {lang === 'de' ? 'Hintergrund' : 'Background'}
+          </div>
+          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 12 }}>
+            {lang === 'de' ? 'Aktiv' : 'Active'}
+          </div>
+          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', color: 'var(--red)', fontSize: 12 }}>
+            {lang === 'de' ? 'Fehler' : 'Error'}
+          </div>
+          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', fontSize: 12 }}>
+            {lang === 'de' ? 'Warnung' : 'Warning'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+            {lang === 'de' ? `Theme: ${theme === 'dark' ? '🌙 Dunkel' : '☀️ Hell'} · Sprache: ${lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'}` : `Theme: ${theme === 'dark' ? '🌙 Dark' : '☀️ Light'} · Language: ${lang === 'de' ? '🇩🇪 German' : '🇬🇧 English'}`}
+          </div>
         </div>
 
-        {/* Saved indicator */}
-        {saved && (
-          <div style={{ margin: '0 18px 0', padding: '10px 14px', background: 'rgba(81,207,102,0.1)', border: '1px solid rgba(81,207,102,0.3)', borderRadius: 8, fontSize: 12, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            ✅ Einstellungen wurden gespeichert und werden beim nächsten Öffnen automatisch geladen.
-          </div>
-        )}
-
-        <div style={{ padding: 18, display: 'flex', gap: 10 }}>
+        {/* ── Actions ── */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <Button variant="primary" onClick={handleSave}>
-            {saved ? '✓ Gespeichert!' : '💾 Speichern'}
+            💾 {t('common.save')}
           </Button>
           <Button variant="ghost" onClick={handleReset}>
-            Zurücksetzen
+            {t('common.reset')}
           </Button>
         </div>
       </div>
-
-      {/* ── Gespeicherte Werte (Live-Vorschau) ───────────── */}
-      <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>📋 Aktuell gespeicherte Werte</div>
-        <div style={{ padding: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))', gap: 10 }}>
-          {[
-            ['Auto-Refresh',     `${refreshRate} Sek.`],
-            ['Einträge/Seite',   pageSize],
-            ['Theme',            theme === 'dark' ? 'Dark' : 'Light'],
-            ['Sprache',          lang === 'de' ? 'Deutsch' : 'English'],
-          ].map(([k, v]) => (
-            <div key={k} style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{k}</div>
-              <div style={{ fontSize: 13, color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: '0 18px 14px', fontSize: 11, color: 'var(--text-muted)' }}>
-          💡 Werte werden im Browser (localStorage) gespeichert und beim nächsten Öffnen automatisch geladen.
-        </div>
-      </div>
-
-      {/* ── Info ─────────────────────────────────────────── */}
-      <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>ℹ️ Dashboard-Info</div>
-        <div style={{ padding: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 10 }}>
-          {[
-            ['Version',   'v2.0.0-live'],
-            ['Mode',      SUPABASE_URL ? 'Live — Supabase' : 'Demo'],
-            ['Framework', 'Next.js 14'],
-            ['Charts',    'Chart.js'],
-            ['Build',     new Date().toLocaleDateString('de-DE')],
-          ].map(([k, v]) => (
-            <div key={k} style={{ padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{k}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </DashboardLayout>
   );
 }
