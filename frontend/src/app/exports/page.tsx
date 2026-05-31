@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface Module {
   key: string;
@@ -184,6 +185,7 @@ export default function ExportsPage() {
   });
 
   return (
+    <DashboardLayout>
     <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Header */}
@@ -290,5 +292,6 @@ export default function ExportsPage() {
         Alle Exporte nutzen den Service-Role-Zugang und enthalten sämtliche Datensätze ohne Limit.
       </div>
     </div>
+    </DashboardLayout>
   );
 }
