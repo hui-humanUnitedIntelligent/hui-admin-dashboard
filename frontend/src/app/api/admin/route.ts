@@ -20,7 +20,9 @@ type Action =
   | 'unpublish_work'
   | 'delete_work'
   | 'flag_work'
-  | 'approve_work';
+  | 'approve_work'
+  | 'restore_work'
+  | 'unflag_work';
 
 async function sbPatch(table: string, id: string, data: Record<string, unknown>) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
@@ -161,6 +163,16 @@ export async function POST(req: NextRequest) {
       });
       break;
 
+    case 'restore_work':
+      // Restore soft-deleted or archived work → back to draft
+      result = await sbPatch('works', userId, { status: 'draft', visibility: 'private' });
+      break;
+
+    case 'unflag_work':
+      // Remove flag, set back to published + public
+      result = await sbPatch('works', userId, { status: 'published', visibility: 'public' });
+      break;
+
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   }
@@ -175,4 +187,5 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
