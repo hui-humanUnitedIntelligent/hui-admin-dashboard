@@ -205,24 +205,22 @@ export default function SettingsPage() {
           padding: 20,
           display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
         }}>
-          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--accent-dim)', border: '1px solid var(--accent)', color: 'var(--accent)', fontSize: 12 }}>
-            Accent
-          </div>
-          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 12 }}>
-            {lang === 'de' ? 'Hintergrund' : 'Background'}
-          </div>
-          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 12 }}>
-            {lang === 'de' ? 'Aktiv' : 'Active'}
-          </div>
-          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', color: 'var(--red)', fontSize: 12 }}>
-            {lang === 'de' ? 'Fehler' : 'Error'}
-          </div>
-          <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', fontSize: 12 }}>
-            {lang === 'de' ? 'Warnung' : 'Warning'}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-            {lang === 'de' ? `Theme: ${theme === 'dark' ? '🌙 Dunkel' : '☀️ Hell'} · Sprache: ${lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'}` : `Theme: ${theme === 'dark' ? '🌙 Dark' : '☀️ Light'} · Language: ${lang === 'de' ? '🇩🇪 German' : '🇬🇧 English'}`}
-          </div>
+          {(() => {
+            const isDE = lang === 'de';
+            const isDark = theme === 'dark';
+            return (
+              <>
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--accent-dim)', border: '1px solid var(--accent)', color: 'var(--accent)', fontSize: 12 }}>Accent</div>
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: 12 }}>{isDE ? 'Hintergrund' : 'Background'}</div>
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', fontSize: 12 }}>{isDE ? 'Aktiv' : 'Active'}</div>
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', color: 'var(--red)', fontSize: 12 }}>{isDE ? 'Fehler' : 'Error'}</div>
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', fontSize: 12 }}>{isDE ? 'Warnung' : 'Warning'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                  Theme: {isDark ? (isDE ? '🌙 Dunkel' : '🌙 Dark') : (isDE ? '☀️ Hell' : '☀️ Light')} · {isDE ? 'Sprache' : 'Language'}: {isDE ? '🇩🇪 Deutsch' : '🇬🇧 English'}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* ── Actions ── */}
