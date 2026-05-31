@@ -117,7 +117,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
 
   const amb    = detail?.ambassador as Record<string,unknown>|undefined;
   const level  = (amb?.level||'bronze') as AmbLevel;
-  const lc     = LEVEL[level]||LEVEL.bronze;
+  const lc     = LEVEL[level] as {color:string;bg:string;icon:string;label:string};
   const isActive = amb?.is_ambassador === true && amb?.status === 'active';
 
   return (
@@ -139,10 +139,10 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
 
             {/* Profile Card */}
             <div style={{display:'flex',gap:14,alignItems:'center',padding:16,background:'var(--bg-secondary)',borderRadius:12,border:`1px solid ${lc.color}44`,borderLeft:`4px solid ${lc.color}`}}>
-              <Avatar src={detail.profile.avatar_url as string} name={(detail.profile.display_name||'') as string} size={48} />
+              <Avatar src={detail.profile.avatar_url as string|null} name={String(detail.profile.display_name||'')} size={48} />
               <div style={{flex:1}}>
-                <div style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{detail.profile.display_name as string}</div>
-                <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{detail.profile.username as string}</div>
+                <div style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{String(detail.profile.display_name||'')}</div>
+                <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{String(detail.profile.username||'')}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                   {isActive && <LevelBadge level={level} />}
                   <StatusBadge status={(amb?.status as string)||'unknown'} />
@@ -161,13 +161,13 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
                 <div style={{display:'flex',flexDirection:'column',gap:6}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
                     <code style={{fontSize:12,fontFamily:'var(--font-mono)',color:'var(--accent)',background:'var(--bg-tertiary)',padding:'6px 12px',borderRadius:8,border:'1px solid var(--border)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                      {amb.referral_link as string}
+                      {String(amb.referral_link||'')}
                     </code>
-                    <button onClick={()=>{navigator.clipboard.writeText(amb.referral_link as string);showToast('Link kopiert','success');}} style={{padding:'6px 10px',borderRadius:7,border:'1px solid var(--border)',background:'var(--bg-tertiary)',color:'var(--text-muted)',cursor:'pointer',fontSize:11,fontFamily:'var(--font-body)',flexShrink:0}}>📋</button>
+                    <button onClick={()=>{navigator.clipboard.writeText(String(amb.referral_link||'');showToast('Link kopiert','success');}} style={{padding:'6px 10px',borderRadius:7,border:'1px solid var(--border)',background:'var(--bg-tertiary)',color:'var(--text-muted)',cursor:'pointer',fontSize:11,fontFamily:'var(--font-body)',flexShrink:0}}>📋</button>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
                     <code style={{fontSize:11,fontFamily:'var(--font-mono)',color:lc.color,background:lc.bg,padding:'3px 10px',borderRadius:6,border:`1px solid ${lc.color}44`,letterSpacing:1.5}}>
-                      {amb.referral_code as string}
+                      {String(amb.referral_code||'')}
                     </code>
                     <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:amb.link_active?'rgba(81,207,102,0.12)':'rgba(255,99,99,0.1)',color:amb.link_active?'var(--green)':'var(--red)',border:`1px solid ${amb.link_active?'rgba(81,207,102,0.3)':'rgba(255,99,99,0.3)'}`}}>
                       {amb.link_active?'🔗 Link aktiv':'🔒 Link gesperrt'}
@@ -198,7 +198,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
             {amb?.status === 'pending' && amb?.motivation && (
               <div style={{padding:14,background:'rgba(255,184,0,0.06)',border:'1px solid rgba(255,184,0,0.2)',borderRadius:10}}>
                 <div style={{fontSize:10,fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'0.6px',marginBottom:6}}>📝 Bewerbungsnotiz</div>
-                <p style={{margin:0,fontSize:12,color:'var(--text-secondary)',lineHeight:1.6}}>{amb.motivation as string}</p>
+                <p style={{margin:0,fontSize:12,color:'var(--text-secondary)',lineHeight:1.6}}>{String(amb.motivation||'')}</p>
               </div>
             )}
 
@@ -562,7 +562,7 @@ export default function AmbassadorsPage() {
                 const isPending=u.ambassador_status==='pending';
                 return (
                   <div key={u.id} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 16px',borderBottom:'1px solid var(--border)'}}>
-                    <Avatar src={u.avatar_url} name={u.display_name||u.username} size={36} />
+                    <Avatar src={u.avatar_url as string|null} name={u.display_name||u.username} size={36} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:13,fontWeight:600,color:'var(--text-primary)',marginBottom:2}}>{u.display_name||u.username}</div>
                       <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
