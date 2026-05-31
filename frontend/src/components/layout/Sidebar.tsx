@@ -26,6 +26,7 @@ const NAV_DE: NavItem[] = [
   { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅', group: 'Content'    },
   { href: '/audit',        label: 'Audit Logs',       icon: '📋', group: 'System'     },
   { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
+  { href: '/exports',      label: 'Daten-Export',     icon: '📥', group: 'System'     },
   { href: '/settings',     label: 'Einstellungen',    icon: '⚙',  group: 'System'     },
 ];
 
@@ -40,6 +41,7 @@ const NAV_EN: NavItem[] = [
   { href: '/memberships',  label: 'Memberships',      icon: '🏅', group: 'Content'    },
   { href: '/audit',        label: 'Audit Logs',       icon: '📋', group: 'System'     },
   { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
+  { href: '/exports',      label: 'Data Export',      icon: '📥', group: 'System'     },
   { href: '/settings',     label: 'Settings',         icon: '⚙',  group: 'System'     },
 ];
 
