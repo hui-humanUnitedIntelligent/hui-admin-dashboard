@@ -57,26 +57,77 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function padR(s: string, n: number) { return s.length >= n ? s.slice(0,n) : s + ' '.repeat(n - s.length); }
+function padL(s: string, n: number) { return s.length >= n ? s.slice(0,n) : ' '.repeat(n - s.length) + s; }
+function fmtVal(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'object') return JSON.stringify(v).slice(0, 40);
+  return String(v);
+}
+
+// Key fields to show per table (human-readable subset)
+const LOG_FIELDS: Record<string, string[]> = {
+  profiles:        ['full_name','email','role','membership_type','trust_score','created_at'],
+  payments:        ['id','user_id','amount','currency','status','type','created_at'],
+  works:           ['title','category','status','price_eur','likes_count','views_count','created_at'],
+  bookings:        ['id','user_id','work_id','status','price','currency','created_at'],
+  impact_projects: ['name','category','status','votes','awarded_eur','month','contact_email'],
+  impact_pool:     ['month','total_eur','distributed_eur','state','voting_ends_at','distributed_at'],
+  memberships:     ['user_id','plan','status','started_at','ends_at','amount_eur'],
+  orders:          ['id','user_id','work_id','status','total_eur','currency','created_at'],
+  wirker_profiles: ['user_id','display_name','hourly_rate','availability','is_available'],
+  activity_logs:   ['admin_id','action','target_type','target_id','created_at'],
+};
+const COL_W = 22;
+
 function toLog(allData: Record<string, Record<string, unknown>[]>, selected: string[]): string {
   const lines: string[] = [];
-  const ts = new Date().toISOString();
-  lines.push(`HUI Admin Export — ${ts}`);
-  lines.push('='.repeat(60));
-  for (const key of selected) {
-    const mod = MODULES.find(m => m.key === key);
-    const rows = allData[key] || [];
-    lines.push('');
-    lines.push(`[${mod?.icon} ${mod?.label || key}] — ${rows.length} Einträge`);
-    lines.push('-'.repeat(40));
-    rows.slice(0, 5).forEach((r, i) => {
-      lines.push(`  #${i+1}: ${JSON.stringify(r).slice(0,120)}`);
-    });
-    if (rows.length > 5) lines.push(`  … und ${rows.length - 5} weitere Einträge`);
-  }
+  const now = new Date();
+  const ts  = now.toLocaleString('de-DE', { dateStyle:'full', timeStyle:'medium' });
+
+  lines.push('╔' + '═'.repeat(78) + '╗');
+  lines.push('║' + padR('  HUI Admin — Daten-Export', 78) + '║');
+  lines.push('║' + padR(`  Erstellt: ${ts}`, 78) + '║');
+  lines.push('║' + padR(`  Module: ${selected.length}  |  Datensätze gesamt: ${selected.reduce((a,k) => a+(allData[k]?.length||0),0)}`, 78) + '║');
+  lines.push('╚' + '═'.repeat(78) + '╝');
   lines.push('');
-  lines.push('='.repeat(60));
-  lines.push(`Export abgeschlossen. Gesamt: ${selected.reduce((a,k) => a + (allData[k]?.length||0), 0)} Datensätze`);
-  return lines.join('\n');
+
+  for (const key of selected) {
+    const mod  = MODULES.find(m => m.key === key);
+    const rows = allData[key] || [];
+    const fields = LOG_FIELDS[key] || Object.keys(rows[0] || {}).slice(0, 6);
+
+    lines.push('┌─ ' + (mod?.icon || '') + ' ' + (mod?.label || key).toUpperCase() + ' ─── ' + rows.length + ' Einträge ' + '─'.repeat(Math.max(0, 68 - (mod?.label||key).length - String(rows.length).length)));
+    lines.push('│');
+
+    if (!rows.length) {
+      lines.push('│  (keine Datensätze)');
+    } else {
+      // Header row
+      const header = fields.map(f => padR(f, COL_W)).join('  ');
+      lines.push('│  ' + header);
+      lines.push('│  ' + fields.map(() => '─'.repeat(COL_W)).join('  '));
+
+      // Data rows
+      rows.forEach((row, i) => {
+        const rowStr = fields.map(f => padR(fmtVal(row[f]), COL_W)).join('  ');
+        lines.push(`│  ${rowStr}`);
+        // Separator every 5 rows for readability
+        if ((i + 1) % 5 === 0 && i < rows.length - 1) {
+          lines.push('│  ' + '·'.repeat(fields.length * (COL_W + 2) - 2));
+        }
+      });
+    }
+
+    lines.push('│');
+    lines.push('└' + '─'.repeat(78));
+    lines.push('');
+  }
+
+  lines.push('═'.repeat(80));
+  lines.push(`Export abgeschlossen — ${now.toISOString()}`);
+  lines.push('HUI Admin Dashboard  |  Alle Rechte vorbehalten');
+  return lines.join('\r\n');
 }
 
 export default function ExportsPage() {
