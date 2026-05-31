@@ -249,13 +249,13 @@ export default function WorksPage() {
   const handleRestore = useCallback((w: WorkWithMeta) => {
     setConfirm({
       open:true, loading:false,
-      title: '♻️ Work wiederherstellen',
+      title: '♻️ Werk wiederherstellen',
       message: `„${w.title||'Kein Titel'}" wird als Draft wiederhergestellt und ist nicht öffentlich sichtbar.`,
       onConfirm: async () => {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('restore_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('✅ Work wiederhergestellt', 'success'); refetchAllTabs(); setSelected(null); }
+        if (ok) { showToast('✅ Werk wiederhergestellt', 'success'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
@@ -271,7 +271,7 @@ export default function WorksPage() {
         setConfirm(p => ({ ...p, loading: true }));
         const ok = await workAction('hard_delete_work', w.id);
         setConfirm(p => ({ ...p, loading: false, open: false }));
-        if (ok) { showToast('Work dauerhaft gelöscht', 'info'); refetchAllTabs(); setSelected(null); }
+        if (ok) { showToast('Werk dauerhaft gelöscht', 'info'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
@@ -287,7 +287,7 @@ export default function WorksPage() {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('unflag_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('✅ Meldung aufgelöst, Work ist wieder live', 'success'); refetchAllTabs(); setSelected(null); }
+        if (ok) { showToast('✅ Meldung aufgelöst, Werk ist wieder live', 'success'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
@@ -298,7 +298,7 @@ export default function WorksPage() {
     setBusyFor(w.id, true);
     const ok = await workAction('flag_work', w.id, { status:'flagged' });
     setBusyFor(w.id, false);
-    if (ok) { showToast('⚑ Work gemeldet', 'info'); refetchAllTabs(); }
+    if (ok) { showToast('⚑ Werk gemeldet', 'info'); refetchAllTabs(); }
     else showToast('Fehler', 'error');
   }, [refetchAllTabs]);
 
@@ -306,13 +306,13 @@ export default function WorksPage() {
   const handleUnpublish = useCallback((w: WorkWithMeta) => {
     setConfirm({
       open:true, loading:false,
-      title: '📤 Work depublizieren',
+      title: '📤 Werk depublizieren',
       message: `„${w.title||'Kein Titel'}" wird auf Draft gesetzt und versteckt.`,
       onConfirm: async () => {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('unpublish_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('Work depubliziert', 'info'); refetchAllTabs(); setSelected(null); }
+        if (ok) { showToast('Werk depubliziert', 'info'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
@@ -322,13 +322,13 @@ export default function WorksPage() {
   const handleDelete = useCallback((w: WorkWithMeta) => {
     setConfirm({
       open:true, loading:false,
-      title: '🗑 Work löschen',
+      title: '🗑 Werk löschen',
       message: `„${w.title||'Kein Titel'}" wird als gelöscht markiert. Du kannst es später unter "Gelöscht" wiederherstellen.`,
       onConfirm: async () => {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('delete_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('Work gelöscht', 'info'); refetchAllTabs(); setSelected(null); }
+        if (ok) { showToast('Werk gelöscht', 'info'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
@@ -352,16 +352,16 @@ export default function WorksPage() {
 
   // ── Tab context messages ────────────────────────────────────────────────
   const tabBanners: Partial<Record<TabKey, { bg: string; border: string; color: string; text: string }>> = {
-    deleted:   { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'🗑 Hier siehst du gelöschte Works. Du kannst sie als Draft wiederherstellen.' },
-    flagged:   { bg:'rgba(247,183,49,0.08)', border:'var(--gold)', color:'var(--gold)', text:'⚑ Gemeldete Works sind versteckt. Du kannst die Meldung auflösen oder das Work endgültig löschen.' },
-    sensitive: { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'⚠️ Works mit verdächtigen Keywords, hohen Preisen oder fehlenden Bildern. Prüfe jeden Eintrag.' },
+    deleted:   { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'🗑 Hier siehst du gelöschte Werke. Du kannst sie als Draft wiederherstellen.' },
+    flagged:   { bg:'rgba(247,183,49,0.08)', border:'var(--gold)', color:'var(--gold)', text:'⚑ Gemeldete Werke sind versteckt. Du kannst die Meldung auflösen oder das Werk endgültig löschen.' },
+    sensitive: { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'⚠️ Werke mit verdächtigen Keywords, hohen Preisen oder fehlenden Bildern. Prüfe jeden Eintrag.' },
   };
 
   const banner = tabBanners[tab];
 
   return (
     <DashboardLayout
-      title="Works & Content"
+      title="Werke & Content"
       headerActions={
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           {counts.flagged > 0 && (
@@ -382,7 +382,7 @@ export default function WorksPage() {
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:16 }} className="grid-4">
         {[
-          { label:'Works gesamt',   value: loading ? '…' : fmt(counts.published + counts.draft), color:'var(--accent)' },
+          { label:'Werke gesamt',   value: loading ? '…' : fmt(counts.published + counts.draft), color:'var(--accent)' },
           { label:'Published',      value: loading ? '…' : fmt(counts.published),               color:'var(--green)'  },
           { label:'Draft',          value: loading ? '…' : fmt(counts.draft),                   color:'var(--gold)'   },
           { label:'Gemeldet',       value: loading ? '…' : fmt(counts.flagged),                 color:'var(--red)'    },
@@ -410,7 +410,7 @@ export default function WorksPage() {
         <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--text-muted)', fontSize:12 }}>🔍</span>
         <input
           value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder={`In ${tab === 'deleted' ? 'gelöschten' : tab === 'flagged' ? 'gemeldeten' : 'allen'} Works suchen…`}
+          placeholder={`In ${tab === 'deleted' ? 'gelöschten' : tab === 'flagged' ? 'gemeldeten' : 'allen'} Werken suchen…`}
           style={{ ...fieldStyle, paddingLeft:30, boxSizing:'border-box' }}
         />
       </div>
@@ -418,9 +418,9 @@ export default function WorksPage() {
       {/* Count hint */}
       <div style={{ marginBottom:8, fontSize:11, color:'var(--text-muted)' }}>
         {loading ? 'Lädt…' : `${activeList.length} Einträge`}
-        {tab === 'deleted'   && counts.deleted   > 0 && ' · Klicke auf ein Work, um es wiederherzustellen'}
-        {tab === 'flagged'   && counts.flagged   > 0 && ' · Klicke auf ein Work, um die Meldung zu verwalten'}
-        {tab === 'sensitive' && counts.sensitive > 0 && ' · Klicke auf ein Work, um den Inhalt zu prüfen'}
+        {tab === 'deleted'   && counts.deleted   > 0 && ' · Klicke auf ein Werk, um es wiederherzustellen'}
+        {tab === 'flagged'   && counts.flagged   > 0 && ' · Klicke auf ein Werk, um die Meldung zu verwalten'}
+        {tab === 'sensitive' && counts.sensitive > 0 && ' · Klicke auf ein Werk, um den Inhalt zu prüfen'}
       </div>
 
       {/* Table */}
@@ -440,10 +440,10 @@ export default function WorksPage() {
               ) : activeList.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding:48, textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
-                    {tab === 'deleted'   ? '🗑 Keine gelöschten Works' :
-                     tab === 'flagged'   ? '✅ Keine gemeldeten Works' :
+                    {tab === 'deleted'   ? '🗑 Keine gelöschten Werke' :
+                     tab === 'flagged'   ? '✅ Keine gemeldeten Werke' :
                      tab === 'sensitive' ? '✅ Kein sensitiver Inhalt gefunden' :
-                     'Keine Works gefunden'}
+                     'Keine Werke gefunden'}
                   </td>
                 </tr>
               ) : activeList.map((w) => {
@@ -552,7 +552,7 @@ export default function WorksPage() {
         <Modal
           open
           onClose={() => { setSelected(null); setEditMode(false); }}
-          title={editMode ? `✏️ Bearbeiten: ${selected.title||'Kein Titel'}` : `📄 Work Details`}
+          title={editMode ? `✏️ Bearbeiten: ${selected.title||'Kein Titel'}` : `📄 Werk Details`}
           width={700}
           footer={
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -610,13 +610,13 @@ export default function WorksPage() {
           {/* Status banner in modal */}
           {selected.status === 'deleted' && (
             <div style={{ marginBottom:14, padding:'10px 14px', background:'rgba(255,107,107,0.07)', border:'1px solid var(--red)', borderRadius:8, fontSize:12, color:'var(--red)' }}>
-              🗑 Dieses Work ist als gelöscht markiert und in der App <strong>nicht sichtbar</strong>.
+              🗑 Dieses Werk ist als gelöscht markiert und in der App <strong>nicht sichtbar</strong>.
               <br/><span style={{ marginTop:4, display:'block', opacity:0.8 }}>♻️ Wiederherstellen → setzt es als Draft zurück · 🗑 Endgültig löschen → unwiderruflich aus der Datenbank entfernen</span>
             </div>
           )}
           {selected.status === 'flagged' && (
             <div style={{ marginBottom:14, padding:'10px 14px', background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:8, fontSize:12, color:'var(--gold)' }}>
-              ⚑ Dieses Work ist gemeldet und für User versteckt. Prüfe den Inhalt und löse die Meldung auf oder lösche das Work.
+              ⚑ Dieses Werk ist gemeldet und für User versteckt. Prüfe den Inhalt und löse die Meldung auf oder lösche das Werk.
             </div>
           )}
 
