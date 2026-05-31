@@ -12,62 +12,95 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
-  group: string;
 }
 
-const NAV_DE: NavItem[] = [
-  { href: '/dashboard',    label: 'Dashboard',        icon: '⊞', group: 'Übersicht'  },
-  { href: '/users',        label: 'User-Management',  icon: '◎', group: 'Management' },
-  { href: '/admins',       label: 'Admin-Verwaltung', icon: '🛡️', group: 'Management' },
-  { href: '/talents',      label: 'Talent-Pool',      icon: '⭐', group: 'Management' },
-  { href: '/transactions', label: 'Transaktionen',    icon: '⇄', group: 'Management' },
-  { href: '/bookings',     label: 'Buchungen',        icon: '📅', group: 'Management' },
-  { href: '/impact',       label: 'Impact Pool',      icon: '🌱', group: 'Management' },
-  { href: '/works',        label: 'Werke & Content',  icon: '🎨', group: 'Content'    },
-  { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅', group: 'Content'    },
-  { href: '/analytics',    label: 'Analytics',        icon: '📈', group: 'Tools'      },
-  { href: '/reports',      label: 'Reports',           icon: '📊', group: 'Tools'      },
-  { href: '/flags',        label: 'Feature-Flags',     icon: '🚩', group: 'Tools'      },
-  { href: '/churns',       label: 'Churns & Kündig.',  icon: '📉', group: 'Tools'      },
-  { href: '/broadcast',    label: 'Broadcast',         icon: '📨', group: 'Tools'      },
-  { href: '/tickets',      label: 'Support-Tickets',   icon: '🎫', group: 'Tools'      },
-  { href: '/audit',        label: 'Audit Logs',        icon: '📋', group: 'System'     },
-  { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
-  { href: '/exports',      label: 'Daten-Export',     icon: '📥', group: 'System'     },
-  { href: '/settings',     label: 'Einstellungen',    icon: '⚙',  group: 'System'     },
-];
-
-const NAV_EN: NavItem[] = [
-  { href: '/dashboard',    label: 'Dashboard',        icon: '⊞', group: 'Overview'   },
-  { href: '/users',        label: 'User Management',  icon: '◎', group: 'Management' },
-  { href: '/admins',       label: 'Admin Management', icon: '🛡️', group: 'Management' },
-  { href: '/talents',      label: 'Talent Pool',      icon: '⭐', group: 'Management' },
-  { href: '/transactions', label: 'Transactions',     icon: '⇄', group: 'Management' },
-  { href: '/bookings',     label: 'Bookings',         icon: '📅', group: 'Management' },
-  { href: '/impact',       label: 'Impact Pool',      icon: '🌱', group: 'Management' },
-  { href: '/works',        label: 'Werke & Content',  icon: '🎨', group: 'Content'    },
-  { href: '/memberships',  label: 'Memberships',      icon: '🏅', group: 'Content'    },
-  { href: '/analytics',    label: 'Analytics',        icon: '📈', group: 'Tools'      },
-  { href: '/reports',      label: 'Reports',           icon: '📊', group: 'Tools'      },
-  { href: '/flags',        label: 'Feature Flags',     icon: '🚩', group: 'Tools'      },
-  { href: '/churns',       label: 'Churns',            icon: '📉', group: 'Tools'      },
-  { href: '/reports',      label: 'Reports',           icon: '📊', group: 'Tools'      },
-  { href: '/flags',        label: 'Feature-Flags',     icon: '🚩', group: 'Tools'      },
-  { href: '/churns',       label: 'Churns & Kündig.',  icon: '📉', group: 'Tools'      },
-  { href: '/broadcast',    label: 'Broadcast',         icon: '📨', group: 'Tools'      },
-  { href: '/tickets',      label: 'Support-Tickets',   icon: '🎫', group: 'Tools'      },
-  { href: '/audit',        label: 'Audit Logs',        icon: '📋', group: 'System'     },
-  { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
-  { href: '/exports',      label: 'Data Export',      icon: '📥', group: 'System'     },
-  { href: '/settings',     label: 'Settings',         icon: '⚙',  group: 'System'     },
-];
-
-const GROUPS_DE = ['Übersicht', 'Management', 'Content', 'Tools', 'System'];
-const GROUPS_EN = ['Overview',  'Management', 'Content', 'Tools', 'System'];
-
-function getInitials(name: string) {
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+interface NavGroup {
+  id: string;
+  label_de: string;
+  label_en: string;
+  icon: string;
+  items_de: NavItem[];
+  items_en: NavItem[];
 }
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: 'management',
+    label_de: 'Management',
+    label_en: 'Management',
+    icon: '◎',
+    items_de: [
+      { href: '/users',        label: 'User-Management',  icon: '👥' },
+      { href: '/admins',       label: 'Admin-Verwaltung', icon: '🛡️' },
+      { href: '/talents',      label: 'Talent-Pool',      icon: '⭐' },
+      { href: '/transactions', label: 'Transaktionen',    icon: '⇄'  },
+      { href: '/bookings',     label: 'Buchungen',        icon: '📅' },
+      { href: '/impact',       label: 'Impact Pool',      icon: '🌱' },
+    ],
+    items_en: [
+      { href: '/users',        label: 'User Management',  icon: '👥' },
+      { href: '/admins',       label: 'Admin Management', icon: '🛡️' },
+      { href: '/talents',      label: 'Talent Pool',      icon: '⭐' },
+      { href: '/transactions', label: 'Transactions',     icon: '⇄'  },
+      { href: '/bookings',     label: 'Bookings',         icon: '📅' },
+      { href: '/impact',       label: 'Impact Pool',      icon: '🌱' },
+    ],
+  },
+  {
+    id: 'content',
+    label_de: 'Content',
+    label_en: 'Content',
+    icon: '🎨',
+    items_de: [
+      { href: '/works',        label: 'Werke & Content',  icon: '🖼️' },
+      { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
+    ],
+    items_en: [
+      { href: '/works',        label: 'Works & Content',  icon: '🖼️' },
+      { href: '/memberships',  label: 'Memberships',      icon: '🏅' },
+    ],
+  },
+  {
+    id: 'tools',
+    label_de: 'Tools',
+    label_en: 'Tools',
+    icon: '🛠️',
+    items_de: [
+      { href: '/analytics',    label: 'Analytics',        icon: '📈' },
+      { href: '/broadcast',    label: 'Broadcast',        icon: '📨' },
+      { href: '/tickets',      label: 'Support-Tickets',  icon: '🎫' },
+      { href: '/reports',      label: 'Reports',          icon: '📊' },
+      { href: '/flags',        label: 'Feature-Flags',    icon: '🚩' },
+      { href: '/churns',       label: 'Churns & Kündig.', icon: '📉' },
+    ],
+    items_en: [
+      { href: '/analytics',    label: 'Analytics',        icon: '📈' },
+      { href: '/broadcast',    label: 'Broadcast',        icon: '📨' },
+      { href: '/tickets',      label: 'Support Tickets',  icon: '🎫' },
+      { href: '/reports',      label: 'Reports',          icon: '📊' },
+      { href: '/flags',        label: 'Feature Flags',    icon: '🚩' },
+      { href: '/churns',       label: 'Churns',           icon: '📉' },
+    ],
+  },
+  {
+    id: 'system',
+    label_de: 'System',
+    label_en: 'System',
+    icon: '🔧',
+    items_de: [
+      { href: '/audit',        label: 'Audit Logs',       icon: '📋' },
+      { href: '/system',       label: 'System Status',    icon: '🔧' },
+      { href: '/exports',      label: 'Daten-Export',     icon: '📥' },
+      { href: '/settings',     label: 'Einstellungen',    icon: '⚙️' },
+    ],
+    items_en: [
+      { href: '/audit',        label: 'Audit Logs',       icon: '📋' },
+      { href: '/system',       label: 'System Status',    icon: '🔧' },
+      { href: '/exports',      label: 'Data Export',      icon: '📥' },
+      { href: '/settings',     label: 'Settings',         icon: '⚙️' },
+    ],
+  },
+];
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -80,42 +113,41 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { lang } = useSettings();
   const { supabase: dbStatus } = useSystemHealth(60000);
 
-  // Collapsed groups state
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const toggle = (g: string) => setCollapsed(p => ({ ...p, [g]: !p[g] }));
+  // Track which groups are open — default: the group that contains the active route is open
+  const getDefaultOpen = () => {
+    const open: Record<string, boolean> = {};
+    for (const g of NAV_GROUPS) {
+      const items = lang === 'en' ? g.items_en : g.items_de;
+      const hasActive = items.some(i => pathname === i.href || pathname.startsWith(i.href));
+      open[g.id] = hasActive;
+    }
+    return open;
+  };
 
-  const NAV    = lang === 'en' ? NAV_EN    : NAV_DE;
-  const GROUPS = lang === 'en' ? GROUPS_EN : GROUPS_DE;
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaultOpen);
 
-  const grouped = GROUPS.reduce<Record<string, NavItem[]>>((acc, g) => {
-    acc[g] = NAV.filter((n) => n.group === g);
-    return acc;
-  }, {});
+  const toggleGroup = (id: string) => {
+    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
-  // Check if any item in a group is active (to not auto-collapse)
-  const groupHasActive = (g: string) =>
-    grouped[g]?.some(item =>
-      pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-    );
-
-  const isCollapsed = (g: string) => collapsed[g] && !groupHasActive(g);
+  const isActive = (href: string) =>
+    pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
 
   const sidebarContent = (
-    <aside
-      style={{
-        width: 230,
-        minWidth: 230,
-        background: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}
-    >
-      {/* ── Logo ── */}
+    <aside style={{
+      width: 230,
+      minWidth: 230,
+      background: 'var(--bg-secondary)',
+      borderRight: '1px solid var(--border)',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+    }}>
+
+      {/* ── Logo / Brand ── */}
       <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
@@ -125,9 +157,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
             color: '#0F1117', letterSpacing: '0.5px',
             boxShadow: '0 0 12px rgba(78,205,196,0.3)',
-          }}>
-            HUI
-          </div>
+          }}>HUI</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>Admin Control</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -137,134 +167,179 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               </span>
             </div>
           </div>
-          {/* Close button — only in mobile drawer */}
           {onClose && (
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, padding: 4, lineHeight: 1 }}>
-              ✕
-            </button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, padding: 4, lineHeight: 1 }}>✕</button>
           )}
         </div>
       </div>
 
-      {/* ── Navigation with collapsible groups ── */}
+      {/* ── Navigation ── */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
-        {GROUPS.map((group) => {
-          const items = grouped[group] || [];
-          const col   = isCollapsed(group);
+
+        {/* Dashboard — always visible, no dropdown */}
+        <Link
+          href="/dashboard"
+          onClick={onClose}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 9,
+            padding: '9px 18px',
+            textDecoration: 'none',
+            fontSize: 13,
+            fontWeight: isActive('/dashboard') ? 600 : 500,
+            borderLeft: `2px solid ${isActive('/dashboard') ? 'var(--accent)' : 'transparent'}`,
+            background: isActive('/dashboard') ? 'var(--accent-dim)' : 'transparent',
+            color: isActive('/dashboard') ? 'var(--accent)' : 'var(--text-primary)',
+            transition: 'all 0.12s',
+            marginBottom: 4,
+          }}
+          onMouseEnter={e => { if (!isActive('/dashboard')) { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}}
+          onMouseLeave={e => { if (!isActive('/dashboard')) { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}}
+        >
+          <span style={{ fontSize: 15 }}>⊞</span>
+          <span>Dashboard</span>
+        </Link>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'var(--border)', margin: '4px 18px 8px' }} />
+
+        {/* Collapsible Groups */}
+        {NAV_GROUPS.map(group => {
+          const items   = lang === 'en' ? group.items_en : group.items_de;
+          const label   = lang === 'en' ? group.label_en : group.label_de;
+          const isOpen  = openGroups[group.id] ?? false;
+          const anyActive = items.some(i => isActive(i.href));
 
           return (
-            <div key={group}>
-              {/* Group header — clickable to collapse */}
+            <div key={group.id} style={{ marginBottom: 2 }}>
+
+              {/* Group header — click to toggle */}
               <button
-                onClick={() => toggle(group)}
+                onClick={() => toggleGroup(group.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  width: '100%', padding: '9px 18px 4px',
-                  background: 'none', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  width: '100%', padding: '8px 18px',
+                  background: anyActive && !isOpen ? 'var(--accent-dim)' : 'transparent',
+                  border: 'none',
+                  borderLeft: `2px solid ${anyActive && !isOpen ? 'var(--accent)' : 'transparent'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.12s',
                 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = anyActive && !isOpen ? 'var(--accent-dim)' : 'transparent'; }}
               >
+                <span style={{ fontSize: 14 }}>{group.icon}</span>
                 <span style={{
-                  fontSize: 9, fontWeight: 700, letterSpacing: '1.8px',
-                  textTransform: 'uppercase', color: 'var(--text-muted)',
+                  flex: 1, textAlign: 'left',
+                  fontSize: 13, fontWeight: 600,
+                  color: anyActive && !isOpen ? 'var(--accent)' : 'var(--text-primary)',
                 }}>
-                  {group}
+                  {label}
                 </span>
                 <span style={{
-                  fontSize: 9, color: 'var(--text-muted)',
-                  transform: col ? 'rotate(-90deg)' : 'none',
+                  fontSize: 10, color: 'var(--text-muted)',
+                  transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
                   transition: 'transform 0.2s',
                   display: 'inline-block',
-                }}>
-                  ▾
-                </span>
+                }}>▾</span>
               </button>
 
-              {/* Items */}
-              {!col && items.map((item) => {
-                const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 9,
-                      padding: '7px 18px',
-                      textDecoration: 'none',
-                      fontSize: 12.5,
-                      borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
-                      background: active ? 'var(--accent-dim)' : 'transparent',
-                      color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                      transition: 'all 0.12s',
-                      fontWeight: active ? 500 : 400,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) {
-                        (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)';
-                        (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) {
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: 14, width: 18, textAlign: 'center', flexShrink: 0 }}>
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+              {/* Dropdown items */}
+              {isOpen && (
+                <div style={{ paddingBottom: 4 }}>
+                  {items.map(item => {
+                    const active = isActive(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '6px 18px 6px 38px',
+                          textDecoration: 'none',
+                          fontSize: 12.5,
+                          borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
+                          background: active ? 'var(--accent-dim)' : 'transparent',
+                          color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                          fontWeight: active ? 500 : 400,
+                          transition: 'all 0.1s',
+                        }}
+                        onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}}
+                        onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}}
+                      >
+                        <span style={{ fontSize: 13, opacity: 0.8 }}>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
       </nav>
 
-      {/* ── Footer: logged-in user ── */}
-      <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '8px 10px',
-          background: 'var(--bg-tertiary)',
-          borderRadius: 10, border: '1px solid var(--border)',
-        }}>
+      {/* ── User Footer ── */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
           <div style={{
-            width: 28, height: 28, borderRadius: '50%',
+            width: 30, height: 30, borderRadius: '50%',
             background: 'linear-gradient(135deg, var(--accent), #2BC5BB)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 700, color: '#0F1117', flexShrink: 0,
+            fontSize: 11, fontWeight: 700, color: '#0F1117', flexShrink: 0,
           }}>
-            {getInitials(currentUser?.name || 'Admin')}
+            {currentUser?.email?.slice(0, 2).toUpperCase() ?? 'AD'}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentUser?.name || 'Admin'}
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser?.email ?? 'Admin'}
             </div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-              {currentUser?.role || 'Super Admin'}
-            </div>
+            <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500 }}>Administrator</div>
           </div>
-          <button
-            onClick={logout}
-            title="Abmelden"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, padding: 2, lineHeight: 1, borderRadius: 4 }}
-            onMouseEnter={(e) => ((e.target as HTMLElement).style.color = 'var(--red)')}
-            onMouseLeave={(e) => ((e.target as HTMLElement).style.color = 'var(--text-muted)')}
-          >
-            ⏻
-          </button>
         </div>
+        <button
+          onClick={logout}
+          style={{
+            width: '100%', padding: '6px 0',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: 7, cursor: 'pointer',
+            fontSize: 11.5, color: 'var(--text-muted)',
+            fontFamily: 'var(--font-body)',
+            transition: 'all 0.12s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--red)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--red)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
+        >
+          {lang === 'en' ? '← Sign out' : '← Abmelden'}
+        </button>
       </div>
     </aside>
   );
 
-  // Desktop: render directly
-  // Mobile (mobileOpen prop passed): render as overlay drawer
+  // Mobile overlay
   if (mobileOpen !== undefined) {
-    return sidebarContent;
+    return (
+      <>
+        {mobileOpen && (
+          <div
+            onClick={onClose}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+              zIndex: 49, backdropFilter: 'blur(2px)',
+            }}
+          />
+        )}
+        <div style={{
+          position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 50,
+          transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 0.25s cubic-bezier(.4,0,.2,1)',
+        }}>
+          {sidebarContent}
+        </div>
+      </>
+    );
   }
+
   return sidebarContent;
 }
