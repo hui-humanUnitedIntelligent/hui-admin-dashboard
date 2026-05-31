@@ -171,3 +171,63 @@ export async function POST(req: NextRequest) {
     target_group: target_group || 'all',
   });
 }
+
+// DELETE — remove all notifications for a broadcast_id
+export async function DELETE(req: NextRequest) {
+  if (!KEY) return NextResponse.json({ error: 'No service key' }, { status: 500 });
+
+  const { searchParams } = new URL(req.url);
+  const broadcastId = searchParams.get('broadcast_id');
+  if (!broadcastId) return NextResponse.json({ error: 'broadcast_id required' }, { status: 400 });
+
+  // Delete all notifications with this broadcast_id in metadata
+  // Supabase REST: filter by metadata->broadcast_id
+  const res = await fetch(
+    `${SUPA}/rest/v1/notifications?type=eq.admin_broadcast`,
+    {
+      method: 'GET',
+      headers: H,
+    }
+  );
+  const all: Record<string, unknown>[] = await res.json().catch(() => []);
+
+  // Filter matching broadcast_id client-side (metadata is JSONB, filter via eq works too)
+  const matching = all.filter(n => {
+    const meta = n.metadata as Record<string, unknown>;
+    return meta?.broadcast_id === broadcastId;
+  });
+
+  if (matching.length === 0) {
+    return NextResponse.json({ ok: true, deleted_count: 0 });
+  }
+
+  // Delete by IDs in batches
+  const ids = matching.map(n => n.id as string);
+  const batchSize = 200;
+  let deleted = 0;
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const idsParam = `(${batch.join(',')})`;
+    const delRes = await fetch(
+      `${SUPA}/rest/v1/notifications?id=in.${idsParam}`,
+      { method: 'DELETE', headers: H }
+    );
+    if (delRes.ok || delRes.status === 204) deleted += batch.length;
+  }
+
+  // Log to notification_events
+  try {
+    await fetch(`${SUPA}/rest/v1/notification_events`, {
+      method: 'POST',
+      headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        type: 'admin_broadcast_deleted',
+        metadata: { broadcast_id: broadcastId, deleted_count: deleted },
+        created_at: new Date().toISOString(),
+      }),
+    });
+  } catch (_) {}
+
+  return NextResponse.json({ ok: true, deleted_count: deleted });
+}
