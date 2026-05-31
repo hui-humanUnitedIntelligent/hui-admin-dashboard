@@ -611,5 +611,3 @@ export default function WorksPage() {
     </DashboardLayout>
   );
 }
-
-const HIGH_PRICE_THRESHOLD = 5000;
