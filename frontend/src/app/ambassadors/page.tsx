@@ -121,7 +121,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:DrawerProps) {
     } finally { setActing(false); }
   };
 
-  const amb    = detail?.ambassador as Record<string,unknown>|undefined;
+  const amb    = detail?.ambassador as (Record<string,unknown>|undefined);
   const level  = (amb?.level||'bronze') as AmbLevel;
   const lc        = LEVEL[level] as typeof LEVEL.bronze;
   const lcBorder  = '1px solid ' + lc.color + '44';
@@ -147,7 +147,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:DrawerProps) {
 
             {/* Profile Card */}
             <div style={{display:'flex',gap:14,alignItems:'center',padding:16,background:'var(--bg-secondary)',borderRadius:12,border:lcBorder,borderLeft:lcBorderL}}>
-              <Avatar src={detail.profile.avatar_url as string|null} name={String(detail.profile.display_name||'')} size={48} />
+              <Avatar src={detail.profile.avatar_url as (string|null)} name={String(detail.profile.display_name||'')} size={48} />
               <div style={{flex:1}}>
                 <div style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{String(detail.profile.display_name||'')}</div>
                 <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{String(detail.profile.username||'')}</div>
@@ -222,7 +222,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:DrawerProps) {
                   <div style={{maxHeight:180,overflowY:'auto'}}>
                     {detail.referrals.map(r=>(
                       <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',borderBottom:'1px solid var(--border)'}}>
-                        <Avatar src={r.avatar_url as string|null} name={r.display_name||r.username} size={26} />
+                        <Avatar src={r.avatar_url as (string|null)} name={r.display_name||r.username} size={26} />
                         <div style={{flex:1}}>
                           <div style={{fontSize:12,fontWeight:600,color:'var(--text-primary)'}}>{r.display_name||r.username}</div>
                           <div style={{fontSize:10,color:'var(--text-muted)'}}>Beigetreten {fmtDate(r.joined_at)}</div>
@@ -486,7 +486,7 @@ export default function AmbassadorsPage() {
                   onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
                 >
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <Avatar src={a.avatar_url as string|null} name={a.display_name||a.username} size={30} />
+                    <Avatar src={a.avatar_url as (string|null)} name={a.display_name||a.username} size={30} />
                     <div>
                       <div style={{fontSize:12,fontWeight:600,color:'var(--text-primary)'}}>{a.display_name||a.username}</div>
                       <div style={{fontSize:10,color:'var(--text-muted)'}}>seit {fmtDate(a.activated_at)}</div>
@@ -521,7 +521,7 @@ export default function AmbassadorsPage() {
             {applications.map(a=>(
               <div key={a.id} style={{background:'var(--bg-secondary)',border:'1px solid rgba(255,184,0,0.25)',borderLeft:'3px solid var(--gold)',borderRadius:12,padding:16}}>
                 <div style={{display:'flex',alignItems:'flex-start',gap:14,marginBottom:a.motivation?10:0}}>
-                  <Avatar src={a.avatar_url as string|null} name={a.display_name||a.username} size={40} />
+                  <Avatar src={a.avatar_url as (string|null)} name={a.display_name||a.username} size={40} />
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{a.display_name||a.username}</div>
                     <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{a.username} · Beigetreten {fmtDate(a.created_at)}</div>
@@ -570,7 +570,7 @@ export default function AmbassadorsPage() {
                 const isPending=u.ambassador_status==='pending';
                 return (
                   <div key={u.id} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 16px',borderBottom:'1px solid var(--border)'}}>
-                    <Avatar src={u.avatar_url as string|null} name={u.display_name||u.username} size={36} />
+                    <Avatar src={u.avatar_url as (string|null)} name={u.display_name||u.username} size={36} />
                     <div style={{flex:1}}>
                       <div style={{fontSize:13,fontWeight:600,color:'var(--text-primary)',marginBottom:2}}>{u.display_name||u.username}</div>
                       <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
