@@ -185,7 +185,7 @@ export default function ExportsPage() {
   });
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="📥 Daten-Export">
     <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Header */}
