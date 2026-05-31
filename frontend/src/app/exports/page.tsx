@@ -175,7 +175,7 @@ export default function ExportsPage() {
     transition: 'all .15s', userSelect: 'none',
   };
   const cardSelected: React.CSSProperties = {
-    ...card, borderColor: 'var(--accent)', background: 'rgba(99,102,241,.07)',
+    ...card, borderColor: 'var(--accent)', background: 'rgba(99,102,241,.12)',
   };
   const btn = (color: string, bg: string): React.CSSProperties => ({
     padding: '10px 22px', borderRadius: 8, border: 'none',
@@ -244,7 +244,7 @@ export default function ExportsPage() {
       {/* Export buttons */}
       <div style={{
         marginTop: 28, padding: '20px 24px',
-        background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 14,
+        background: 'var(--bg-secondary)', border: '1.5px solid var(--border)', borderRadius: 14,
         display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
       }}>
         <div style={{ flex: 1 }}>
@@ -265,7 +265,7 @@ export default function ExportsPage() {
           <button
             disabled={status==='loading' || !totalSelected}
             onClick={() => doExport('log')}
-            style={{ ...btn('#fff','var(--muted)'), opacity: (!totalSelected || status==='loading') ? .5 : 1 }}>
+            style={{ ...btn('#fff','#475569'), opacity: (!totalSelected || status==='loading') ? .5 : 1, border:'1px solid #334155' }}>
             {status==='loading' ? '…' : '📄 Log-Datei'}
           </button>
           <button
@@ -284,7 +284,7 @@ export default function ExportsPage() {
       </div>
 
       {/* Info box */}
-      <div style={{ marginTop:18, padding:'12px 16px', background:'rgba(99,102,241,.05)', border:'1px solid rgba(99,102,241,.15)', borderRadius:10, fontSize:12, color:'var(--muted)' }}>
+      <div style={{ marginTop:18, padding:'12px 16px', background:'rgba(99,102,241,.08)', border:'1px solid rgba(99,102,241,.25)', borderRadius:10, fontSize:12, color:'var(--muted)' }}>
         <strong>📌 Hinweise:</strong>&nbsp;
         CSV verwendet Semikolon-Trennzeichen (Excel-DE kompatibel) mit UTF-8 BOM.&nbsp;
         Excel erstellt ein Tabellenblatt pro Modul.&nbsp;
