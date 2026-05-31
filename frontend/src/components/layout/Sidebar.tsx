@@ -25,7 +25,10 @@ const NAV_DE: NavItem[] = [
   { href: '/impact',       label: 'Impact Pool',      icon: '🌱', group: 'Management' },
   { href: '/works',        label: 'Werke & Content',  icon: '🎨', group: 'Content'    },
   { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅', group: 'Content'    },
-  { href: '/audit',        label: 'Audit Logs',       icon: '📋', group: 'System'     },
+  { href: '/analytics',    label: 'Analytics',        icon: '📈', group: 'Tools'      },
+  { href: '/broadcast',    label: 'Broadcast',         icon: '📨', group: 'Tools'      },
+  { href: '/tickets',      label: 'Support-Tickets',   icon: '🎫', group: 'Tools'      },
+  { href: '/audit',        label: 'Audit Logs',        icon: '📋', group: 'System'     },
   { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
   { href: '/exports',      label: 'Daten-Export',     icon: '📥', group: 'System'     },
   { href: '/settings',     label: 'Einstellungen',    icon: '⚙',  group: 'System'     },
@@ -41,14 +44,17 @@ const NAV_EN: NavItem[] = [
   { href: '/impact',       label: 'Impact Pool',      icon: '🌱', group: 'Management' },
   { href: '/works',        label: 'Werke & Content',  icon: '🎨', group: 'Content'    },
   { href: '/memberships',  label: 'Memberships',      icon: '🏅', group: 'Content'    },
-  { href: '/audit',        label: 'Audit Logs',       icon: '📋', group: 'System'     },
+  { href: '/analytics',    label: 'Analytics',        icon: '📈', group: 'Tools'      },
+  { href: '/broadcast',    label: 'Broadcast',         icon: '📨', group: 'Tools'      },
+  { href: '/tickets',      label: 'Support-Tickets',   icon: '🎫', group: 'Tools'      },
+  { href: '/audit',        label: 'Audit Logs',        icon: '📋', group: 'System'     },
   { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
   { href: '/exports',      label: 'Data Export',      icon: '📥', group: 'System'     },
   { href: '/settings',     label: 'Settings',         icon: '⚙',  group: 'System'     },
 ];
 
-const GROUPS_DE = ['Übersicht', 'Management', 'Content', 'System'];
-const GROUPS_EN = ['Overview',  'Management', 'Content', 'System'];
+const GROUPS_DE = ['Übersicht', 'Management', 'Content', 'Tools', 'System'];
+const GROUPS_EN = ['Overview',  'Management', 'Content', 'Tools', 'System'];
 
 function getInitials(name: string) {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
