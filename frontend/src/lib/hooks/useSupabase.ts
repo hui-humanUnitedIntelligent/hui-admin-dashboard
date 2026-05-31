@@ -51,13 +51,70 @@ export interface HuiPayment {
 export interface HuiWork {
   id: string;
   user_id: string;
+  creator_id: string | null;
   title: string;
+  description: string | null;
+  caption: string | null;
   category: string | null;
+  work_category: string | null;
+  tags: string[] | null;
   status: string;
+  visibility: string | null;
+  post_type: string | null;
+  media_type: string | null;
   price: number | null;
+  price_eur: number | null;
+  sale_mode: string | null;
+  for_sale: boolean;
+  is_digital: boolean;
+  is_showcase_only: boolean;
+  stock_quantity: number | null;
+  cover_url: string | null;
+  images: unknown[] | null;
+  media_url: string | null;
+  media_urls: unknown | null;
+  thumbnail_url: string | null;
   likes_count: number;
+  comments_count: number;
+  saves_count: number;
+  shares_count: number;
   views_count: number;
+  view_count: number;
+  sale_count: number;
+  allow_comments: boolean;
+  allow_likes: boolean;
+  allow_shares: boolean;
+  location: string | null;
+  location_text: string | null;
+  location_label: string | null;
+  language: string | null;
+  file_format: string | null;
+  shipping: boolean;
+  shipping_available: boolean;
+  shipping_countries: string | null;
+  shipping_cost: number | null;
+  pickup_available: boolean;
+  delivery_time: string | null;
+  duration: string | null;
+  participant_limit: number | null;
+  materials: string | null;
+  size: string | null;
+  condition: string | null;
+  energy_level: string | null;
+  mood_tags: string[] | null;
+  social_energy: string | null;
+  quantity: number;
+  currency: string | null;
+  experience_type: string | null;
+  pricing_type: string | null;
+  meeting_point: string | null;
+  available_days: unknown | null;
+  aspect_ratio: string | null;
+  media_count: number;
+  cover_index: number;
+  published_at: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 export interface HuiImpactProject {
@@ -361,7 +418,7 @@ export function useWorks(opts: {
 
       const [rows, count] = await Promise.all([
         sbQuery<HuiWork>('works', params, {
-          select: 'id,user_id,title,category,status,price,likes_count,views_count,created_at',
+          select: '*',
           order: 'created_at.desc',
           limit,
         }),
@@ -538,4 +595,5 @@ export function useSystemHealth(refreshInterval = 30000) {
 
   return health;
 }
+
 
