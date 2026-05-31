@@ -192,8 +192,7 @@ export default function WorksPage() {
       showToast('✅ Work gespeichert', 'success');
       refetch();
       setEditMode(false);
-      // Update selected
-      setSelected((prev) => prev ? { ...prev, ...form, price: parseFloat(form.price)||0 } : prev);
+      // Optimistic: refetch will update the list
     } else {
       showToast('Speichern fehlgeschlagen', 'error');
     }
