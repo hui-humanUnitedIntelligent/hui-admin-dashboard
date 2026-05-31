@@ -1,7 +1,7 @@
 // frontend/src/app/users/page.tsx
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -757,16 +757,13 @@ function NotesPanel({ userId }: { userId: string }) {
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch(\`/api/notes?userId=\${userId}\`).then(r => r.json()).catch(() => []);
+    const res = await fetch(`/api/notes?userId=${userId}`).then(r => r.json()).catch(() => []);
     setNotes(Array.isArray(res) ? res : []);
     setLoading(false);
   };
 
-  useState(() => { load(); });
-
-  // load on mount — use effect pattern via ref trick
-  const mounted = { current: false };
-  if (!mounted.current) { mounted.current = true; /* load called above */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [userId]);
 
   const addNote = async () => {
     if (!text.trim()) return;
