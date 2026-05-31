@@ -117,7 +117,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
 
   const amb    = detail?.ambassador as Record<string,unknown>|undefined;
   const level  = (amb?.level||'bronze') as AmbLevel;
-  const lc        = LEVEL[level] as {color:string;bg:string;icon:string;label:string};
+  const lc        = LEVEL[level] as typeof LEVEL.bronze;
   const lcBorder  = '1px solid ' + lc.color + '44';
   const lcBorderL = '4px solid ' + lc.color;
   const isActive = amb?.is_ambassador === true && amb?.status === 'active';
