@@ -179,7 +179,7 @@ export default function DashboardPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4,1fr)',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
           gap: 12, marginBottom: 18,
         }}
         className="grid-4"
@@ -203,13 +203,22 @@ export default function DashboardPage() {
           accentDim="rgba(247,183,49,0.12)"
         />
         <KPICard
-          label="Impact Pool"
-          value={kpis.loading ? '—' : fmtEur(kpis.impactPool)}
-          delta={kpis.loading ? '' : 'Dieser Monat'}
+          label="Netto Impact Pool"
+          value={kpis.loading ? '—' : fmtEur(kpis.impactPool * 0.85)}
+          delta="85 % der 15 %"
           deltaPositive
           icon="🌱"
-          accentColor="#74C0FC"
-          accentDim="rgba(116,192,252,0.12)"
+          accentColor="#4ECDC4"
+          accentDim="rgba(78,205,196,0.12)"
+        />
+        <KPICard
+          label="Firmenanteil"
+          value={kpis.loading ? '—' : fmtEur(kpis.impactPool * 0.15)}
+          delta="15 % der 15 %"
+          deltaPositive
+          icon="🏢"
+          accentColor="#F7B731"
+          accentDim="rgba(247,183,49,0.12)"
         />
         <KPICard
           label="Aktive Mitglieder"
