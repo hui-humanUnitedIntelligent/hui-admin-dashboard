@@ -179,8 +179,8 @@ export async function POST(req: NextRequest) {
       break;
 
     case 'restore_work':
-      // Restore soft-deleted or archived work → back to draft
-      result = await sbPatch('works', userId, { status: 'draft', visibility: 'private' });
+      // Restore soft-deleted work → published + public (immediately visible in app)
+      result = await sbPatch('works', userId, { status: 'published', visibility: 'public' });
       break;
 
     case 'unflag_work':
