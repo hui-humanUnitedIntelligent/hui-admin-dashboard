@@ -16,15 +16,6 @@ function normalizeName(s: string) {
 }
 function findDuplicates(profiles: HuiProfile[]): Map<string, HuiProfile[]> {
   const groups = new Map<string, HuiProfile[]>();
-  // Group by normalized email
-  const byEmail = new Map<string, HuiProfile[]>();
-  for (const p of profiles) {
-    if (!p.email) continue;
-    const k = (p.email || '').toLowerCase().trim();
-    if (!byEmail.has(k)) byEmail.set(k, []);
-    byEmail.get(k)!.push(p);
-  }
-  byEmail.forEach((arr, k) => { if (arr.length > 1) groups.set('email:' + k, arr); });
   // Group by very similar display_name (normalized, min 4 chars)
   const byName = new Map<string, HuiProfile[]>();
   for (const p of profiles) {
@@ -33,7 +24,20 @@ function findDuplicates(profiles: HuiProfile[]): Map<string, HuiProfile[]> {
     if (!byName.has(n)) byName.set(n, []);
     byName.get(n)!.push(p);
   }
-  byName.forEach((arr, k) => { if (arr.length > 1 && !Array.from(groups.values()).flat().some(x => arr.some(y => y.id === x.id))) groups.set('name:' + k, arr); });
+  byName.forEach((arr, k) => { if (arr.length > 1) groups.set('name:' + k, arr); });
+  // Group by identical username prefix (first 8 chars)
+  const byUser = new Map<string, HuiProfile[]>();
+  for (const p of profiles) {
+    const u = normalizeName(p.username || '');
+    if (u.length < 5) continue;
+    const key = u.slice(0, 10);
+    if (!byUser.has(key)) byUser.set(key, []);
+    byUser.get(key)!.push(p);
+  }
+  byUser.forEach((arr, k) => {
+    if (arr.length > 1 && !Array.from(groups.values()).flat().some(x => arr.some(y => y.id === x.id)))
+      groups.set('user:' + k, arr);
+  });
   return groups;
 }
 import { useProfilesRealtime } from '@/lib/hooks/useUserRealtime';
@@ -1097,7 +1101,7 @@ export default function UsersPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{u.display_name || '—'}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>@{u.username} · {u.email || '—'} · {u.role}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>@{u.username} · {(u as Record<string,unknown>).email as string || '—'} · {u.role}</div>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Reg: {timeAgo(u.created_at)}</div>
                   <button onClick={() => setDrawerUser(u)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--accent-dim)', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-body)' }}>Profil</button>
