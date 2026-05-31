@@ -1194,9 +1194,19 @@ export default function UsersPage() {
                           {status === 'deleted' && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🗑</div>}
                           {status === 'blocked' && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🚫</div>}
                         </div>
-                        <div>
-                          <div style={{ color: 'var(--text-primary)', fontWeight: 500, textDecoration: status === 'deleted' ? 'line-through' : 'none' }}>{u.display_name || '—'}</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>@{u.username || '—'}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ color: 'var(--text-primary)', fontWeight: 500, textDecoration: status === 'deleted' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{u.display_name || '—'}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', marginBottom: 2 }}>@{u.username || '—'}</div>
+                          <div
+                            title={u.id}
+                            onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(u.id); }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', padding: '1px 6px', borderRadius: 5, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', maxWidth: 140 }}
+                          >
+                            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {u.id}
+                            </span>
+                            <span style={{ fontSize: 8, color: 'var(--accent)', flexShrink: 0 }}>📋</span>
+                          </div>
                         </div>
                       </div>
                     </td>
