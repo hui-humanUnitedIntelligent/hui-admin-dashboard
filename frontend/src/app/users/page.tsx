@@ -163,15 +163,15 @@ function ProfileDrawer({
     talent:          user.talent         || '',
     tagline:         user.tagline        || '',
     location:        user.location_label || user.location || '',
-    website:         (user as Record<string, unknown>).website as string || '',
-    hourly_rate:     String((user as Record<string, unknown>).hourly_rate ?? ''),
+    website:         ((user as unknown as Record<string, unknown>).website as string) || '',
+    hourly_rate:     String((user as unknown as Record<string, unknown>).hourly_rate ?? ''),
     skills:          (Array.isArray(user.skills) ? (user.skills as string[]) : []).join(', '),
     is_available:    user.is_available   ?? true,
     role:            user.role           || 'basisuser',
     membership_type: user.membership_type || 'basisuser',
     is_wirker:       user.is_wirker      ?? false,
     is_member:       user.is_member      ?? false,
-    is_guardian:     (user as Record<string, unknown>).is_guardian as boolean ?? false,
+    is_guardian:     (user as unknown as Record<string, unknown>).is_guardian as boolean ?? false,
     focus_type:      user.focus_type     || '',
     trust_score:     String(user.trust_score ?? 0),
   });
@@ -393,7 +393,7 @@ function ProfileDrawer({
                   {infoRow('Talent',       user.talent)}
                   {infoRow('Tagline',      user.tagline)}
                   {infoRow('Standort',     user.location_label || user.location)}
-                  {infoRow('Website',      (user as Record<string,unknown>).website)}
+                  {infoRow('Website',      (user as unknown as Record<string,unknown>).website)}
                 </div>
                 {user.bio && <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{user.bio}</div>}
               </div>
@@ -407,7 +407,7 @@ function ProfileDrawer({
                   {infoRow('Trust Score',   user.trust_score ?? 0)}
                   {infoRow('Ist Wirker',    user.is_wirker ? '✅ Ja' : '—')}
                   {infoRow('Ist Member',    user.is_member ? '✅ Ja' : '—')}
-                  {infoRow('Ist Guardian',  (user as Record<string,unknown>).is_guardian ? '✅ Ja' : '—')}
+                  {infoRow('Ist Guardian',  (user as unknown as Record<string,unknown>).is_guardian ? '✅ Ja' : '—')}
                   {infoRow('Focus Type',    user.focus_type)}
                 </div>
               </div>
@@ -418,10 +418,10 @@ function ProfileDrawer({
                   {[
                     ['Impact €', `€${(user.impact_eur||0).toFixed(2)}`],
                     ['Follower', user.follower_count ?? user.followers_count ?? 0],
-                    ['Profile Views', (user as Record<string,unknown>).profile_views ?? 0],
+                    ['Profile Views', (user as unknown as Record<string,unknown>).profile_views ?? 0],
                     ['Erstellt', fmtDate(user.created_at)],
                     ['Letzter Login', fmtDate(user.last_seen || '')],
-                    ['Member seit', fmtDate((user as Record<string,unknown>).member_since as string || '')],
+                    ['Member seit', fmtDate((user as unknown as Record<string,unknown>).member_since as string || '')],
                   ].map(([k, v]) => (
                     <div key={k as string} style={{ padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 8 }}>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>{k as string}</div>
@@ -480,8 +480,8 @@ function ProfileDrawer({
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {infoRow('Membership aktiv', (user as Record<string,unknown>).membership_active ? '✅ Ja' : 'Nein')}
-                {infoRow('Member seit', fmtDate((user as Record<string,unknown>).member_since as string || ''))}
+                {infoRow('Membership aktiv', (user as unknown as Record<string,unknown>).membership_active ? '✅ Ja' : 'Nein')}
+                {infoRow('Member seit', fmtDate((user as unknown as Record<string,unknown>).member_since as string || ''))}
                 {infoRow('Erstellt am', fmtDate(user.created_at))}
                 {infoRow('Zuletzt geändert', fmtDate(user.updated_at || ''))}
               </div>
@@ -570,7 +570,7 @@ function ProfileDrawer({
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {infoRow('Talent-Profil aktiv', user.has_talent_profile ? '✅ Ja' : 'Nein')}
-                {infoRow('Talent aktiviert am', fmtDate((user as Record<string,unknown>).talent_activated_at as string || ''))}
+                {infoRow('Talent aktiviert am', fmtDate((user as unknown as Record<string,unknown>).talent_activated_at as string || ''))}
               </div>
             </div>
           )}
@@ -582,7 +582,7 @@ function ProfileDrawer({
                 {[
                   { label: 'Impact €', val: `€${(user.impact_eur||0).toFixed(2)}`, color: '#51CF66' },
                   { label: 'Follower', val: user.follower_count ?? user.followers_count ?? 0, color: '#74C0FC' },
-                  { label: 'Profile Views', val: (user as Record<string,unknown>).profile_views ?? 0, color: '#B197FC' },
+                  { label: 'Profile Views', val: (user as unknown as Record<string,unknown>).profile_views ?? 0, color: '#B197FC' },
                 ].map(({ label, val, color }) => (
                   <div key={label} style={{ padding: '14px', background: 'var(--bg-tertiary)', borderRadius: 10, textAlign: 'center', borderTop: `3px solid ${color}` }}>
                     <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{String(val)}</div>
@@ -596,14 +596,14 @@ function ProfileDrawer({
                   {infoRow('Account erstellt',     fmtDate(user.created_at))}
                   {infoRow('Zuletzt aktiv',         fmtDate(user.last_seen || ''))}
                   {infoRow('Profil aktualisiert',   fmtDate(user.updated_at || ''))}
-                  {infoRow('Member seit',           fmtDate((user as Record<string,unknown>).member_since as string || ''))}
+                  {infoRow('Member seit',           fmtDate((user as unknown as Record<string,unknown>).member_since as string || ''))}
                 </div>
               </div>
-              {(user as Record<string,unknown>).availability_slots && Object.keys((user as Record<string,unknown>).availability_slots as object).length > 0 && (
+              {(user as unknown as Record<string,unknown>).availability_slots && Object.keys((user as unknown as Record<string,unknown>).availability_slots as object).length > 0 && (
                 <div style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🗓 Verfügbarkeitsslots</div>
                   <pre style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                    {JSON.stringify((user as Record<string,unknown>).availability_slots, null, 2)}
+                    {JSON.stringify((user as unknown as Record<string,unknown>).availability_slots, null, 2)}
                   </pre>
                 </div>
               )}
