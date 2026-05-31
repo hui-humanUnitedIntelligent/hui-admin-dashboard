@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import KPICard from '@/components/ui/KPICard';
 import { statusToBadge } from '@/components/ui/Badge';
 import { useKPIs, usePayments, useProfiles, useGrowthChart } from '@/lib/hooks/useSupabase';
+import { useAmbassadorStats } from '@/lib/hooks/useAmbassador';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function fmtEur(n: number) {
@@ -61,6 +62,7 @@ export default function DashboardPage() {
   const { payments, loading: txLoading } = usePayments({ limit: 8, refreshInterval: 30000 });
   const { profiles: recentUsers } = useProfiles({ limit: 5, refreshInterval: 30000 });
   const growth   = useGrowthChart();
+  const ambStats = useAmbassadorStats(60000);
 
   const growthRef = useRef<HTMLCanvasElement>(null);
   const txRef     = useRef<HTMLCanvasElement>(null);
