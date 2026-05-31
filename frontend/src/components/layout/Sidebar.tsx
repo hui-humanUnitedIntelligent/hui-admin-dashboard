@@ -18,6 +18,7 @@ interface NavItem {
 const NAV_DE: NavItem[] = [
   { href: '/dashboard',    label: 'Dashboard',        icon: '⊞', group: 'Übersicht'  },
   { href: '/users',        label: 'User-Management',  icon: '◎', group: 'Management' },
+  { href: '/admins',       label: 'Admin-Verwaltung', icon: '🛡️', group: 'Management' },
   { href: '/talents',      label: 'Talent-Pool',      icon: '⭐', group: 'Management' },
   { href: '/transactions', label: 'Transaktionen',    icon: '⇄', group: 'Management' },
   { href: '/bookings',     label: 'Buchungen',        icon: '📅', group: 'Management' },
@@ -33,6 +34,7 @@ const NAV_DE: NavItem[] = [
 const NAV_EN: NavItem[] = [
   { href: '/dashboard',    label: 'Dashboard',        icon: '⊞', group: 'Overview'   },
   { href: '/users',        label: 'User Management',  icon: '◎', group: 'Management' },
+  { href: '/admins',       label: 'Admin Management', icon: '🛡️', group: 'Management' },
   { href: '/talents',      label: 'Talent Pool',      icon: '⭐', group: 'Management' },
   { href: '/transactions', label: 'Transactions',     icon: '⇄', group: 'Management' },
   { href: '/bookings',     label: 'Bookings',         icon: '📅', group: 'Management' },
