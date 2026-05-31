@@ -1,6 +1,8 @@
+// frontend/src/app/layout.tsx
 import type { Metadata } from 'next';
 import '../styles/globals.css';
 import AuthGuard from './AuthGuard';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'HUI Admin',
@@ -10,13 +12,28 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de">
+    <html lang="de" data-theme="dark" suppressHydrationWarning>
       <head>
         <meta name="robots" content="noindex, nofollow" />
         <meta name="referrer" content="no-referrer" />
+        {/* Prevent flash: apply saved theme before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                try {
+                  var t = localStorage.getItem('hui_admin_theme') || 'dark';
+                  document.documentElement.setAttribute('data-theme', t);
+                } catch(e){}
+              })();
+            `,
+          }}
+        />
       </head>
       <body>
-        <AuthGuard>{children}</AuthGuard>
+        <ThemeProvider>
+          <AuthGuard>{children}</AuthGuard>
+        </ThemeProvider>
       </body>
     </html>
   );
