@@ -225,7 +225,7 @@ export async function GET(req: NextRequest) {
   const select = searchParams.get('select') || '*';
   const limit  = searchParams.get('limit')  || '500';
 
-  const ALLOWED_TABLES = ['works','profiles','payments','impact_projects','bookings','wirker_profiles','wirker','activity_logs'];
+  const ALLOWED_TABLES = ['works','profiles','payments','impact_projects','bookings','wirker_profiles','wirker','activity_logs','notifications','invitations','orders'];
   if (!table || !ALLOWED_TABLES.includes(table)) {
     return NextResponse.json({ error: 'Invalid table' }, { status: 400 });
   }
