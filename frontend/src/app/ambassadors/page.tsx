@@ -1,7 +1,6 @@
 'use client';
 type AmbActionData = Record<string, unknown>;
 // frontend/src/app/ambassadors/page.tsx
-'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
