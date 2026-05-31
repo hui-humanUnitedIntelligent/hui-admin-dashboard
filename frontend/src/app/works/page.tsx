@@ -261,6 +261,22 @@ export default function WorksPage() {
     });
   }, [refetchAllTabs]);
 
+  // ── Hard Delete (permanent, irreversible) ──────────────────────────────
+  const handleHardDelete = useCallback((w: WorkWithMeta) => {
+    setConfirm({
+      open: true, loading: false,
+      title: '⚠️ Endgültig löschen',
+      message: `ACHTUNG: „${w.title || 'Kein Titel'}" wird DAUERHAFT aus der Datenbank gelöscht. Diese Aktion kann NICHT rückgängig gemacht werden!`,
+      onConfirm: async () => {
+        setConfirm(p => ({ ...p, loading: true }));
+        const ok = await workAction('hard_delete_work', w.id);
+        setConfirm(p => ({ ...p, loading: false, open: false }));
+        if (ok) { showToast('Work dauerhaft gelöscht', 'info'); refetchAllTabs(); setSelected(null); }
+        else showToast('Fehler', 'error');
+      },
+    });
+  }, [refetchAllTabs]);
+
   // ── Unflag (flagged → published) ───────────────────────────────────────
   const handleUnflag = useCallback((w: WorkWithMeta) => {
     setConfirm({
@@ -480,12 +496,18 @@ export default function WorksPage() {
                         <button title="Details" onClick={() => openDetail(w)}
                           style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--accent)', cursor:'pointer', fontSize:12 }}>👁</button>
 
-                        {/* DELETED tab: only Restore */}
+                        {/* DELETED tab: Restore + Hard Delete */}
                         {tab === 'deleted' && (
-                          <button title="Wiederherstellen" disabled={isBusy} onClick={() => handleRestore(w)}
-                            style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:600 }}>
-                            {isBusy ? '…' : '♻️ Restore'}
-                          </button>
+                          <>
+                            <button title="Wiederherstellen" disabled={isBusy} onClick={() => handleRestore(w)}
+                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:600 }}>
+                              {isBusy ? '…' : '♻️ Restore'}
+                            </button>
+                            <button title="Endgültig löschen" disabled={isBusy} onClick={() => handleHardDelete(w)}
+                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                              {isBusy ? '…' : '🗑 Löschen'}
+                            </button>
+                          </>
                         )}
 
                         {/* FLAGGED tab: Unflag + Delete */}
@@ -541,7 +563,10 @@ export default function WorksPage() {
 
                   {/* Status-specific actions */}
                   {selected.status === 'deleted' && (
-                    <Button variant="primary" onClick={() => handleRestore(selected)}>♻️ Wiederherstellen</Button>
+                    <>
+                      <Button variant="primary" onClick={() => handleRestore(selected)}>♻️ Wiederherstellen</Button>
+                      <Button variant="danger" onClick={() => handleHardDelete(selected)}>🗑 Endgültig löschen</Button>
+                    </>
                   )}
                   {selected.status === 'flagged' && (
                     <>
@@ -585,7 +610,8 @@ export default function WorksPage() {
           {/* Status banner in modal */}
           {selected.status === 'deleted' && (
             <div style={{ marginBottom:14, padding:'10px 14px', background:'rgba(255,107,107,0.07)', border:'1px solid var(--red)', borderRadius:8, fontSize:12, color:'var(--red)' }}>
-              🗑 Dieses Work wurde gelöscht. Klicke auf "Wiederherstellen", um es als Draft zurückzubringen.
+              🗑 Dieses Work ist als gelöscht markiert und in der App <strong>nicht sichtbar</strong>.
+              <br/><span style={{ marginTop:4, display:'block', opacity:0.8 }}>♻️ Wiederherstellen → setzt es als Draft zurück · 🗑 Endgültig löschen → unwiderruflich aus der Datenbank entfernen</span>
             </div>
           )}
           {selected.status === 'flagged' && (
@@ -738,4 +764,5 @@ export default function WorksPage() {
     </DashboardLayout>
   );
 }
+
 
