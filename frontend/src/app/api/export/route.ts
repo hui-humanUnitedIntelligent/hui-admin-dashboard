@@ -9,7 +9,7 @@ const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const TABLE_CONFIGS: Record<string, { columns: string[]; label: string }> = {
   profiles: {
     label: 'Nutzer',
-    columns: ['id','full_name','email','username','role','membership_type','is_member',
+    columns: ['id','display_name','username','full_name','email','role','membership_type','is_member',
               'is_wirker','trust_score','impact_eur','follower_count','followers_count',
               'location_label','created_at','last_seen'],
   },
