@@ -599,24 +599,36 @@ function ProfileDrawer({
                   {infoRow('Member seit',           fmtDate((user as unknown as Record<string,unknown>).member_since as string || ''))}
                 </div>
               </div>
-              {(user as unknown as Record<string,unknown>).availability_slots && Object.keys((user as unknown as Record<string,unknown>).availability_slots as object).length > 0 && (
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🗓 Verfügbarkeitsslots</div>
-                  <pre style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                    {JSON.stringify((user as unknown as Record<string,unknown>).availability_slots, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {Array.isArray((user as unknown as Record<string,unknown>).dna_tags) && ((user as unknown as Record<string,unknown>).dna_tags as string[]).length > 0 && (
+              {(() => {
+                const slots = (user as unknown as Record<string,unknown>).availability_slots;
+                if (!slots || Object.keys(slots as object).length === 0) return null;
+                return (
+                  <div style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🗓 Verfügbarkeitsslots</div>
+                    <pre style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {JSON.stringify(slots, null, 2)}
+                    </pre>
+                  </div>
+                );
+              })()}
+              {(() => { const dna = (user as unknown as Record<string,unknown>).dna_tags as string[] | null; return Array.isArray(dna) && dna.length > 0 ? (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🧬 DNA Tags</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {((user as unknown as Record<string,unknown>).dna_tags as string[]).map(t => (
+              {(() => {
+                const dnaTags = (user as unknown as Record<string,unknown>).dna_tags as string[] | null;
+                if (!Array.isArray(dnaTags) || dnaTags.length === 0) return null;
+                return (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🧬 DNA Tags</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {dnaTags.map((t: string) => (
                       <span key={t} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(177,151,252,0.15)', color: '#B197FC', fontSize: 11 }}>#{t}</span>
                     ))}
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
