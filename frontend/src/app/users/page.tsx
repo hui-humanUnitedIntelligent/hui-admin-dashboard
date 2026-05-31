@@ -145,7 +145,7 @@ export default function UsersPage() {
     const ok = isBlocked ? await unblockUser(u.id) : await blockUser(u.id);
     setBusyFor(u.id, false);
     if (ok) {
-      showToast(`${u.display_name}: ${isBlocked ? 'Entsperrt ✅' : 'Blockiert 🚫'}`, isBlocked ? 'success' : 'warning');
+      showToast(`${u.display_name}: ${isBlocked ? 'Entsperrt ✅' : 'Blockiert 🚫'}`, isBlocked ? 'success' : 'info');
       refetch();
     } else {
       showToast('Aktion fehlgeschlagen', 'error');
