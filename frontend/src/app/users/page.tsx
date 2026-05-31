@@ -9,11 +9,38 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
 import { useProfiles, HuiProfile } from '@/lib/hooks/useSupabase';
+
+// ── Duplicate detection helpers ───────────────────────────────────────────
+function normalizeName(s: string) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+}
+function findDuplicates(profiles: HuiProfile[]): Map<string, HuiProfile[]> {
+  const groups = new Map<string, HuiProfile[]>();
+  // Group by normalized email
+  const byEmail = new Map<string, HuiProfile[]>();
+  for (const p of profiles) {
+    if (!p.email) continue;
+    const k = (p.email || '').toLowerCase().trim();
+    if (!byEmail.has(k)) byEmail.set(k, []);
+    byEmail.get(k)!.push(p);
+  }
+  byEmail.forEach((arr, k) => { if (arr.length > 1) groups.set('email:' + k, arr); });
+  // Group by very similar display_name (normalized, min 4 chars)
+  const byName = new Map<string, HuiProfile[]>();
+  for (const p of profiles) {
+    const n = normalizeName(p.display_name || p.username || '');
+    if (n.length < 4) continue;
+    if (!byName.has(n)) byName.set(n, []);
+    byName.get(n)!.push(p);
+  }
+  byName.forEach((arr, k) => { if (arr.length > 1 && !Array.from(groups.values()).flat().some(x => arr.some(y => y.id === x.id))) groups.set('name:' + k, arr); });
+  return groups;
+}
 import { useProfilesRealtime } from '@/lib/hooks/useUserRealtime';
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type UserTab    = 'active' | 'blocked' | 'deleted' | 'wirker';
-type DrawerSection = 'overview' | 'profil' | 'account' | 'rollen' | 'aktivitaet' | 'wirker' | 'sicherheit';
+type UserTab    = 'active' | 'blocked' | 'deleted' | 'wirker' | 'duplicates';
+type DrawerSection = 'overview' | 'profil' | 'account' | 'rollen' | 'aktivitaet' | 'wirker' | 'sicherheit' | 'notizen';
 
 // ── API helpers ───────────────────────────────────────────────────────────
 async function adminAction(action: string, userId: string, data: Record<string, unknown> = {}): Promise<boolean> {
@@ -90,8 +117,9 @@ function TabBar({ tab, setTab, counts }: {
     { key: 'blocked', label: 'Blockiert',    icon: '🚫', color: 'var(--gold)' },
     { key: 'deleted', label: 'Gelöscht',     icon: '🗑', color: 'var(--red)'  },
     { key: 'wirker',  label: 'Wirker',       icon: '⭐', color: 'var(--purple)' },
+    { key: 'duplicates', label: 'Duplikate',  icon: '⚠️', color: 'var(--gold)' },
   ];
-  const cnt: Record<UserTab, number> = counts;
+  const cnt: Record<UserTab, number> = { ...counts, duplicates: counts.duplicates ?? 0 };
   return (
     <div style={{ display: 'flex', gap: 4, marginBottom: 14, borderBottom: '1px solid var(--border)', paddingBottom: 10, flexWrap: 'wrap' }}>
       {tabs.map(({ key, label, icon, color }) => {
@@ -136,6 +164,7 @@ const DRAWER_SECTIONS: { key: DrawerSection; label: string; icon: string; sub: s
   { key: 'wirker',      label: 'Wirker-Profil',    icon: '⭐', sub: 'Stundensatz, Skills, Verfügbarkeit' },
   { key: 'aktivitaet',  label: 'Aktivität',        icon: '📊', sub: 'Impact, Follower, Views, Dates' },
   { key: 'sicherheit',  label: 'Sicherheit',       icon: '⚠️', sub: 'Status, Trust Score, Aktionen' },
+  { key: 'notizen',     label: 'Admin-Notizen',   icon: '📝', sub: 'Interne Notizen zu diesem User' },
 ];
 
 interface DrawerEditState {
@@ -673,6 +702,13 @@ function ProfileDrawer({
           )}
         </div>
 
+        {/* ── Notizen ── */}
+        {section === 'notizen' && (
+          <div style={{ padding: '0 20px 20px' }}>
+            <NotesPanel userId={user.id} />
+          </div>
+        )}
+
         {/* ── Footer ─────────────────────────────────────────────────── */}
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <button onClick={onClose} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)' }}>
@@ -705,6 +741,133 @@ function ProfileDrawer({
   );
 }
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── NOTES PANEL ─────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+interface Note { id: string; text: string; created_at: string; admin_label?: string; }
+
+function NotesPanel({ userId }: { userId: string }) {
+  const [notes, setNotes]     = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText]       = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    const res = await fetch(\`/api/notes?userId=\${userId}\`).then(r => r.json()).catch(() => []);
+    setNotes(Array.isArray(res) ? res : []);
+    setLoading(false);
+  };
+
+  useState(() => { load(); });
+
+  // load on mount — use effect pattern via ref trick
+  const mounted = { current: false };
+  if (!mounted.current) { mounted.current = true; /* load called above */ }
+
+  const addNote = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    const res = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', userId, text }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (res.ok) { setNotes(data.notes || []); setText(''); }
+    else showToast('Fehler beim Speichern', 'error');
+  };
+
+  const deleteNote = async (noteId: string) => {
+    const res = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', userId, noteId }),
+    });
+    const data = await res.json();
+    if (res.ok) setNotes(data.notes || []);
+  };
+
+  const saveEdit = async (noteId: string) => {
+    const res = await fetch('/api/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'edit', userId, noteId, text: editText }),
+    });
+    const data = await res.json();
+    if (res.ok) { setNotes(data.notes || []); setEditing(null); }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 11px', background: 'var(--bg-primary)',
+    border: '1px solid var(--border)', borderRadius: 8, fontSize: 12,
+    color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box',
+  };
+
+  return (
+    <div>
+      {/* Add note */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>
+          📝 Neue Notiz
+        </label>
+        <textarea
+          value={text} onChange={e => setText(e.target.value)}
+          placeholder="Interne Notiz hinzufügen… z.B. 'Hat Support kontaktiert am 31.5.'"
+          rows={3}
+          style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+        />
+        <button
+          onClick={addNote} disabled={saving || !text.trim()}
+          style={{ marginTop: 8, padding: '7px 18px', borderRadius: 8, border: 'none', background: saving || !text.trim() ? 'var(--bg-tertiary)' : 'var(--accent)', color: saving || !text.trim() ? 'var(--text-muted)' : '#0F1117', cursor: saving || !text.trim() ? 'default' : 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-body)' }}
+        >
+          {saving ? '…' : '✅ Notiz speichern'}
+        </button>
+      </div>
+
+      {/* Notes list */}
+      {loading ? (
+        <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Lade Notizen…</div>
+      ) : notes.length === 0 ? (
+        <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+          <div style={{ fontSize: 24, marginBottom: 6 }}>📭</div>
+          Noch keine Notizen
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {notes.map(note => (
+            <div key={note.id} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', borderLeft: '3px solid var(--gold)' }}>
+              {editing === note.id ? (
+                <div>
+                  <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={3} style={{ ...inputStyle, marginBottom: 8, resize: 'vertical' }} />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => saveEdit(note.id)} style={{ padding: '5px 12px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#0F1117', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-body)' }}>Speichern</button>
+                    <button onClick={() => setEditing(null)} style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-body)' }}>Abbrechen</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: 8 }}>{note.text}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      🔐 {note.admin_label || 'Admin'} · {new Date(note.created_at).toLocaleString('de-DE')}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { setEditing(note.id); setEditText(note.text); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, padding: 2 }} onMouseEnter={e => ((e.target as HTMLElement).style.color = 'var(--accent)')} onMouseLeave={e => ((e.target as HTMLElement).style.color = 'var(--text-muted)')}>✏️</button>
+                      <button onClick={() => deleteNote(note.id)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, padding: 2 }} onMouseEnter={e => ((e.target as HTMLElement).style.color = 'var(--red)')} onMouseLeave={e => ((e.target as HTMLElement).style.color = 'var(--text-muted)')}>🗑</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // ── MAIN PAGE ───────────────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════
@@ -714,6 +877,12 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage]             = useState(0);
   const [drawerUser, setDrawerUser] = useState<HuiProfile | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction]   = useState('');
+  const [bulkData, setBulkData]       = useState<Record<string,string>>({});
+  const [bulkBusy, setBulkBusy]       = useState(false);
+  const [bulkMsg, setBulkMsg]         = useState('');
+  const [showBulkMsg, setShowBulkMsg] = useState(false);
   const [busy, setBusy]             = useState<Record<string, boolean>>({});
 
   const LIMIT = 50;
@@ -733,13 +902,49 @@ export default function UsersPage() {
   const { profiles: wirkerProfiles  } = useProfiles({ status: 'active', is_wirker: true, limit: 500, refreshInterval: 60000 });
 
   const counts = useMemo(() => ({
-    active:  total,
-    blocked: blockedProfiles.length,
-    deleted: deletedProfiles.length,
-    wirker:  wirkerProfiles.length,
-  }), [total, blockedProfiles.length, deletedProfiles.length, wirkerProfiles.length]);
+    active:     total,
+    blocked:    blockedProfiles.length,
+    deleted:    deletedProfiles.length,
+    wirker:     wirkerProfiles.length,
+    duplicates: duplicateIds.size,
+  }), [total, blockedProfiles.length, deletedProfiles.length, wirkerProfiles.length, duplicateIds.size]);
 
   useProfilesRealtime(refetch, true);
+
+  // ── All profiles for duplicate detection ─────────────────────────────
+  const { profiles: allProfilesForDup } = useProfiles({ status: 'active', limit: 2000, refreshInterval: 60000 });
+  const duplicateGroups = findDuplicates(allProfilesForDup);
+  const duplicateIds    = new Set(Array.from(duplicateGroups.values()).flat().map(p => p.id));
+
+  // ── Bulk action handler ──────────────────────────────────────────────
+  const handleBulkAction = async () => {
+    if (selectedIds.size === 0 || !bulkAction) return;
+    if (!confirm(\`Aktion "\${bulkAction}" auf \${selectedIds.size} User anwenden?\`)) return;
+    setBulkBusy(true);
+    try {
+      const body: Record<string,unknown> = { action: bulkAction, userIds: Array.from(selectedIds) };
+      if (bulkAction === 'change_role') body.data = { role: bulkData.role };
+      if (bulkAction === 'change_membership') body.data = { membership_type: bulkData.membership_type };
+      if (bulkAction === 'broadcast') body.data = { title: bulkData.title, body: bulkData.body };
+      const res = await fetch('/api/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json();
+      if (res.ok) {
+        showToast(\`✅ \${d.success || selectedIds.size} User erfolgreich\`, 'success');
+        setSelectedIds(new Set()); setBulkAction(''); setBulkData({});
+        refetch();
+      } else showToast(d.error || 'Fehler', 'error');
+    } finally { setBulkBusy(false); }
+  };
+
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const toggleSelectAll = () => {
+    if (selectedIds.size === profiles.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(profiles.map(p => p.id)));
+  };
   const setBusyFor = (id: string, v: boolean) => setBusy(p => ({ ...p, [id]: v }));
 
   const handleRoleChange = useCallback(async (u: HuiProfile, role: string) => {
@@ -811,6 +1016,101 @@ export default function UsersPage() {
         </div>
       )}
 
+      {/* ── Bulk Action Bar ── */}
+      {selectedIds.size > 0 && (
+        <div style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 10, padding: '10px 16px', marginBottom: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', animation: 'fadeIn 0.2s ease-out' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
+            ✓ {selectedIds.size} User ausgewählt
+          </span>
+          <select value={bulkAction} onChange={e => { setBulkAction(e.target.value); setBulkData({}); setShowBulkMsg(false); }}
+            style={{ padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none' }}>
+            <option value="">Aktion wählen…</option>
+            <option value="change_role">🎭 Rolle ändern</option>
+            <option value="change_membership">🏅 Mitgliedschaft ändern</option>
+            <option value="broadcast">📨 Broadcast senden</option>
+            <option value="block">🚫 Blockieren</option>
+            <option value="unblock">✅ Entsperren</option>
+            <option value="delete">🗑 Soft-Delete</option>
+          </select>
+
+          {bulkAction === 'change_role' && (
+            <select value={bulkData.role || ''} onChange={e => setBulkData(p => ({ ...p, role: e.target.value }))}
+              style={{ padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none' }}>
+              <option value="">Rolle…</option>
+              {['basisuser','member','wirker','admin','superadmin'].map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          )}
+          {bulkAction === 'change_membership' && (
+            <select value={bulkData.membership_type || ''} onChange={e => setBulkData(p => ({ ...p, membership_type: e.target.value }))}
+              style={{ padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none' }}>
+              <option value="">Typ…</option>
+              {['basisuser','member','wirker','premium'].map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          )}
+          {bulkAction === 'broadcast' && (
+            <div style={{ display: 'flex', gap: 6, flex: 1 }}>
+              {!showBulkMsg ? (
+                <button onClick={() => setShowBulkMsg(true)} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-body)' }}>✏️ Nachricht verfassen</button>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+                  <input value={bulkData.title || ''} onChange={e => setBulkData(p => ({...p, title: e.target.value}))} placeholder="Titel" style={{ padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none', width: 160 }} />
+                  <input value={bulkData.body || ''} onChange={e => setBulkData(p => ({...p, body: e.target.value}))} placeholder="Nachricht" style={{ padding: '6px 10px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-body)', outline: 'none', flex: 1 }} />
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={handleBulkAction}
+            disabled={bulkBusy || !bulkAction}
+            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: bulkBusy || !bulkAction ? 'var(--bg-tertiary)' : (bulkAction === 'delete' || bulkAction === 'block' ? 'var(--red)' : 'var(--accent)'), color: bulkBusy || !bulkAction ? 'var(--text-muted)' : '#0F1117', cursor: bulkBusy || !bulkAction ? 'default' : 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-body)', flexShrink: 0 }}
+          >
+            {bulkBusy ? '⏳' : '✓ Ausführen'}
+          </button>
+          <button onClick={() => { setSelectedIds(new Set()); setBulkAction(''); setBulkData({}); setShowBulkMsg(false); }} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)', flexShrink: 0 }}>✕</button>
+        </div>
+      )}
+
+      {/* ── Duplicates View ── */}
+      {tab === 'duplicates' && (
+        <div style={{ marginBottom: 16 }}>
+          {duplicateGroups.size === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Keine Duplikate gefunden</div>
+            </div>
+          ) : Array.from(duplicateGroups.entries()).map(([groupKey, users]) => (
+            <div key={groupKey} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--gold)', borderRadius: 12, marginBottom: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 16px', background: 'var(--gold-dim)', borderBottom: '1px solid var(--gold)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)' }}>
+                  ⚠️ {groupKey.startsWith('email:') ? '📧 Gleiche E-Mail' : '👤 Ähnlicher Name'} — {users.length} Profile
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {groupKey.replace('email:', '').replace('name:', '')}
+                </span>
+              </div>
+              {users.map(u => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelect(u.id)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer' }} />
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: avatarColor(u.id), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#0F1117', flexShrink: 0 }}>
+                    {(u.display_name || u.username || '?')[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{u.display_name || '—'}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>@{u.username} · {u.email || '—'} · {u.role}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Reg: {timeAgo(u.created_at)}</div>
+                  <button onClick={() => setDrawerUser(u)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--accent-dim)', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-body)' }}>Profil</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
@@ -843,15 +1143,20 @@ export default function UsersPage() {
         </span>
       </div>
 
-      {/* Table */}
-      <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${tab === 'deleted' ? 'rgba(255,107,107,0.2)' : tab === 'blocked' ? 'rgba(247,183,49,0.2)' : 'var(--border)'}`, borderRadius: 12, overflow: 'hidden' }}>
+      {/* Table — hide in duplicates tab */}
+      {tab !== 'duplicates' && <div style={{ background: 'var(--bg-secondary)', border: `1px solid ${tab === 'deleted' ? 'rgba(255,107,107,0.2)' : tab === 'blocked' ? 'rgba(247,183,49,0.2)' : 'var(--border)'}`, borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: tab === 'deleted' ? 'rgba(255,107,107,0.03)' : tab === 'blocked' ? 'rgba(247,183,49,0.03)' : undefined }}>
-                {['User', 'Status', 'Rolle', tab === 'deleted' || tab === 'blocked' ? 'Gelöscht / Blockiert' : 'Membership', 'Impact €', 'Zuletzt aktiv', 'Profil öffnen'].map(h => (
+                {[
+                  <th key="cb" style={{ padding: '10px 10px 10px 14px', textAlign: 'left', borderBottom: '1px solid var(--border)', width: 36 }}>
+                    <input type="checkbox" checked={profiles.length > 0 && selectedIds.size === profiles.length} onChange={toggleSelectAll} style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                  </th>,
+                  ...['User', 'Status', 'Rolle', tab === 'deleted' || tab === 'blocked' ? 'Gelöscht / Blockiert' : 'Membership', 'Impact €', 'Zuletzt aktiv', 'Profil öffnen'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
+                ))],
+                ]}
               </tr>
             </thead>
             <tbody>
@@ -870,9 +1175,16 @@ export default function UsersPage() {
                 const isBusy = busy[u.id];
                 return (
                   <tr key={u.id} className="tr-hover"
-                    style={{ opacity: status === 'deleted' ? 0.55 : 1, cursor: 'pointer' }}
+                    style={{ opacity: status === 'deleted' ? 0.55 : 1, cursor: 'pointer', background: selectedIds.has(u.id) ? 'var(--accent-dim)' : (duplicateIds.has(u.id) ? 'rgba(247,183,49,0.04)' : 'transparent') }}
                     onClick={() => setDrawerUser(u)}
                   >
+                    {/* Checkbox */}
+                    <td style={{ padding: '10px 10px 10px 14px', borderBottom: '1px solid var(--border)', width: 36 }} onClick={e => { e.stopPropagation(); toggleSelect(u.id); }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelect(u.id)} onClick={e => e.stopPropagation()} style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                        {duplicateIds.has(u.id) && <span title="Mögliches Duplikat" style={{ fontSize: 10, color: 'var(--gold)' }}>⚠️</span>}
+                      </div>
+                    </td>
                     {/* Avatar + Name */}
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -947,7 +1259,7 @@ export default function UsersPage() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Profile Drawer */}
       {drawerUser && (
