@@ -250,7 +250,7 @@ export default function WorksPage() {
     setConfirm({
       open:true, loading:false,
       title: '♻️ Werk wiederherstellen',
-      message: `„${w.title||'Kein Titel'}" wird als Draft wiederhergestellt und ist nicht öffentlich sichtbar.`,
+      message: `„${w.title||'Kein Titel'}" wird wiederhergestellt und sofort als "Published" in der App sichtbar.`,
       onConfirm: async () => {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('restore_work', w.id);
