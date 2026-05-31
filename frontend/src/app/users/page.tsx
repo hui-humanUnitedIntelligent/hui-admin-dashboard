@@ -916,7 +916,7 @@ export default function UsersPage() {
   // ── Bulk action handler ──────────────────────────────────────────────
   const handleBulkAction = async () => {
     if (selectedIds.size === 0 || !bulkAction) return;
-    if (!confirm(\`Aktion "\${bulkAction}" auf \${selectedIds.size} User anwenden?\`)) return;
+    if (!confirm(`Aktion "${bulkAction}" auf ${selectedIds.size} User anwenden?`)) return;
     setBulkBusy(true);
     try {
       const body: Record<string,unknown> = { action: bulkAction, userIds: Array.from(selectedIds) };
@@ -926,7 +926,7 @@ export default function UsersPage() {
       const res = await fetch('/api/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await res.json();
       if (res.ok) {
-        showToast(\`✅ \${d.success || selectedIds.size} User erfolgreich\`, 'success');
+        showToast(`✅ ${d.success || selectedIds.size} User erfolgreich`, 'success');
         setSelectedIds(new Set()); setBulkAction(''); setBulkData({});
         refetch();
       } else showToast(d.error || 'Fehler', 'error');
