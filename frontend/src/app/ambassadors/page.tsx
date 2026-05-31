@@ -121,12 +121,13 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:DrawerProps) {
     } finally { setActing(false); }
   };
 
-  const amb    = detail?.ambassador as (Record<string,unknown>|undefined);
-  const level  = (amb?.level||'bronze') as AmbLevel;
-  const lc        = LEVEL[level] as typeof LEVEL.bronze;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const amb       = (detail?.ambassador ?? {}) as any;
+  const ambLevel  = (amb.level || 'bronze') as AmbLevel;
+  const lc        = LEVEL[ambLevel] ?? LEVEL.bronze;
   const lcBorder  = '1px solid ' + lc.color + '44';
   const lcBorderL = '4px solid ' + lc.color;
-  const isActive = amb?.is_ambassador === true && amb?.status === 'active';
+  const isActive  = amb.is_ambassador === true && amb.status === 'active';
 
   return (
     <>
