@@ -22,7 +22,8 @@ type Action =
   | 'flag_work'
   | 'approve_work'
   | 'restore_work'
-  | 'unflag_work';
+  | 'unflag_work'
+  | 'restore_user';
 
 async function sbPatch(table: string, id: string, data: Record<string, unknown>) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
@@ -171,6 +172,16 @@ export async function POST(req: NextRequest) {
     case 'unflag_work':
       // Remove flag, set back to published + public
       result = await sbPatch('works', userId, { status: 'published', visibility: 'public' });
+      break;
+
+    case 'restore_user':
+      // Restore soft-deleted user: reset trust_score to 0, set role to basisuser
+      result = await sbPatch('profiles', userId, {
+        trust_score: 0,
+        role: data.role as string || 'basisuser',
+        is_member: true,
+        membership_active: false,
+      });
       break;
 
     default:
