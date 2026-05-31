@@ -8,7 +8,8 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
-import { useProfiles, useProfilesRealtime, HuiProfile } from '@/lib/hooks/useSupabase';
+import { useProfiles, HuiProfile } from '@/lib/hooks/useSupabase';
+import { useProfilesRealtime } from '@/lib/hooks/useUserRealtime';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type UserTab = 'active' | 'blocked' | 'deleted' | 'wirker';
