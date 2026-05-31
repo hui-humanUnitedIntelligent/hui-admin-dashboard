@@ -1,7 +1,7 @@
 // frontend/src/app/works/page.tsx
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
 import { useWorks, HuiWork } from '@/lib/hooks/useSupabase';
-import { SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
+// api imports handled via useWorks hook
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type WorkWithMeta = HuiWork & Record<string, unknown> & {
@@ -176,47 +176,16 @@ export default function WorksPage() {
     open:false, title:'', message:'', onConfirm:()=>{}, loading:false
   });
 
-  // Always load ALL statuses so counts are accurate
-  // For deleted: Supabase needs status=deleted; for flagged: status=flagged
-  // We fetch all in one call (no status filter), then filter client-side
-  const { works: allWorks, loading, refetch } = useWorks({ status: 'all', limit: 500, refreshInterval: 30000 });
+  // Load all status groups via useWorks (uses service role key → bypasses RLS)
+  const { works: allWorks,     loading,        refetch: refetchAll  } = useWorks({ status: 'all',     limit: 500, refreshInterval: 30000 });
+  const { works: deletedWorks, refetch: refetchDeleted } = useWorks({ status: 'deleted', limit: 500, refreshInterval: 30000 });
+  const { works: flaggedWorks, refetch: refetchFlagged } = useWorks({ status: 'flagged', limit: 500, refreshInterval: 30000 });
 
-  // Also fetch deleted + flagged separately (since 'all' might not include deleted in RLS)
-  const [deletedWorks, setDeletedWorks]   = useState<HuiWork[]>([]);
-  const [flaggedWorks, setFlaggedWorks]   = useState<HuiWork[]>([]);
-
-  const fetchDeleted = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/works?select=*&status=eq.deleted&order=updated_at.desc&limit=200`,
-        { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
-      );
-      const d = await res.json();
-      if (Array.isArray(d)) setDeletedWorks(d);
-    } catch {}
-  }, []);
-
-  const fetchFlagged = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/works?select=*&status=eq.flagged&order=updated_at.desc&limit=200`,
-        { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
-      );
-      const d = await res.json();
-      if (Array.isArray(d)) setFlaggedWorks(d);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchDeleted();
-    fetchFlagged();
-  }, [fetchDeleted, fetchFlagged]);
-
-  const refetchAll = useCallback(() => {
-    refetch();
-    fetchDeleted();
-    fetchFlagged();
-  }, [refetch, fetchDeleted, fetchFlagged]);
+  const refetchAllTabs = useCallback(() => {
+    refetchAll();
+    refetchDeleted();
+    refetchFlagged();
+  }, [refetchAll, refetchDeleted, refetchFlagged]);
 
   // Annotate all works with sensitive flag
   const annotate = (list: HuiWork[]): WorkWithMeta[] =>
@@ -272,9 +241,9 @@ export default function WorksPage() {
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
     });
     setSaving(false);
-    if (ok) { showToast('✅ Work gespeichert', 'success'); refetchAll(); setEditMode(false); }
+    if (ok) { showToast('✅ Work gespeichert', 'success'); refetchAllTabs(); setEditMode(false); }
     else showToast('Speichern fehlgeschlagen', 'error');
-  }, [selected, form, refetchAll]);
+  }, [selected, form, refetchAllTabs]);
 
   // ── Restore (deleted → draft) ──────────────────────────────────────────
   const handleRestore = useCallback((w: WorkWithMeta) => {
@@ -286,11 +255,11 @@ export default function WorksPage() {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('restore_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('✅ Work wiederhergestellt', 'success'); refetchAll(); setSelected(null); }
+        if (ok) { showToast('✅ Work wiederhergestellt', 'success'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
-  }, [refetchAll]);
+  }, [refetchAllTabs]);
 
   // ── Unflag (flagged → published) ───────────────────────────────────────
   const handleUnflag = useCallback((w: WorkWithMeta) => {
@@ -302,20 +271,20 @@ export default function WorksPage() {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('unflag_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('✅ Meldung aufgelöst, Work ist wieder live', 'success'); refetchAll(); setSelected(null); }
+        if (ok) { showToast('✅ Meldung aufgelöst, Work ist wieder live', 'success'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
-  }, [refetchAll]);
+  }, [refetchAllTabs]);
 
   // ── Flag ───────────────────────────────────────────────────────────────
   const handleFlag = useCallback(async (w: WorkWithMeta) => {
     setBusyFor(w.id, true);
     const ok = await workAction('flag_work', w.id, { status:'flagged' });
     setBusyFor(w.id, false);
-    if (ok) { showToast('⚑ Work gemeldet', 'info'); refetchAll(); }
+    if (ok) { showToast('⚑ Work gemeldet', 'info'); refetchAllTabs(); }
     else showToast('Fehler', 'error');
-  }, [refetchAll]);
+  }, [refetchAllTabs]);
 
   // ── Unpublish ──────────────────────────────────────────────────────────
   const handleUnpublish = useCallback((w: WorkWithMeta) => {
@@ -327,11 +296,11 @@ export default function WorksPage() {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('unpublish_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('Work depubliziert', 'info'); refetchAll(); setSelected(null); }
+        if (ok) { showToast('Work depubliziert', 'info'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
-  }, [refetchAll]);
+  }, [refetchAllTabs]);
 
   // ── Delete ─────────────────────────────────────────────────────────────
   const handleDelete = useCallback((w: WorkWithMeta) => {
@@ -343,20 +312,20 @@ export default function WorksPage() {
         setConfirm(p => ({ ...p, loading:true }));
         const ok = await workAction('delete_work', w.id);
         setConfirm(p => ({ ...p, loading:false, open:false }));
-        if (ok) { showToast('Work gelöscht', 'info'); refetchAll(); setSelected(null); }
+        if (ok) { showToast('Work gelöscht', 'info'); refetchAllTabs(); setSelected(null); }
         else showToast('Fehler', 'error');
       },
     });
-  }, [refetchAll]);
+  }, [refetchAllTabs]);
 
   // ── Approve (draft/flagged → published) ───────────────────────────────
   const handleApprove = useCallback(async (w: WorkWithMeta) => {
     setBusyFor(w.id, true);
     const ok = await workAction('approve_work', w.id);
     setBusyFor(w.id, false);
-    if (ok) { showToast('✅ Work freigegeben', 'success'); refetchAll(); }
+    if (ok) { showToast('✅ Work freigegeben', 'success'); refetchAllTabs(); }
     else showToast('Fehler', 'error');
-  }, [refetchAll]);
+  }, [refetchAllTabs]);
 
   // ── Styles ─────────────────────────────────────────────────────────────
   const fieldStyle: React.CSSProperties = {
@@ -390,7 +359,7 @@ export default function WorksPage() {
             </button>
           )}
           <span style={{ fontSize:11, color:'var(--green)', background:'rgba(81,207,102,0.1)', padding:'3px 10px', borderRadius:20, border:'1px solid rgba(81,207,102,0.2)' }}>● Live</span>
-          <button onClick={refetchAll} style={{ padding:'5px 10px', background:'var(--bg-tertiary)', border:'1px solid var(--border)', borderRadius:8, fontSize:11, color:'var(--text-secondary)', cursor:'pointer', fontFamily:'var(--font-body)' }}>↻</button>
+          <button onClick={refetchAllTabs} style={{ padding:'5px 10px', background:'var(--bg-tertiary)', border:'1px solid var(--border)', borderRadius:8, fontSize:11, color:'var(--text-secondary)', cursor:'pointer', fontFamily:'var(--font-body)' }}>↻</button>
         </div>
       }
     >
@@ -769,3 +738,4 @@ export default function WorksPage() {
     </DashboardLayout>
   );
 }
+
