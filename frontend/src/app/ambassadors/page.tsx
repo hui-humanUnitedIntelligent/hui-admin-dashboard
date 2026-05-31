@@ -159,7 +159,7 @@ export default function AmbassadorsPage() {
     if(q.length<2){setSearchResults([]);return;}
     searchRef.current = setTimeout(async()=>{
       setSearchLoading(true);
-      const r = await fetch('/api/ambassador?action=search&q=' + encodeURIComponent(encodeURIComponent(q))').then(x=>x.json()).catch(()=>[]);
+      const r = await fetch('/api/ambassador?action=search&q=' + encodeURIComponent(q)).then(x=>x.json()).catch(()=>[]);
       setSearchResults(Array.isArray(r)?r:[]);
       setSearchLoading(false);
     },350);
