@@ -218,5 +218,27 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ── GET handler — simple table read for dashboard widgets ─────────────────
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const table  = searchParams.get('table')  || '';
+  const select = searchParams.get('select') || '*';
+  const limit  = searchParams.get('limit')  || '500';
 
+  const ALLOWED_TABLES = ['works','profiles','payments','impact_projects','bookings','wirker_profiles','wirker','activity_logs'];
+  if (!table || !ALLOWED_TABLES.includes(table)) {
+    return NextResponse.json({ error: 'Invalid table' }, { status: 400 });
+  }
 
+  const url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}&limit=${limit}`;
+  const resp = await fetch(url, {
+    headers: {
+      'apikey':        SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
+  });
+
+  const data = await resp.json();
+  if (!resp.ok) return NextResponse.json({ error: 'Supabase error', details: data }, { status: resp.status });
+  return NextResponse.json(data);
+}
