@@ -60,14 +60,18 @@ function downloadBlob(blob: Blob, filename: string) {
 function padR(s: string, n: number) { return s.length >= n ? s.slice(0,n) : s + ' '.repeat(n - s.length); }
 function padL(s: string, n: number) { return s.length >= n ? s.slice(0,n) : ' '.repeat(n - s.length) + s; }
 function fmtVal(v: unknown): string {
-  if (v === null || v === undefined) return '—';
-  if (typeof v === 'object') return JSON.stringify(v).slice(0, 40);
-  return String(v);
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'boolean') return v ? 'ja' : 'nein';
+  if (typeof v === 'object') return JSON.stringify(v).slice(0, 38);
+  const s = String(v);
+  // Shorten ISO timestamps: 2026-05-31T10:36:25.123Z → 2026-05-31 10:36
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 16).replace('T', ' ');
+  return s;
 }
 
 // Key fields to show per table (human-readable subset)
 const LOG_FIELDS: Record<string, string[]> = {
-  profiles:        ['full_name','email','role','membership_type','trust_score','created_at'],
+  profiles:        ['display_name','username','role','membership_type','trust_score','created_at'],
   payments:        ['id','user_id','amount','currency','status','type','created_at'],
   works:           ['title','category','status','price_eur','likes_count','views_count','created_at'],
   bookings:        ['id','user_id','work_id','status','price','currency','created_at'],
