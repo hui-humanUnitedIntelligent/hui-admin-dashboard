@@ -611,22 +611,18 @@ function ProfileDrawer({
                   </div>
                 );
               })()}
-              {(() => { const dna = (user as unknown as Record<string,unknown>).dna_tags as string[] | null; return Array.isArray(dna) && dna.length > 0 ? (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🧬 DNA Tags</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {(() => {
                 const dnaTags = (user as unknown as Record<string,unknown>).dna_tags as string[] | null;
                 if (!Array.isArray(dnaTags) || dnaTags.length === 0) return null;
                 return (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🧬 DNA Tags</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {dnaTags.map((t: string) => (
-                      <span key={t} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(177,151,252,0.15)', color: '#B197FC', fontSize: 11 }}>#{t}</span>
-                    ))}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🧬 DNA Tags</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {dnaTags.map((t: string) => (
+                        <span key={t} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(177,151,252,0.15)', color: '#B197FC', fontSize: 11 }}>#{t}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 );
               })()}
             </div>
