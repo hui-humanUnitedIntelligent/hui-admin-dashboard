@@ -1146,14 +1146,12 @@ export default function UsersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: tab === 'deleted' ? 'rgba(255,107,107,0.03)' : tab === 'blocked' ? 'rgba(247,183,49,0.03)' : undefined }}>
-                {[
-                  <th key="cb" style={{ padding: '10px 10px 10px 14px', textAlign: 'left', borderBottom: '1px solid var(--border)', width: 36 }}>
+                <th style={{ padding: '10px 10px 10px 14px', textAlign: 'left', borderBottom: '1px solid var(--border)', width: 36 }}>
                     <input type="checkbox" checked={profiles.length > 0 && selectedIds.size === profiles.length} onChange={toggleSelectAll} style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-                  </th>,
-                  ...['User', 'Status', 'Rolle', tab === 'deleted' || tab === 'blocked' ? 'Gelöscht / Blockiert' : 'Membership', 'Impact €', 'Zuletzt aktiv', 'Profil öffnen'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
-                ))],
-                ]}
+                  </th>
+                  {['User', 'Status', 'Rolle', tab === 'deleted' || tab === 'blocked' ? 'Gelöscht / Blockiert' : 'Membership', 'Impact €', 'Zuletzt aktiv', 'Profil öffnen'].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
               </tr>
             </thead>
             <tbody>
@@ -1161,7 +1159,7 @@ export default function UsersPage() {
                 <><Skeleton/><Skeleton/><Skeleton/><Skeleton/><Skeleton/></>
               ) : profiles.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  <td colSpan={8} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                     {tab === 'deleted' ? '🗑 Keine gelöschten User' :
                      tab === 'blocked' ? '✅ Keine blockierten User' :
                      'Keine User gefunden'}
