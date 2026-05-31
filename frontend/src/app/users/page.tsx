@@ -1101,7 +1101,7 @@ export default function UsersPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{u.display_name || '—'}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>@{u.username} · {(u as Record<string,unknown>).email as string || '—'} · {u.role}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>@{u.username} · {(u as unknown as Record<string,unknown>).email as string || '—'} · {u.role}</div>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Reg: {timeAgo(u.created_at)}</div>
                   <button onClick={() => setDrawerUser(u)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--accent-dim)', color: 'var(--accent)', cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-body)' }}>Profil</button>
