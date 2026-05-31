@@ -48,9 +48,17 @@ const TABLE_CONFIGS: Record<string, { columns: string[]; label: string }> = {
     columns: ['id','user_id','work_id','status','total_eur','currency','created_at'],
   },
   wirker_profiles: {
-    label: 'Wirker Profile',
-    columns: ['id','user_id','display_name','skills','hourly_rate','availability',
-              'is_available','created_at'],
+    label: 'Wirker Profile (neu)',
+    columns: ['id','user_id','slug','talent','wirker_type','tagline','categories',
+              'skills','location_label','radius_km','hourly_rate','is_available',
+              'booking_count','recommendation_count','impact_contributed_eur',
+              'stripe_onboarded','created_at','updated_at'],
+  },
+  wirker: {
+    label: 'Wirker Talente',
+    columns: ['id','user_id','full_name','name','talent','location','bio',
+              'hourly_rate','skills','recommendations','bookings','followers',
+              'impact_eur','verified','created_at'],
   },
   activity_logs: {
     label: 'Audit Logs',
