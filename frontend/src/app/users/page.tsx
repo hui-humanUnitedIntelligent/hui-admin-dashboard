@@ -902,6 +902,11 @@ export default function UsersPage() {
   const { profiles: deletedProfiles } = useProfiles({ status: 'deleted',   limit: 500, refreshInterval: 30000 });
   const { profiles: wirkerProfiles  } = useProfiles({ status: 'active', is_wirker: true, limit: 500, refreshInterval: 60000 });
 
+  // ── All profiles for duplicate detection ─────────────────────────────
+  const { profiles: allProfilesForDup } = useProfiles({ status: 'active', limit: 2000, refreshInterval: 60000 });
+  const duplicateGroups = findDuplicates(allProfilesForDup);
+  const duplicateIds    = new Set(Array.from(duplicateGroups.values()).flat().map(p => p.id));
+
   const counts = useMemo(() => ({
     active:     total,
     blocked:    blockedProfiles.length,
@@ -911,11 +916,6 @@ export default function UsersPage() {
   }), [total, blockedProfiles.length, deletedProfiles.length, wirkerProfiles.length, duplicateIds.size]);
 
   useProfilesRealtime(refetch, true);
-
-  // ── All profiles for duplicate detection ─────────────────────────────
-  const { profiles: allProfilesForDup } = useProfiles({ status: 'active', limit: 2000, refreshInterval: 60000 });
-  const duplicateGroups = findDuplicates(allProfilesForDup);
-  const duplicateIds    = new Set(Array.from(duplicateGroups.values()).flat().map(p => p.id));
 
   // ── Bulk action handler ──────────────────────────────────────────────
   const handleBulkAction = async () => {
