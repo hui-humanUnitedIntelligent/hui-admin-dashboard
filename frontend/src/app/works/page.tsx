@@ -442,10 +442,10 @@ export default function WorksPage() {
           }
         >
           {/* Sensitive alert */}
-          {selected._sensitive?.flagged && (
+          {(selected as Record<string, unknown> & typeof selected)._sensitive && (selected as any)._sensitive.flagged && (
             <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)', marginBottom: 4 }}>⚠️ Sensitiver Inhalt erkannt</div>
-              {(selected._sensitive.reasons as string[]).map((r, i) => (
+              {((selected as any)._sensitive.reasons as string[]).map((r, i) => (
                 <div key={i} style={{ fontSize: 11, color: 'var(--red)', marginTop: 2 }}>{r}</div>
               ))}
             </div>
