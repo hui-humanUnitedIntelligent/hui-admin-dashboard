@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useSettings } from '@/components/providers/ThemeProvider';
 import { useSystemHealth } from '@/lib/hooks/useSupabase';
 
 interface NavItem {
@@ -14,21 +15,36 @@ interface NavItem {
   group: string;
 }
 
-const NAV: NavItem[] = [
-  { href: '/dashboard',    label: 'Dashboard',       icon: '⊞', group: 'Übersicht'  },
-  { href: '/users',        label: 'User-Management', icon: '◎', group: 'Management' },
-  { href: '/talents',      label: 'Talent-Pool',     icon: '⭐', group: 'Management' },
-  { href: '/transactions', label: 'Transaktionen',   icon: '⇄', group: 'Management' },
-  { href: '/bookings',     label: 'Buchungen',       icon: '📅', group: 'Management' },
-  { href: '/impact',       label: 'Impact Pool',     icon: '🌱', group: 'Management' },
-  { href: '/works',        label: 'Works & Content', icon: '🎨', group: 'Content'    },
-  { href: '/memberships',  label: 'Mitgliedschaften',icon: '🏅', group: 'Content'    },
-  { href: '/audit',        label: 'Audit Logs',      icon: '📋', group: 'System'     },
-  { href: '/system',       label: 'System Status',   icon: '🔧', group: 'System'     },
-  { href: '/settings',     label: 'Einstellungen',   icon: '⚙',  group: 'System'     },
+const NAV_DE: NavItem[] = [
+  { href: '/dashboard',    label: 'Dashboard',        icon: '⊞', group: 'Übersicht'  },
+  { href: '/users',        label: 'User-Management',  icon: '◎', group: 'Management' },
+  { href: '/talents',      label: 'Talent-Pool',      icon: '⭐', group: 'Management' },
+  { href: '/transactions', label: 'Transaktionen',    icon: '⇄', group: 'Management' },
+  { href: '/bookings',     label: 'Buchungen',        icon: '📅', group: 'Management' },
+  { href: '/impact',       label: 'Impact Pool',      icon: '🌱', group: 'Management' },
+  { href: '/works',        label: 'Works & Content',  icon: '🎨', group: 'Content'    },
+  { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅', group: 'Content'    },
+  { href: '/audit',        label: 'Audit Logs',       icon: '📋', group: 'System'     },
+  { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
+  { href: '/settings',     label: 'Einstellungen',    icon: '⚙',  group: 'System'     },
 ];
 
-const GROUPS = ['Übersicht', 'Management', 'Content', 'System'];
+const NAV_EN: NavItem[] = [
+  { href: '/dashboard',    label: 'Dashboard',        icon: '⊞', group: 'Overview'   },
+  { href: '/users',        label: 'User Management',  icon: '◎', group: 'Management' },
+  { href: '/talents',      label: 'Talent Pool',      icon: '⭐', group: 'Management' },
+  { href: '/transactions', label: 'Transactions',     icon: '⇄', group: 'Management' },
+  { href: '/bookings',     label: 'Bookings',         icon: '📅', group: 'Management' },
+  { href: '/impact',       label: 'Impact Pool',      icon: '🌱', group: 'Management' },
+  { href: '/works',        label: 'Works & Content',  icon: '🎨', group: 'Content'    },
+  { href: '/memberships',  label: 'Memberships',      icon: '🏅', group: 'Content'    },
+  { href: '/audit',        label: 'Audit Logs',       icon: '📋', group: 'System'     },
+  { href: '/system',       label: 'System Status',    icon: '🔧', group: 'System'     },
+  { href: '/settings',     label: 'Settings',         icon: '⚙',  group: 'System'     },
+];
+
+const GROUPS_DE = ['Übersicht', 'Management', 'Content', 'System'];
+const GROUPS_EN = ['Overview',  'Management', 'Content', 'System'];
 
 function getInitials(name: string) {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -37,7 +53,11 @@ function getInitials(name: string) {
 export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { logout, currentUser } = useAuth();
+  const { lang } = useSettings();
   const { supabase: dbStatus } = useSystemHealth(60000);
+
+  const NAV    = lang === 'en' ? NAV_EN    : NAV_DE;
+  const GROUPS = lang === 'en' ? GROUPS_EN : GROUPS_DE;
 
   const grouped = GROUPS.reduce<Record<string, NavItem[]>>((acc, g) => {
     acc[g] = NAV.filter((n) => n.group === g);
@@ -216,3 +236,4 @@ export default function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean;
     </>
   );
 }
+
