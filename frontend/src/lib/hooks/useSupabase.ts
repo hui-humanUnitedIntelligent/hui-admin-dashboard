@@ -12,16 +12,28 @@ export interface HuiProfile {
   username: string;
   avatar_url: string | null;
   bio: string | null;
+  tagline: string | null;
   role: string;
   membership_type: string;
   is_wirker: boolean;
+  is_member: boolean;
+  membership_active: boolean;
   has_talent_profile: boolean;
   talent: string | null;
   location: string | null;
+  location_label: string | null;
   is_available: boolean;
+  availability: boolean;
   impact_eur: number;
+  follower_count: number;
   followers_count: number;
+  trust_score: number;
+  is_guardian: boolean;
+  last_seen: string | null;
   created_at: string;
+  updated_at: string | null;
+  skills: string[] | null;
+  focus_type: string | null;
 }
 
 export interface HuiPayment {
@@ -188,8 +200,10 @@ export function useProfiles(opts: {
       const params: Record<string, string> = {};
       if (role && role !== 'all') params['role'] = `eq.${role}`;
       if (is_wirker !== undefined) params['is_wirker'] = `eq.${is_wirker}`;
+      // Exclude soft-deleted users
+      params['trust_score'] = 'not.eq.-999';
 
-      const select = 'id,display_name,username,avatar_url,role,membership_type,is_wirker,has_talent_profile,talent,location,is_available,impact_eur,followers_count,created_at';
+      const select = 'id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,created_at,updated_at,skills,focus_type';
 
       const [rows, count] = await Promise.all([
         sbQuery<HuiProfile>('profiles', params, {
@@ -524,3 +538,4 @@ export function useSystemHealth(refreshInterval = 30000) {
 
   return health;
 }
+
