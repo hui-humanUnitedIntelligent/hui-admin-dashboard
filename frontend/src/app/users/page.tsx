@@ -114,7 +114,7 @@ function Skeleton() {
 // ── Tab Bar ───────────────────────────────────────────────────────────────
 function TabBar({ tab, setTab, counts }: {
   tab: UserTab; setTab: (t: UserTab) => void;
-  counts: { active: number; blocked: number; deleted: number; wirker: number };
+  counts: { active: number; blocked: number; deleted: number; wirker: number; duplicates: number };
 }) {
   const tabs: { key: UserTab; label: string; icon: string; color?: string }[] = [
     { key: 'active',  label: 'Aktive User',  icon: '●' },
@@ -123,7 +123,7 @@ function TabBar({ tab, setTab, counts }: {
     { key: 'wirker',  label: 'Wirker',       icon: '⭐', color: 'var(--purple)' },
     { key: 'duplicates', label: 'Duplikate',  icon: '⚠️', color: 'var(--gold)' },
   ];
-  const cnt: Record<UserTab, number> = { ...counts, duplicates: counts.duplicates ?? 0 };
+  const cnt: Record<UserTab, number> = counts;
   return (
     <div style={{ display: 'flex', gap: 4, marginBottom: 14, borderBottom: '1px solid var(--border)', paddingBottom: 10, flexWrap: 'wrap' }}>
       {tabs.map(({ key, label, icon, color }) => {
