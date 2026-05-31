@@ -23,7 +23,8 @@ type Action =
   | 'approve_work'
   | 'restore_work'
   | 'unflag_work'
-  | 'restore_user';
+  | 'restore_user'
+  | 'hard_delete_work';
 
 async function sbPatch(table: string, id: string, data: Record<string, unknown>) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
@@ -39,6 +40,19 @@ async function sbPatch(table: string, id: string, data: Record<string, unknown>)
   });
   const body = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, body };
+}
+
+async function sbHardDelete(table: string, id: string) {
+  const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      apikey:         SUPABASE_SERVICE_KEY,
+      Authorization:  `Bearer ${SUPABASE_SERVICE_KEY}`,
+      Prefer:         'return=minimal',
+    },
+  });
+  return { ok: res.ok, status: res.status, body: null };
 }
 
 async function logActivity(userId: string, action: string, meta: Record<string, unknown>) {
@@ -184,6 +198,11 @@ export async function POST(req: NextRequest) {
       });
       break;
 
+    case 'hard_delete_work':
+      // Permanently delete a work from the database (irreversible)
+      result = await sbHardDelete('works', userId);
+      break;
+
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   }
@@ -198,5 +217,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
 
