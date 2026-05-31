@@ -12,7 +12,7 @@ interface EditProfileModalProps {
   open: boolean;
   onClose: () => void;
   profile: HuiProfile | null;
-  adminId?: string | null;
+
   onSaved: () => void;
 }
 
@@ -43,7 +43,7 @@ const fieldStyle: React.CSSProperties = {
 };
 
 export default function EditProfileModal({
-  open, onClose, profile, adminId = null, onSaved,
+  open, onClose, profile, onSaved,
 }: EditProfileModalProps) {
   const [form, setForm] = useState<ProfileEditData>({
     display_name: '',
@@ -79,7 +79,7 @@ export default function EditProfileModal({
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    const ok = await editProfile(profile.id, { ...form, skills: skillsArray }, adminId);
+    const ok = await editProfile(profile.id, { ...form, skills: skillsArray });
     setSaving(false);
     if (ok) {
       showToast('Profil gespeichert ✅', 'success');
