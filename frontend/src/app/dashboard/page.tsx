@@ -231,6 +231,24 @@ export default function DashboardPage() {
           accentColor="#B197FC"
           accentDim="rgba(177,151,252,0.12)"
         />
+        <KPICard
+          label="Ambassadors aktiv"
+          value={ambStats.loading ? '—' : String(ambStats.active_ambassadors)}
+          delta={ambStats.pending_applications > 0 ? `${ambStats.pending_applications} Antrag${ambStats.pending_applications > 1 ? 'e' : ''} offen` : 'Keine offenen Anträge'}
+          deltaPositive={false}
+          icon="🤝"
+          accentColor="var(--accent)"
+          accentDim="rgba(78,205,196,0.12)"
+        />
+        <KPICard
+          label="Offene Amb.-Anträge"
+          value={ambStats.loading ? '—' : String(ambStats.pending_applications)}
+          delta={`${ambStats.total_referrals} Referrals gesamt`}
+          deltaPositive
+          icon="📋"
+          accentColor="#FFD700"
+          accentDim="rgba(255,215,0,0.12)"
+        />
       </div>
 
       {/* ── Charts Row ── */}
