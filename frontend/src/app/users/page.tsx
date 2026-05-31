@@ -388,8 +388,8 @@ function ProfileDrawer({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {infoRow('Anzeigename',  user.display_name)}
                   {infoRow('Username',     '@' + (user.username || '—'))}
-                  {infoRow('Voller Name',  user.full_name)}
-                  {infoRow('E-Mail',       user.email)}
+                  {infoRow('Voller Name',  (user as unknown as Record<string,unknown>).full_name)}
+                  {infoRow('E-Mail',       (user as unknown as Record<string,unknown>).email)}
                   {infoRow('Talent',       user.talent)}
                   {infoRow('Tagline',      user.tagline)}
                   {infoRow('Standort',     user.location_label || user.location)}
@@ -465,9 +465,9 @@ function ProfileDrawer({
                 ⚠️ E-Mail und Username werden direkt über Supabase Auth verwaltet und sind hier nicht änderbar.
               </div>
               <div style={row2}>
-                {infoRow('E-Mail (Supabase Auth)', user.email)}
+                {infoRow('E-Mail (Supabase Auth)', (user as unknown as Record<string,unknown>).email)}
                 {infoRow('Username', '@' + (user.username || '—'))}
-                {infoRow('Vollständiger Name', user.full_name)}
+                {infoRow('Vollständiger Name', (user as unknown as Record<string,unknown>).full_name)}
                 {infoRow('User-ID', user.id)}
               </div>
               <div><label style={labelStyle}>Focus Type</label>
@@ -607,11 +607,11 @@ function ProfileDrawer({
                   </pre>
                 </div>
               )}
-              {Array.isArray(user.dna_tags) && (user.dna_tags as string[]).length > 0 && (
+              {Array.isArray((user as unknown as Record<string,unknown>).dna_tags) && ((user as unknown as Record<string,unknown>).dna_tags as string[]).length > 0 && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8 }}>🧬 DNA Tags</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {(user.dna_tags as string[]).map(t => (
+                    {((user as unknown as Record<string,unknown>).dna_tags as string[]).map(t => (
                       <span key={t} style={{ padding: '3px 10px', borderRadius: 20, background: 'rgba(177,151,252,0.15)', color: '#B197FC', fontSize: 11 }}>#{t}</span>
                     ))}
                   </div>
