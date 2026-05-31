@@ -1,3 +1,4 @@
+'use client';
 // frontend/src/app/ambassadors/page.tsx
 'use client';
 
@@ -61,22 +62,26 @@ function fmtEur(n: number) { return n >= 1000 ? `€${(n/1000).toFixed(1)}K` : `
 function fmtDate(iso: string) { return new Date(iso).toLocaleDateString('de-DE', {day:'2-digit',month:'short',year:'numeric'}); }
 function fmtTime(iso: string) { return new Date(iso).toLocaleString('de-DE', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
 
-function Avatar({src,name,size=32}:{src?:string|null;name:string;size?:number}) {
+interface AvatarProps {src?:string|null;name:string;size?:number;}
+function Avatar({src,name,size=32}:AvatarProps) {
   const initials = (name||'?').slice(0,2).toUpperCase();
   if (src) return <img src={src} alt={name} style={{width:size,height:size,borderRadius:'50%',objectFit:'cover',flexShrink:0}} />;
   return <div style={{width:size,height:size,borderRadius:'50%',background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*0.35,fontWeight:700,color:'#0F1117',flexShrink:0}}>{initials}</div>;
 }
-function LevelBadge({level}:{level:AmbLevel}) {
+function LevelBadge({level}:Readonly<{level:AmbLevel}>) {
   const c = LEVEL[level]||LEVEL.bronze;
   return <span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.color,border:('1px solid ' + c.color + '55'),display:'inline-flex',alignItems:'center',gap:4}}>{c.icon} {c.label}</span>;
 }
-function StatusBadge({status}:{status:string}) {
-  const c = STATUS_COLORS[status]||{color:'var(--text-muted)',label:status};
+const DEFAULT_STATUS = {color:'var(--text-muted)',label:'unbekannt'};
+function StatusBadge({status}:Readonly<{status:string}>) {
+  const sc = STATUS_COLORS[status];
+  const c  = sc ? sc : {...DEFAULT_STATUS, label: status};
   return <span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(c.color + '18'),color:c.color,border:('1px solid ' + c.color + '44')}}>{c.label}</span>;
 }
 
 // ── Referral Link Cell ─────────────────────────────────────────
-function ReferralLinkCell({link,active,onCopy}:{link:string;active:boolean;onCopy:()=>void}) {
+interface RLCProps {link:string;active:boolean;onCopy:()=>void;}
+function ReferralLinkCell({link,active,onCopy}:RLCProps) {
   return (
     <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
       <span style={{fontSize:10,fontFamily:'var(--font-mono)',color:active?'var(--accent)':'var(--text-muted)',background:'var(--bg-tertiary)',padding:'2px 8px',borderRadius:6,border:'1px solid var(--border)',textDecoration:active?'none':'line-through',whiteSpace:'nowrap',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis'}} title={link}>
@@ -93,7 +98,8 @@ function ReferralLinkCell({link,active,onCopy}:{link:string;active:boolean;onCop
 }
 
 // ── Detail Drawer ─────────────────────────────────────────────
-function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>void;onRefresh:()=>void}) {
+interface DrawerProps { ambId:string; onClose:()=>void; onRefresh:()=>void; }
+function AmbassadorDrawer({ambId,onClose,onRefresh}:DrawerProps) {
   const [detail, setDetail] = useState<AmbDetail|null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing]   = useState(false);
@@ -101,7 +107,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`/api/ambassador?action=detail&user_id=${ambId}`).then(x=>x.json()).catch(()=>null);
+    const r = await fetch('/api/ambassador?action=detail&user_id=' + encodeURIComponent(ambId)).then(x=>x.json()).catch(()=>null);
     setDetail(r); setLoading(false);
   }, [ambId]);
   useEffect(() => { loadDetail(); }, [loadDetail]);
@@ -353,7 +359,7 @@ export default function AmbassadorsPage() {
     if(q.length<2){setSearchResults([]);return;}
     searchRef.current = setTimeout(async()=>{
       setSearchLoading(true);
-      const r = await fetch(`/api/ambassador?action=search&q=${encodeURIComponent(q)}`).then(x=>x.json()).catch(()=>[]);
+      const r = await fetch('/api/ambassador?action=search&q=' + encodeURIComponent(encodeURIComponent(q))').then(x=>x.json()).catch(()=>[]);
       setSearchResults(Array.isArray(r)?r:[]);
       setSearchLoading(false);
     },350);
