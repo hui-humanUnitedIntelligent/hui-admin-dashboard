@@ -30,6 +30,7 @@ export default function BroadcastPage() {
   const [history, setHistory]         = useState<BroadcastRecord[]>([]);
   const [loading, setLoading]         = useState(true);
   const [sending, setSending]         = useState(false);
+  const [deleting, setDeleting]       = useState<string | null>(null);
 
   // Form
   const [title, setTitle]             = useState('');
@@ -82,6 +83,25 @@ export default function BroadcastPage() {
         showToast(data.error || 'Fehler beim Senden', 'error');
       }
     } finally { setSending(false); }
+  };
+
+  const handleDelete = async (broadcastId: string, title: string) => {
+    if (!confirm(`Broadcast "${title}" und alle ${history.find(b => b.id === broadcastId)?.sent_count ?? 0} Nachrichten unwiderruflich löschen?`)) return;
+    setDeleting(broadcastId);
+    try {
+      const res = await fetch(`/api/broadcast?broadcast_id=${encodeURIComponent(broadcastId)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`🗑️ Broadcast gelöscht (${data.deleted_count} Nachrichten entfernt)`, 'success');
+        load();
+      } else {
+        showToast(data.error || 'Fehler beim Löschen', 'error');
+      }
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const input: React.CSSProperties = {
@@ -237,6 +257,36 @@ export default function BroadcastPage() {
                       </span>
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleDelete(b.id, b.title)}
+                    disabled={deleting === b.id}
+                    title="Broadcast löschen"
+                    style={{
+                      flexShrink: 0,
+                      width: 28, height: 28,
+                      background: 'transparent',
+                      border: '1px solid transparent',
+                      borderRadius: 7,
+                      cursor: deleting === b.id ? 'not-allowed' : 'pointer',
+                      fontSize: 13,
+                      color: 'var(--text-muted)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s',
+                      opacity: deleting === b.id ? 0.5 : 1,
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.1)';
+                      (e.currentTarget as HTMLElement).style.color = 'var(--red)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.3)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
+                    }}
+                  >
+                    {deleting === b.id ? '…' : '🗑️'}
+                  </button>
                 </div>
               </div>
             ))}
