@@ -18,7 +18,8 @@ const MODULES: Module[] = [
   { key:'memberships',    label:'Mitgliedschaften',   icon:'⭐', desc:'Abo-Pläne, Status & Zahlungsreferenzen',    group:'Buchhaltung' },
   // Nutzer
   { key:'profiles',       label:'Nutzerliste',        icon:'👥', desc:'Alle Profile inkl. Rollen & Mitgliedschaft', group:'Nutzer' },
-  { key:'wirker_profiles',label:'Wirker Profile',     icon:'🔧', desc:'Skills, Verfügbarkeit & Stundensatz',       group:'Nutzer' },
+  { key:'wirker_profiles',label:'Wirker Profile',     icon:'🔧', desc:'Aktive Wirker: Typ, Buchungen & Impact',    group:'Nutzer' },
+  { key:'wirker',         label:'Wirker Talente',      icon:'⭐', desc:'Talentprofile mit Bewertungen & Stundensatz', group:'Nutzer' },
   // Content
   { key:'works',          label:'Werke',              icon:'🎨', desc:'Alle Werke mit Status & Engagement',        group:'Content' },
   { key:'bookings',       label:'Buchungen',          icon:'📅', desc:'Buchungen mit Werk & Status',               group:'Content' },
@@ -79,7 +80,8 @@ const LOG_FIELDS: Record<string, string[]> = {
   impact_pool:     ['month','total_eur','distributed_eur','state','voting_ends_at','distributed_at'],
   memberships:     ['user_id','plan','status','started_at','ends_at','amount_eur'],
   orders:          ['id','user_id','work_id','status','total_eur','currency','created_at'],
-  wirker_profiles: ['user_id','display_name','hourly_rate','availability','is_available'],
+  wirker_profiles: ['slug','talent','wirker_type','location_label','hourly_rate','is_available','booking_count','impact_contributed_eur','created_at'],
+  wirker:          ['full_name','talent','location','hourly_rate','skills','bookings','recommendations','impact_eur','verified','created_at'],
   activity_logs:   ['admin_id','action','target_type','target_id','created_at'],
 };
 const COL_W = 22;
