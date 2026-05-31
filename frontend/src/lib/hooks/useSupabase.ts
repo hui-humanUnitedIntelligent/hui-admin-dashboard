@@ -423,35 +423,51 @@ export function useWorks(opts: {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetch = useCallback(async () => {
+  const fetchWorks = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {};
-      if (status && status !== 'all') params['status'] = `eq.${status}`;
+      // flagged + deleted require service-role → use server-side API route
+      const needsServiceRole = status === 'flagged' || status === 'deleted';
 
-      const [rows, count] = await Promise.all([
-        sbQuery<HuiWork>('works', params, {
-          select: '*',
-          order: 'created_at.desc',
-          limit,
-        }),
-        sbCount('works', params),
-      ]);
-      setWorks(rows);
-      setTotal(count);
-    } catch {}
-    finally { setLoading(false); }
+      if (needsServiceRole) {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (status) params.set('status', status);
+        const res = await fetch(`/api/works?${params.toString()}`);
+        if (res.ok) {
+          const rows = await res.json() as HuiWork[];
+          setWorks(Array.isArray(rows) ? rows : []);
+          setTotal(Array.isArray(rows) ? rows.length : 0);
+        }
+      } else {
+        const params: Record<string, string> = {};
+        if (status && status !== 'all') params['status'] = `eq.${status}`;
+        const [rows, count] = await Promise.all([
+          sbQuery<HuiWork>('works', params, {
+            select: '*',
+            order: 'created_at.desc',
+            limit,
+          }),
+          sbCount('works', params),
+        ]);
+        setWorks(rows);
+        setTotal(count);
+      }
+    } catch (e) {
+      console.error('[useWorks] fetch error', e);
+    } finally {
+      setLoading(false);
+    }
   }, [status, limit]);
 
   useEffect(() => {
-    fetch();
+    fetchWorks();
     if (refreshInterval > 0) {
-      const id = setInterval(fetch, refreshInterval);
+      const id = setInterval(fetchWorks, refreshInterval);
       return () => clearInterval(id);
     }
-  }, [fetch, refreshInterval]);
+  }, [fetchWorks, refreshInterval]);
 
-  return { works, total, loading, refetch: fetch };
+  return { works, total, loading, refetch: fetchWorks };
 }
 
 // ── useGrowthChart ────────────────────────────────────────────────────────
