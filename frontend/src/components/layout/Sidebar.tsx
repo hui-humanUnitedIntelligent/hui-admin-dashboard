@@ -32,6 +32,7 @@ const NAV_GROUPS: NavGroup[] = [
     items_de: [
       { href: '/users',        label: 'User-Management',  icon: '👥' },
       { href: '/admins',       label: 'Admin-Verwaltung', icon: '🛡️' },
+      { href: '/ambassadors',  label: 'Ambassadors',      icon: '🤝' },
       { href: '/talents',      label: 'Talent-Pool',      icon: '⭐' },
       { href: '/transactions', label: 'Transaktionen',    icon: '⇄'  },
       { href: '/bookings',     label: 'Buchungen',        icon: '📅' },
@@ -40,6 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     items_en: [
       { href: '/users',        label: 'User Management',  icon: '👥' },
       { href: '/admins',       label: 'Admin Management', icon: '🛡️' },
+      { href: '/ambassadors',  label: 'Ambassadors',      icon: '🤝' },
       { href: '/talents',      label: 'Talent Pool',      icon: '⭐' },
       { href: '/transactions', label: 'Transactions',     icon: '⇄'  },
       { href: '/bookings',     label: 'Bookings',         icon: '📅' },
