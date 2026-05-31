@@ -16,40 +16,37 @@ export default function DashboardLayout({ children, title, headerActions }: Dash
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary)' }}>
-      {/* Desktop Sidebar */}
-      <div style={{ display: 'flex' }} className="hide-mobile">
+
+      {/* ── Desktop Sidebar ── */}
+      <div className="hide-mobile">
         <Sidebar />
       </div>
 
-      {/* Mobile Sidebar */}
+      {/* ── Mobile Sidebar Drawer ── */}
       {sidebarOpen && (
         <>
+          {/* Backdrop */}
           <div
+            className="sidebar-overlay"
             onClick={() => setSidebarOpen(false)}
-            style={{
-              position: 'fixed', inset: 0,
-              background: 'rgba(0,0,0,0.6)',
-              zIndex: 998,
-            }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 997, backdropFilter: 'blur(3px)' }}
           />
-          <div
-            style={{
-              position: 'fixed', top: 0, left: 0,
-              zIndex: 999, height: '100vh',
-            }}
-          >
-            <Sidebar onClose={() => setSidebarOpen(false)} />
+          {/* Drawer */}
+          <div className="mobile-drawer">
+            <Sidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           </div>
         </>
       )}
 
+      {/* ── Main content ── */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <Header
           title={title}
           actions={headerActions}
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+        {/* Page content — class adds responsive padding & bottom-nav spacing */}
+        <div className="page-content">
           {children}
         </div>
       </main>
