@@ -15,7 +15,12 @@ type Action =
   | 'change_role'
   | 'change_group'
   | 'edit_profile'
-  | 'toggle_wirker';
+  | 'toggle_wirker'
+  | 'update_work'
+  | 'unpublish_work'
+  | 'delete_work'
+  | 'flag_work'
+  | 'approve_work';
 
 async function sbPatch(table: string, id: string, data: Record<string, unknown>) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
@@ -116,6 +121,46 @@ export async function POST(req: NextRequest) {
       result = await sbPatch('profiles', userId, { is_wirker: data.is_wirker });
       break;
 
+    // ── Work actions ────────────────────────────────────────────────────────
+    case 'unpublish_work':
+      result = await sbPatch('works', userId, { status: 'draft', visibility: 'private' });
+      break;
+
+    case 'approve_work':
+      result = await sbPatch('works', userId, { status: 'published', visibility: 'public' });
+      break;
+
+    case 'flag_work':
+      result = await sbPatch('works', userId, {
+        status: data.status || 'flagged',
+        visibility: 'private',
+      });
+      break;
+
+    case 'delete_work':
+      result = await sbPatch('works', userId, { status: 'deleted', visibility: 'private' });
+      break;
+
+    case 'update_work':
+      result = await sbPatch('works', userId, {
+        title:              data.title,
+        description:        data.description,
+        caption:            data.caption,
+        category:           data.category,
+        tags:               data.tags,
+        price:              data.price,
+        price_eur:          data.price_eur,
+        status:             data.status,
+        visibility:         data.visibility,
+        allow_comments:     data.allow_comments,
+        allow_likes:        data.allow_likes,
+        allow_shares:       data.allow_shares,
+        for_sale:           data.for_sale,
+        is_showcase_only:   data.is_showcase_only,
+        location_text:      data.location_text,
+      });
+      break;
+
     default:
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   }
@@ -130,3 +175,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
