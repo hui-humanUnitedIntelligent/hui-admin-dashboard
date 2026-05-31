@@ -1,4 +1,5 @@
 'use client';
+type AmbActionData = Record<string, unknown>;
 // frontend/src/app/ambassadors/page.tsx
 'use client';
 
@@ -112,7 +113,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:DrawerProps) {
   }, [ambId]);
   useEffect(() => { loadDetail(); }, [loadDetail]);
 
-  const act = async (action:string, data:Record<string,unknown>={}) => {
+  const act = async (action:string, data:AmbActionData = {}) => {
     setActing(true);
     try {
       const res = await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,user_id:ambId,data})});
