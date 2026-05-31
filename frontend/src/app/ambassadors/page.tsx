@@ -68,11 +68,11 @@ function Avatar({src,name,size=32}:{src?:string|null;name:string;size?:number}) 
 }
 function LevelBadge({level}:{level:AmbLevel}) {
   const c = LEVEL[level]||LEVEL.bronze;
-  return <span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.color,border:`1px solid ${c.color}55`,display:'inline-flex',alignItems:'center',gap:4}}>{c.icon} {c.label}</span>;
+  return <span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:c.bg,color:c.color,border:('1px solid ' + c.color + '55'),display:'inline-flex',alignItems:'center',gap:4}}>{c.icon} {c.label}</span>;
 }
 function StatusBadge({status}:{status:string}) {
   const c = STATUS_COLORS[status]||{color:'var(--text-muted)',label:status};
-  return <span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:`${c.color}18`,color:c.color,border:`1px solid ${c.color}44`}}>{c.label}</span>;
+  return <span style={{fontSize:10,fontWeight:700,padding:'2px 9px',borderRadius:20,background:(c.color + '18'),color:c.color,border:('1px solid ' + c.color + '44')}}>{c.label}</span>;
 }
 
 // ── Referral Link Cell ─────────────────────────────────────────
@@ -85,7 +85,7 @@ function ReferralLinkCell({link,active,onCopy}:{link:string;active:boolean;onCop
       {active && (
         <button onClick={onCopy} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,padding:2,color:'var(--text-muted)'}} title="Kopieren">📋</button>
       )}
-      <span style={{fontSize:9,fontWeight:700,padding:'1px 6px',borderRadius:10,background:active?'rgba(81,207,102,0.12)':'var(--bg-tertiary)',color:active?'var(--green)':'var(--text-muted)',border:`1px solid ${active?'rgba(81,207,102,0.3)':'var(--border)'}`}}>
+      <span style={{fontSize:9,fontWeight:700,padding:'1px 6px',borderRadius:10,background:active?'rgba(81,207,102,0.12)':'var(--bg-tertiary)',color:active?'var(--green)':'var(--text-muted)',border:(active ? '1px solid rgba(81,207,102,0.3)' : '1px solid var(--border)')}}>
         {active?'🔗 Aktiv':'🔒 Gesperrt'}
       </span>
     </div>
@@ -117,7 +117,9 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
 
   const amb    = detail?.ambassador as Record<string,unknown>|undefined;
   const level  = (amb?.level||'bronze') as AmbLevel;
-  const lc     = LEVEL[level] as {color:string;bg:string;icon:string;label:string};
+  const lc        = LEVEL[level] as {color:string;bg:string;icon:string;label:string};
+  const lcBorder  = '1px solid ' + lc.color + '44';
+  const lcBorderL = '4px solid ' + lc.color;
   const isActive = amb?.is_ambassador === true && amb?.status === 'active';
 
   return (
@@ -138,7 +140,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
           <div style={{flex:1,overflowY:'auto',padding:20,display:'flex',flexDirection:'column',gap:14}}>
 
             {/* Profile Card */}
-            <div style={{display:'flex',gap:14,alignItems:'center',padding:16,background:'var(--bg-secondary)',borderRadius:12,border:`1px solid ${lc.color}44`,borderLeft:`4px solid ${lc.color}`}}>
+            <div style={{display:'flex',gap:14,alignItems:'center',padding:16,background:'var(--bg-secondary)',borderRadius:12,border:lcBorder,borderLeft:lcBorderL}}>
               <Avatar src={detail.profile.avatar_url as string|null} name={String(detail.profile.display_name||'')} size={48} />
               <div style={{flex:1}}>
                 <div style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{String(detail.profile.display_name||'')}</div>
@@ -166,10 +168,10 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
                     <button onClick={()=>{navigator.clipboard.writeText(String(amb.referral_link||'');showToast('Link kopiert','success');}} style={{padding:'6px 10px',borderRadius:7,border:'1px solid var(--border)',background:'var(--bg-tertiary)',color:'var(--text-muted)',cursor:'pointer',fontSize:11,fontFamily:'var(--font-body)',flexShrink:0}}>📋</button>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <code style={{fontSize:11,fontFamily:'var(--font-mono)',color:lc.color,background:lc.bg,padding:'3px 10px',borderRadius:6,border:`1px solid ${lc.color}44`,letterSpacing:1.5}}>
+                    <code style={{fontSize:11,fontFamily:'var(--font-mono)',color:lc.color,background:lc.bg,padding:'3px 10px',borderRadius:6,border:('1px solid ' + lc.color + '44'),letterSpacing:1.5}}>
                       {String(amb.referral_code||'')}
                     </code>
-                    <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:amb.link_active?'rgba(81,207,102,0.12)':'rgba(255,99,99,0.1)',color:amb.link_active?'var(--green)':'var(--red)',border:`1px solid ${amb.link_active?'rgba(81,207,102,0.3)':'rgba(255,99,99,0.3)'}`}}>
+                    <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:amb.link_active?'rgba(81,207,102,0.12)':'rgba(255,99,99,0.1)',color:amb.link_active?'var(--green)':'var(--red)',border:(amb.link_active ? '1px solid rgba(81,207,102,0.3)' : '1px solid rgba(255,99,99,0.3)')}}>
                       {amb.link_active?'🔗 Link aktiv':'🔒 Link gesperrt'}
                     </span>
                   </div>
@@ -214,7 +216,7 @@ function AmbassadorDrawer({ambId,onClose,onRefresh}:{ambId:string;onClose:()=>vo
                   <div style={{maxHeight:180,overflowY:'auto'}}>
                     {detail.referrals.map(r=>(
                       <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',borderBottom:'1px solid var(--border)'}}>
-                        <Avatar src={r.avatar_url} name={r.display_name||r.username} size={26} />
+                        <Avatar src={r.avatar_url as string|null} name={r.display_name||r.username} size={26} />
                         <div style={{flex:1}}>
                           <div style={{fontSize:12,fontWeight:600,color:'var(--text-primary)'}}>{r.display_name||r.username}</div>
                           <div style={{fontSize:10,color:'var(--text-muted)'}}>Beigetreten {fmtDate(r.joined_at)}</div>
@@ -407,7 +409,7 @@ export default function AmbassadorsPage() {
       {/* KPI Tiles */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:10,marginBottom:16}}>
         {kpiTiles.map(k=>(
-          <div key={k.label} style={{background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',borderTop:`3px solid ${k.color}`}}>
+          <div key={k.label} style={{background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',borderTop:('3px solid ' + k.color)}}>
             <div style={{fontSize:20,fontWeight:700,color:k.color,fontFamily:'var(--font-mono)'}}>{loading?'…':k.value}</div>
             <div style={{fontSize:10,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.6px',marginTop:4}}>{k.icon} {k.label}</div>
           </div>
@@ -427,7 +429,7 @@ export default function AmbassadorsPage() {
                   <div key={lvl} style={{flex:1,textAlign:'center'}}>
                     <div style={{fontSize:12,fontWeight:700,color:c.color,marginBottom:5}}>{c.icon} {n}</div>
                     <div style={{height:6,background:'var(--bg-tertiary)',borderRadius:3,overflow:'hidden'}}>
-                      <div style={{height:'100%',width:`${pct}%`,background:c.color,borderRadius:3,transition:'width 0.5s ease'}} />
+                      <div style={{height:'100%',width:(pct + '%'),background:c.color,borderRadius:3,transition:'width 0.5s ease'}} />
                     </div>
                     <div style={{fontSize:9,color:'var(--text-muted)',marginTop:3}}>{c.label}</div>
                   </div>
@@ -473,12 +475,12 @@ export default function AmbassadorsPage() {
               const lc=LEVEL[a.level]||LEVEL.bronze;
               return (
                 <div key={a.id} onClick={()=>setSelectedId(a.id)}
-                  style={{display:'grid',gridTemplateColumns:'2fr 1.8fr 1fr 1fr 1fr 90px',padding:'12px 16px',borderBottom:'1px solid var(--border)',cursor:'pointer',transition:'background 0.15s',borderLeft:`3px solid ${lc.color}`}}
+                  style={{display:'grid',gridTemplateColumns:'2fr 1.8fr 1fr 1fr 1fr 90px',padding:'12px 16px',borderBottom:'1px solid var(--border)',cursor:'pointer',transition:'background 0.15s',borderLeft:('3px solid ' + lc.color)}}
                   onMouseEnter={e=>(e.currentTarget.style.background='var(--bg-tertiary)')}
                   onMouseLeave={e=>(e.currentTarget.style.background='transparent')}
                 >
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <Avatar src={a.avatar_url} name={a.display_name||a.username} size={30} />
+                    <Avatar src={a.avatar_url as string|null} name={a.display_name||a.username} size={30} />
                     <div>
                       <div style={{fontSize:12,fontWeight:600,color:'var(--text-primary)'}}>{a.display_name||a.username}</div>
                       <div style={{fontSize:10,color:'var(--text-muted)'}}>seit {fmtDate(a.activated_at)}</div>
@@ -513,7 +515,7 @@ export default function AmbassadorsPage() {
             {applications.map(a=>(
               <div key={a.id} style={{background:'var(--bg-secondary)',border:'1px solid rgba(255,184,0,0.25)',borderLeft:'3px solid var(--gold)',borderRadius:12,padding:16}}>
                 <div style={{display:'flex',alignItems:'flex-start',gap:14,marginBottom:a.motivation?10:0}}>
-                  <Avatar src={a.avatar_url} name={a.display_name||a.username} size={40} />
+                  <Avatar src={a.avatar_url as string|null} name={a.display_name||a.username} size={40} />
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{a.display_name||a.username}</div>
                     <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{a.username} · Beigetreten {fmtDate(a.created_at)}</div>
