@@ -6,17 +6,28 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { SUPABASE_URL } from '@/lib/api';
 
+type DashboardMode = 'super' | 'employee';
+
 export default function LoginPage() {
   const { login, loading, error } = useAuth();
   const router = useRouter();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
+  const [mode, setMode]         = useState<DashboardMode>('super');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const ok = await login(email, password);
-    if (ok) router.push('/dashboard');
+    if (ok) {
+      // Speichere gewählten Modus
+      localStorage.setItem('hui_dashboard_mode', mode);
+      if (mode === 'employee') {
+        router.push('/employee/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+    }
   };
 
   const isLive = !!SUPABASE_URL;
@@ -38,9 +49,10 @@ export default function LoginPage() {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 20,
     }}>
-      <div style={{ width: '100%', maxWidth: 380 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 48, height: 48,
             background: 'linear-gradient(135deg, var(--accent), #2BC5BB)',
@@ -52,11 +64,47 @@ export default function LoginPage() {
             HUI
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-            Admin Control
+            HUI Control Center
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
             {isLive ? '🟢 Live-Modus · Supabase verbunden' : '⚠️ Demo-Modus · Keine Verbindung konfiguriert'}
           </div>
+        </div>
+
+        {/* Dashboard-Auswahl */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20,
+        }}>
+          {([
+            { key: 'super',    label: 'Admin Dashboard',    icon: '🛡️', desc: 'Vollzugriff' },
+            { key: 'employee', label: 'Employee Dashboard', icon: '👤', desc: 'Eingeschränkt' },
+          ] as { key: DashboardMode; label: string; icon: string; desc: string }[]).map(opt => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setMode(opt.key)}
+              style={{
+                padding: '14px 12px',
+                background: mode === opt.key ? 'var(--accent-dim)' : 'var(--bg-secondary)',
+                border: `2px solid ${mode === opt.key ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 12, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{opt.icon}</span>
+              <span style={{
+                fontSize: 11.5, fontWeight: 700,
+                color: mode === opt.key ? 'var(--accent)' : 'var(--text-primary)',
+                letterSpacing: '-0.2px', lineHeight: 1.3, textAlign: 'center',
+              }}>{opt.label}</span>
+              <span style={{
+                fontSize: 10, color: 'var(--text-muted)',
+                background: mode === opt.key ? 'rgba(78,205,196,0.15)' : 'var(--bg-tertiary)',
+                padding: '2px 7px', borderRadius: 4,
+              }}>{opt.desc}</span>
+            </button>
+          ))}
         </div>
 
         {/* Form */}
@@ -65,6 +113,23 @@ export default function LoginPage() {
           border: '1px solid var(--border)',
           borderRadius: 14, padding: 28,
         }}>
+
+          {/* Gewähltes Dashboard-Indikator */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', marginBottom: 20,
+            background: mode === 'super' ? 'rgba(78,205,196,0.08)' : 'rgba(116,192,252,0.08)',
+            border: `1px solid ${mode === 'super' ? 'rgba(78,205,196,0.25)' : 'rgba(116,192,252,0.25)'}`,
+            borderRadius: 8, fontSize: 12,
+          }}>
+            <span>{mode === 'super' ? '🛡️' : '👤'}</span>
+            <span style={{ color: 'var(--text-secondary)', flex: 1 }}>
+              Login als <strong style={{ color: mode === 'super' ? 'var(--accent)' : '#74C0FC' }}>
+                {mode === 'super' ? 'Super Admin' : 'Mitarbeiter'}
+              </strong>
+            </span>
+          </div>
+
           {error && (
             <div style={{
               padding: '10px 14px', marginBottom: 16,
@@ -131,7 +196,7 @@ export default function LoginPage() {
                 <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 Anmelden…
               </>
-            ) : 'Anmelden'}
+            ) : `Anmelden → ${mode === 'super' ? 'Admin Dashboard' : 'Employee Dashboard'}`}
           </button>
 
           {!isLive && (
@@ -140,6 +205,7 @@ export default function LoginPage() {
             </div>
           )}
         </form>
+
       </div>
     </div>
   );
