@@ -20,7 +20,7 @@ const BOTTOM_NAV = [
   { href: '/settings',     icon: '⚙', label: 'More'    },
 ];
 
-const APP_LINK = { href: 'https://be-hui.com', icon: '🌐', label: 'App' };
+const APP_LINK = { href: 'https://be-hui.vercel.app', icon: '🌐', label: 'App' };
 
 export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
   const [time, setTime]       = useState<string>('');
@@ -102,7 +102,7 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
 
           {/* ── HUI App öffnen ── */}
           <a
-            href="https://be-hui.com"
+            href="https://be-hui.vercel.app"
             target="_blank"
             rel="noopener noreferrer"
             title="HUI App öffnen"
