@@ -19,12 +19,12 @@ function fmtPct(n: number) {
 
 // ── Impact-Pool Berechnungen (15 % Regel) ─────────────────────────────────────
 // Brutto Impact Pool = 15 % von Umsatz
-// Firmenanteil       = 15 % von Brutto Impact Pool
-// Netto Impact Pool  = 85 % von Brutto Impact Pool
+// Netto Impact Pool  = 15 % von Brutto Impact Pool → geht an Impact-Projekte
+// Firmenanteil       = 85 % von Brutto Impact Pool → geht ans Firmenkonto
 function calcImpact(totalRevenue: number) {
   const brutto = totalRevenue * 0.15;
-  const firma  = brutto * 0.15;
-  const netto  = brutto * 0.85;
+  const netto  = brutto * 0.15;
+  const firma  = brutto * 0.85;
   return { brutto, firma, netto };
 }
 
@@ -164,7 +164,7 @@ export default function ImpactPage() {
           data: {
             labels: monthly.map(m => m.label),
             datasets: [
-              { label: 'Netto Impact Pool', data: monthly.map(m => m.netto), backgroundColor: 'rgba(78,205,196,0.75)', borderRadius: 5, stack: 'pool' },
+              { label: 'Netto Impact Pool (15 %)', data: monthly.map(m => m.netto), backgroundColor: 'rgba(78,205,196,0.75)', borderRadius: 5, stack: 'pool' },
               { label: 'Firmenanteil',      data: monthly.map(m => m.firma), backgroundColor: 'rgba(247,183,49,0.75)',  borderRadius: 5, stack: 'pool' },
             ],
           },
@@ -191,9 +191,9 @@ export default function ImpactPage() {
         pieChartInst.current = new Chart(pieChartRef.current, {
           type: 'doughnut',
           data: {
-            labels: ['Netto Impact Pool (85 %)', 'Firmenanteil (15 %)'],
+            labels: ['Netto Impact Pool (15 %)', 'Firmenanteil (85 %)'],
             datasets: [{
-              data: [totalNetto || 85, totalFirma || 15],
+              data: [totalNetto || 15, totalFirma || 85],
               backgroundColor: ['rgba(78,205,196,0.85)', 'rgba(247,183,49,0.85)'],
               borderWidth: 2,
               borderColor: 'var(--bg-secondary)',
@@ -236,7 +236,7 @@ export default function ImpactPage() {
         <div style={{ fontSize: 42, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-2px' }}>
           {loading ? '—' : fmtEurK(totalNetto)}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>Netto Impact Pool · 85 % der 15 % aller Transaktionen</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>Netto Impact Pool · 15 % der 15 % aller Transaktionen</div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
           Brutto: {loading ? '—' : fmtEurK(totalBrutto)} · Firmenanteil: {loading ? '—' : fmtEurK(totalFirma)} · Basis: {loading ? '—' : fmtEurK(totalRevenue)} Umsatz
         </div>
@@ -247,7 +247,7 @@ export default function ImpactPage() {
         {[
           { label: 'Umsatz (Basis)', value: totalRevenue, pct: '100 %', color: '#74C0FC', desc: 'Gesamtumsatz aller Transaktionen' },
           { label: 'Brutto Impact Pool', value: totalBrutto, pct: '15 % vom Umsatz', color: '#4ECDC4', desc: '15 % jeder Transaktion' },
-          { label: 'Netto Impact Pool', value: totalNetto, pct: '85 % der 15 %', color: '#51CF66', desc: 'Geht an Impact-Projekte' },
+          { label: 'Netto Impact Pool', value: totalNetto, pct: '15 % der 15 %', color: '#51CF66', desc: 'Geht an Impact-Projekte' },
         ].map(({ label, value, pct, color, desc }) => (
           <div key={label} style={{ ...card, borderLeft: `3px solid ${color}` }}>
             <div style={label11}>{label}</div>
@@ -263,7 +263,7 @@ export default function ImpactPage() {
         <div style={{ fontSize: 24 }}>🏢</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, color: '#F7B731', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 700 }}>Firmenanteil (HUI intern)</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>15 % des Brutto-Impact-Pools → Systemkosten, Infrastruktur, Betrieb</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>85 % des Brutto-Impact-Pools → Firmenkonto, Systemkosten, Betrieb</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ ...mono, fontSize: 28, color: '#F7B731' }}>{loading ? '—' : fmtEurK(totalFirma)}</div>
@@ -311,7 +311,7 @@ export default function ImpactPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                {['Monat', 'Umsatz', 'Brutto Pool (15 %)', 'Firmenanteil (15 % der 15 %)', 'Netto Pool (85 % der 15 %)'].map(h => (
+                {['Monat', 'Umsatz', 'Brutto Pool (15 %)', 'Netto Pool (15 % der 15 %)', 'Firmenanteil (85 % der 15 %)'].map(h => (
                   <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, letterSpacing: '0.7px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -326,8 +326,8 @@ export default function ImpactPage() {
                     </td>
                     <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{fmtEur(m.revenue)}</td>
                     <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#4ECDC4' }}>{fmtEur(m.brutto)}</td>
-                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#F7B731' }}>{fmtEur(m.firma)}</td>
-                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#51CF66', fontWeight: 600 }}>{fmtEur(m.netto)}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#51CF66', fontWeight: 600 }}>{fmtEur(m.netma)}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#F7B731' }}>{fmtEur(m.firto)}</td>
                   </tr>
                 );
               })}
@@ -336,8 +336,8 @@ export default function ImpactPage() {
                 <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-primary)', fontSize: 11 }}>∑ GESAMT</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-secondary)' }}>{fmtEur(monthly.reduce((s, m) => s + m.revenue, 0))}</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#4ECDC4' }}>{fmtEur(monthly.reduce((s, m) => s + m.brutto, 0))}</td>
+                <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#51CF66', fontWeight: 700 }}>{fmtEur(monthly.reduce((s, m) => s + m.netto, 0))}</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#F7B731' }}>{fmtEur(monthly.reduce((s, m) => s + m.firma, 0))}</td>
-                <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#51CF66' }}>{fmtEur(monthly.reduce((s, m) => s + m.netto, 0))}</td>
               </tr>
             </tbody>
           </table>
