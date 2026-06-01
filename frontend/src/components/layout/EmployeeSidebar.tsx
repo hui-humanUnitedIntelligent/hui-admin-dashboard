@@ -197,15 +197,19 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
       {/* ── Footer ── */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         {/* Switch to Admin */}
-        <Link
-          href="/login"
+        <button
+          onClick={() => {
+            localStorage.removeItem('hui_dashboard_mode');
+            window.location.href = '/login';
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '7px 10px', marginBottom: 8,
+            padding: '7px 10px', marginBottom: 8, width: '100%',
             background: 'rgba(78,205,196,0.08)',
             border: '1px solid rgba(78,205,196,0.2)',
-            borderRadius: 8, textDecoration: 'none',
+            borderRadius: 8, cursor: 'pointer', textAlign: 'left',
             fontSize: 11.5, color: 'var(--accent)', fontWeight: 600,
+            fontFamily: 'var(--font-body)',
             transition: 'all 0.15s',
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(78,205,196,0.15)'; }}
@@ -213,7 +217,7 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
         >
           <span>🛡️</span>
           <span>→ Admin Dashboard</span>
-        </Link>
+        </button>
 
         {/* User info */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
