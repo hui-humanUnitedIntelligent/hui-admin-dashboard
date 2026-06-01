@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { clearAuth } from '@/lib/api';
 import { useSettings } from '@/components/providers/ThemeProvider';
 import { useSystemHealth } from '@/lib/hooks/useSupabase';
 
@@ -300,15 +301,19 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           </div>
         </div>
         {/* ── Switch to Employee Portal ── */}
-        <a
-          href="/login"
+        <button
+          onClick={() => {
+            localStorage.removeItem('hui_dashboard_mode');
+            window.location.href = '/login';
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 10px', marginBottom: 8,
+            padding: '6px 10px', marginBottom: 8, width: '100%',
             background: 'rgba(116,192,252,0.08)',
             border: '1px solid rgba(116,192,252,0.2)',
-            borderRadius: 7, textDecoration: 'none',
+            borderRadius: 7, cursor: 'pointer', textAlign: 'left',
             fontSize: 11.5, color: '#74C0FC', fontWeight: 500,
+            fontFamily: 'var(--font-body)',
             transition: 'all 0.15s',
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(116,192,252,0.15)'; }}
@@ -316,7 +321,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         >
           <span>👤</span>
           <span>→ Employee Portal</span>
-        </a>
+        </button>
 
         <button
           onClick={logout}
