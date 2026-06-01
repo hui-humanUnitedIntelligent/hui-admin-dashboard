@@ -326,8 +326,8 @@ export default function ImpactPage() {
                     </td>
                     <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{fmtEur(m.revenue)}</td>
                     <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#4ECDC4' }}>{fmtEur(m.brutto)}</td>
-                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#51CF66', fontWeight: 600 }}>{fmtEur(m.netma)}</td>
-                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#F7B731' }}>{fmtEur(m.firto)}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#51CF66', fontWeight: 600 }}>{fmtEur(m.netto)}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: '#F7B731' }}>{fmtEur(m.firma)}</td>
                   </tr>
                 );
               })}
