@@ -191,7 +191,7 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
 .mobile-only    { display: none !important; }
 .desktop-only   { display: flex !important; }
 
-/* ── Content padding (bottom-nav space on mobile) ──────────────────────── */
+/* ── Content padding ──────────────────────────────────────────────────────── */
 .page-content {
   flex: 1;
   overflow-y: auto;
@@ -207,19 +207,6 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
 /* ── Table: horizontal scroll on mobile ───────────────────────────────── */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-/* ── Bottom Nav (mobile only) ──────────────────────────────────────────── */
-.bottom-nav {
-  display: none;
-  position: fixed; bottom: 0; left: 0; right: 0;
-  height: 60px;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
-  z-index: 500;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 4px;
-  backdrop-filter: blur(12px);
-}
 
 /* ── Mobile sidebar overlay ────────────────────────────────────────────── */
 .sidebar-overlay {
@@ -263,7 +250,7 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
   .desktop-only   { display: none !important; }
 
   /* Page padding — leave space for bottom nav */
-  .page-content   { padding: 12px 14px; padding-bottom: 72px !important; }
+  .page-content   { padding: 12px 14px; }
 
   /* Grids collapse to 2 or 1 col */
   .grid-4  { grid-template-columns: repeat(2, 1fr) !important; }
@@ -271,7 +258,6 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
   .grid-2  { grid-template-columns: 1fr !important; }
 
   /* Bottom nav visible */
-  .bottom-nav { display: flex !important; }
 
   /* Sidebar overlay */
   .sidebar-overlay { display: block; }
@@ -328,7 +314,7 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
 @media (max-width: 480px) {
   .grid-4 { grid-template-columns: 1fr 1fr !important; }
   .grid-3 { grid-template-columns: 1fr 1fr !important; }
-  .page-content { padding: 10px 12px; padding-bottom: 72px !important; }
+  .page-content { padding: 10px 12px; }
 
   /* Tiny font in tables */
   table { font-size: 10px !important; }
