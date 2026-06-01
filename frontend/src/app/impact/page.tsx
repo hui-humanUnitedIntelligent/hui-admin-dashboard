@@ -336,7 +336,7 @@ export default function ImpactPage() {
                 <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-primary)', fontSize: 11 }}>∑ GESAMT</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-secondary)' }}>{fmtEur(monthly.reduce((s, m) => s + m.revenue, 0))}</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#4ECDC4' }}>{fmtEur(monthly.reduce((s, m) => s + m.brutto, 0))}</td>
-                <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#51CF66', fontWeight: 700 }}>{fmtEur(monthly.reduce((s, m) => s + m.netto, 0))}</td>
+                <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#51CF66' }}>{fmtEur(monthly.reduce((s, m) => s + m.netto, 0))}</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#F7B731' }}>{fmtEur(monthly.reduce((s, m) => s + m.firma, 0))}</td>
               </tr>
             </tbody>
