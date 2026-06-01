@@ -39,13 +39,12 @@ interface MonthBucket {
 }
 
 function buildMonthlyBuckets(
-  payments: { amount_eur?: number; created_at?: string }[],
-  works:    { price_eur?: number; created_at?: string }[]
+  payments: { amount_eur?: number; created_at?: string }[]
 ): MonthBucket[] {
-  // Merge: prefer payments if available, fallback to works
+  // Nur abgeschlossene Zahlungen (status=completed) werden berücksichtigt
+  // Werkpreise fließen NICHT in den Impact Pool ein
   const allTx: { amount: number; date: string }[] = [];
   payments.forEach(p => { if ((p.amount_eur ?? 0) > 0) allTx.push({ amount: p.amount_eur!, date: p.created_at! }); });
-  works.forEach(w => { if ((w.price_eur ?? 0) > 0) allTx.push({ amount: w.price_eur!, date: w.created_at! }); });
 
   if (!allTx.length) {
     // Demo buckets for empty state
@@ -75,28 +74,11 @@ function buildMonthlyBuckets(
     });
 }
 
-// ── Works fetcher ─────────────────────────────────────────────────────────────
-function useWorks() {
-  const [works, setWorks] = useState<{ price_eur: number; created_at: string }[]>([]);
-  const fetch = useCallback(async () => {
-    try {
-      const r = await globalThis.fetch(
-        `/api/admin?table=works&select=price_eur,created_at&limit=1000`
-      );
-      if (r.ok) {
-        const data = await r.json();
-        setWorks(Array.isArray(data) ? data : data.data || []);
-      }
-    } catch {}
-  }, []);
-  useEffect(() => { fetch(); }, [fetch]);
-  return { works, refetch: fetch };
-}
+// Works werden nicht mehr für Impact-Berechnung verwendet
 
 export default function ImpactPage() {
   const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
   const { payments, loading: payLoading } = usePayments({ refreshInterval: 30000, limit: 1000 });
-  const { works } = useWorks();
 
   const chartRef      = useRef<HTMLCanvasElement>(null);
   const barChartRef   = useRef<HTMLCanvasElement>(null);
@@ -105,20 +87,18 @@ export default function ImpactPage() {
   const barChartInst  = useRef<unknown>(null);
   const pieChartInst  = useRef<unknown>(null);
 
-  // ── Revenue base: prefer payments, fallback to works ──────────────────────
-  const totalRevenue = payments.length
-    ? payments.reduce((s, p) => s + (p.amount_eur || 0), 0)
-    : works.reduce((s, w) => s + (w.price_eur || 0), 0);
+  // ── Revenue: NUR abgeschlossene Zahlungen (status=completed) ──────────────
+  // Werkpreise werden NICHT gezählt — nur wenn Käufer/Empfänger bestätigt hat
+  const completedPayments = payments.filter(p => p.status === 'completed');
+  const totalRevenue = completedPayments.reduce((s, p) => s + (p.amount_eur || 0), 0);
 
   const { brutto: totalBrutto, firma: totalFirma, netto: totalNetto } = calcImpact(totalRevenue);
 
   // Month filter
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const monthPayments = payments.filter(p => p.created_at >= startOfMonth);
-  const monthRevenue  = monthPayments.length
-    ? monthPayments.reduce((s, p) => s + (p.amount_eur || 0), 0)
-    : works.filter(w => (w.created_at || '') >= startOfMonth).reduce((s, w) => s + (w.price_eur || 0), 0);
+  const monthPayments = completedPayments.filter(p => p.created_at >= startOfMonth);
+  const monthRevenue  = monthPayments.reduce((s, p) => s + (p.amount_eur || 0), 0);
   const { brutto: monthBrutto, firma: monthFirma, netto: monthNetto } = calcImpact(monthRevenue);
 
   const totalProjects = projects.length;
@@ -127,8 +107,7 @@ export default function ImpactPage() {
 
   // ── Monthly buckets ────────────────────────────────────────────────────────
   const monthly = buildMonthlyBuckets(
-    payments.map(p => ({ amount_eur: p.amount_eur, created_at: p.created_at })),
-    works
+    completedPayments.map(p => ({ amount_eur: p.amount_eur, created_at: p.created_at }))
   );
 
   // ── Doughnut: Vote-Verteilung ──────────────────────────────────────────────
@@ -236,7 +215,7 @@ export default function ImpactPage() {
         <div style={{ fontSize: 42, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-2px' }}>
           {loading ? '—' : fmtEurK(totalNetto)}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>Netto Impact Pool · 15 % der 15 % aller Transaktionen</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>Netto Impact Pool · 15 % der 15 % — nur abgeschlossene Transaktionen</div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
           Brutto: {loading ? '—' : fmtEurK(totalBrutto)} · Firmenanteil: {loading ? '—' : fmtEurK(totalFirma)} · Basis: {loading ? '—' : fmtEurK(totalRevenue)} Umsatz
         </div>
