@@ -1,39 +1,53 @@
 // frontend/src/components/layout/DashboardLayout.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
+import EmployeeSidebar from './EmployeeSidebar';
 import Header from './Header';
+import { getStoredUser } from '@/lib/api';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
   headerActions?: React.ReactNode;
+  employeeMode?: boolean;
 }
 
-export default function DashboardLayout({ children, title, headerActions }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, title, headerActions, employeeMode }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const user = getStoredUser();
+    if (!user) { router.push('/login'); return; }
+    const mode = typeof window !== 'undefined' ? localStorage.getItem('hui_dashboard_mode') : null;
+    // Verhindere Cross-Access: Employee → Admin und umgekehrt
+    if (employeeMode && mode === 'super') { router.push('/dashboard'); return; }
+    if (!employeeMode && mode === 'employee') { router.push('/employee/dashboard'); return; }
+  }, [router, employeeMode]);
+
+  const SidebarComp = employeeMode ? EmployeeSidebar : Sidebar;
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary)' }}>
 
       {/* ── Desktop Sidebar ── */}
       <div className="hide-mobile">
-        <Sidebar />
+        <SidebarComp />
       </div>
 
       {/* ── Mobile Sidebar Drawer ── */}
       {sidebarOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="sidebar-overlay"
             onClick={() => setSidebarOpen(false)}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 997, backdropFilter: 'blur(3px)' }}
           />
-          {/* Drawer */}
           <div className="mobile-drawer">
-            <Sidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <SidebarComp mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           </div>
         </>
       )}
@@ -45,7 +59,6 @@ export default function DashboardLayout({ children, title, headerActions }: Dash
           actions={headerActions}
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
-        {/* Page content — class adds responsive padding & bottom-nav spacing */}
         <div className="page-content">
           {children}
         </div>
