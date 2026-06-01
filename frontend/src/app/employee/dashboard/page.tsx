@@ -13,7 +13,7 @@ function fmtEur(n: number) { return new Intl.NumberFormat('de-DE', { style: 'cur
 export default function EmployeeDashboard() {
   const router = useRouter();
   const { totalUsers, activeMembers: activeMemberships, totalWorks, totalPayments, activeBookings, monthlyRevenue, loading } = useKPIs(30000);
-  const { chart } = useGrowthChart(6);
+  const { labels: chartLabels, newUsers: chartNewUsers } = useGrowthChart();
 
   // Auth guard
   useEffect(() => {
@@ -40,8 +40,8 @@ export default function EmployeeDashboard() {
     </div>
   );
 
-  const months = chart?.labels || [];
-  const userData = chart?.datasets?.find((d: { label: string }) => d.label?.toLowerCase().includes('user'))?.data || [];
+  const months = chartLabels || [];
+  const userData = chartNewUsers || [];
   const maxU = Math.max(...userData.map(Number), 1);
 
   return (
