@@ -20,6 +20,8 @@ const BOTTOM_NAV = [
   { href: '/settings',     icon: '⚙', label: 'More'    },
 ];
 
+const APP_LINK = { href: 'https://be-hui.com', icon: '🌐', label: 'App' };
+
 export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
   const [time, setTime]       = useState<string>('');
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -97,6 +99,37 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
               {time || '--:--'}
             </span>
           </div>
+
+          {/* ── HUI App öffnen ── */}
+          <a
+            href="https://be-hui.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="HUI App öffnen"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px',
+              background: 'var(--accent)',
+              color: '#fff',
+              borderRadius: 7,
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: '-0.1px',
+              textDecoration: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.15s',
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            <span style={{ fontSize: 13 }}>🌐</span>
+            <span>HUI App</span>
+            <span style={{ fontSize: 10, opacity: 0.8 }}>↗</span>
+          </a>
+
           {actions}
         </div>
 
@@ -154,6 +187,23 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
             </Link>
           );
         })}
+        {/* Externer App-Link */}
+        <a
+          href={APP_LINK.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            flex: 1, height: '100%', textDecoration: 'none', gap: 2,
+            color: 'var(--accent)',
+            fontSize: 9, fontWeight: 600,
+            letterSpacing: '0.3px',
+            borderTop: '2px solid var(--accent)',
+          }}
+        >
+          <span style={{ fontSize: 20, lineHeight: 1 }}>{APP_LINK.icon}</span>
+          <span style={{ fontSize: 9, marginTop: 1 }}>{APP_LINK.label}</span>
+        </a>
       </nav>
     </>
   );
