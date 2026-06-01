@@ -23,8 +23,7 @@ export default function DashboardLayout({ children, title, headerActions, employ
     const user = getStoredUser();
     if (!user) { router.push('/login'); return; }
     const mode = typeof window !== 'undefined' ? localStorage.getItem('hui_dashboard_mode') : null;
-    // Verhindere Cross-Access: Employee → Admin und umgekehrt
-    if (employeeMode && mode === 'super') { router.push('/dashboard'); return; }
+    if (employeeMode && mode === 'super')    { router.push('/dashboard'); return; }
     if (!employeeMode && mode === 'employee') { router.push('/employee/dashboard'); return; }
   }, [router, employeeMode]);
 
@@ -33,12 +32,12 @@ export default function DashboardLayout({ children, title, headerActions, employ
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-primary)' }}>
 
-      {/* ── Desktop Sidebar ── */}
+      {/* Desktop Sidebar */}
       <div className="hide-mobile">
         <SidebarComp />
       </div>
 
-      {/* ── Mobile Sidebar Drawer ── */}
+      {/* Mobile Sidebar Drawer */}
       {sidebarOpen && (
         <>
           <div
@@ -52,12 +51,13 @@ export default function DashboardLayout({ children, title, headerActions, employ
         </>
       )}
 
-      {/* ── Main content ── */}
+      {/* Main content */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <Header
           title={title}
           actions={headerActions}
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
+          employeeMode={employeeMode}
         />
         <div className="page-content">
           {children}
