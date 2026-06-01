@@ -58,19 +58,23 @@ export default function EmployeeDashboard() {
           </p>
         </div>
 
-        {/* KPI-Grid — ohne Firmenanteil & Impact Pool */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-          {card('👥', 'Nutzer gesamt',    fmtNum(totalUsers || 0),    'Registrierte Accounts', 'var(--accent)')}
-          {card('✅', 'Aktive Nutzer',    fmtNum(totalUsers || 0),   'Aktiv in 30 Tagen', '#51CF66')}
-          {card('🖼️', 'Werke',            fmtNum(totalWorks || 0),    'Veröffentlichte Werke', '#74C0FC')}
-          {card('📅', 'Buchungen',        fmtNum(activeBookings || 0), 'Gesamt Buchungen', '#FFD43B')}
-          {card('💳', 'Transaktionen',   fmtNum(totalPayments || 0), 'Abgeschlossene Zahlungen', '#F783AC')}
-          {card('🏅', 'Mitgliedschaften', fmtNum(activeMemberships || 0), 'Aktive Mitgliedschaften', '#CC5DE8')}
+        {/* ── Zeile 1: User & Content ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
+          {card('👥', 'Nutzer gesamt',    fmtNum(totalUsers || 0),        'Registrierte Accounts',     'var(--accent)')}
+          {card('✅', 'Aktive Nutzer',    fmtNum(totalUsers || 0),        'Aktiv in 30 Tagen',          '#51CF66')}
+          {card('🖼️', 'Werke',            fmtNum(totalWorks || 0),        'Veröffentlichte Werke',      '#74C0FC')}
         </div>
 
-        {/* Umsatz (ohne Firmenanteil-Aufschlüsselung) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-          {card('💰', 'Monats-Umsatz', fmtEur(monthlyRevenue || 0), 'Aktueller Monat', 'var(--accent)')}
+        {/* ── Zeile 2: Commerce & Finanzen ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
+          {card('📅', 'Buchungen',        fmtNum(activeBookings || 0),    'Gesamt Buchungen',           '#FFD43B')}
+          {card('💳', 'Transaktionen',    fmtNum(totalPayments || 0),     'Abgeschlossene Zahlungen',   '#F783AC')}
+          {card('🏅', 'Mitgliedschaften', fmtNum(activeMemberships || 0), 'Aktive Mitgliedschaften',    '#CC5DE8')}
+        </div>
+
+        {/* ── Umsatz-Banner ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14, marginBottom: 28 }}>
+          {card('💰', 'Monats-Umsatz', fmtEur(monthlyRevenue || 0), 'Umsatz im aktuellen Monat', 'var(--accent)')}
         </div>
 
         {/* Wachstums-Chart */}
