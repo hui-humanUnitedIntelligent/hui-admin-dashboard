@@ -12,7 +12,7 @@ function fmtEur(n: number) { return new Intl.NumberFormat('de-DE', { style: 'cur
 
 export default function EmployeeDashboard() {
   const router = useRouter();
-  const { kpis, loading } = useKPIs(30000);
+  const { totalUsers, activeMembers: activeMemberships, totalWorks, totalPayments, activeBookings, monthlyRevenue, loading } = useKPIs(30000);
   const { chart } = useGrowthChart(6);
 
   // Auth guard
@@ -60,17 +60,17 @@ export default function EmployeeDashboard() {
 
         {/* KPI-Grid — ohne Firmenanteil & Impact Pool */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-          {card('👥', 'Nutzer gesamt',    fmtNum(kpis?.totalUsers || 0),    'Registrierte Accounts', 'var(--accent)')}
-          {card('✅', 'Aktive Nutzer',    fmtNum(kpis?.activeUsers || 0),   'Aktiv in 30 Tagen', '#51CF66')}
-          {card('🖼️', 'Werke',            fmtNum(kpis?.totalWorks || 0),    'Veröffentlichte Werke', '#74C0FC')}
-          {card('📅', 'Buchungen',        fmtNum(kpis?.totalBookings || 0), 'Gesamt Buchungen', '#FFD43B')}
-          {card('💳', 'Transaktionen',   fmtNum(kpis?.totalPayments || 0), 'Abgeschlossene Zahlungen', '#F783AC')}
-          {card('🏅', 'Mitgliedschaften', fmtNum(kpis?.activeMemberships || 0), 'Aktive Mitgliedschaften', '#CC5DE8')}
+          {card('👥', 'Nutzer gesamt',    fmtNum(totalUsers || 0),    'Registrierte Accounts', 'var(--accent)')}
+          {card('✅', 'Aktive Nutzer',    fmtNum(totalUsers || 0),   'Aktiv in 30 Tagen', '#51CF66')}
+          {card('🖼️', 'Werke',            fmtNum(totalWorks || 0),    'Veröffentlichte Werke', '#74C0FC')}
+          {card('📅', 'Buchungen',        fmtNum(activeBookings || 0), 'Gesamt Buchungen', '#FFD43B')}
+          {card('💳', 'Transaktionen',   fmtNum(totalPayments || 0), 'Abgeschlossene Zahlungen', '#F783AC')}
+          {card('🏅', 'Mitgliedschaften', fmtNum(activeMemberships || 0), 'Aktive Mitgliedschaften', '#CC5DE8')}
         </div>
 
         {/* Umsatz (ohne Firmenanteil-Aufschlüsselung) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 28 }}>
-          {card('💰', 'Monats-Umsatz', fmtEur(kpis?.monthlyRevenue || 0), 'Aktueller Monat', 'var(--accent)')}
+          {card('💰', 'Monats-Umsatz', fmtEur(monthlyRevenue || 0), 'Aktueller Monat', 'var(--accent)')}
         </div>
 
         {/* Wachstums-Chart */}
