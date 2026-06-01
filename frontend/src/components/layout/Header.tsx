@@ -4,28 +4,39 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { clearAuth } from '@/lib/api';
 
 interface HeaderProps {
   title: string;
   actions?: React.ReactNode;
   onMenuToggle?: () => void;
+  employeeMode?: boolean;
 }
 
-// Quick-access bottom nav items (shown on mobile)
-const BOTTOM_NAV = [
-  { href: '/dashboard',    icon: '⊞', label: 'Home'    },
-  { href: '/users',        icon: '◎', label: 'User'    },
-  { href: '/works',        icon: '🎨', label: 'Werke'  },
-  { href: '/impact',       icon: '🌱', label: 'Impact' },
-  { href: '/settings',     icon: '⚙', label: 'More'    },
+// ── Admin Bottom-Nav ──────────────────────────────────────────────────────────
+const ADMIN_BOTTOM_NAV = [
+  { href: '/dashboard',    icon: '⊞', label: 'Home'      },
+  { href: '/users',        icon: '👥', label: 'User'      },
+  { href: '/transactions', icon: '⇄',  label: 'Trans.'   },
+  { href: '/works',        icon: '🖼️', label: 'Werke'    },
+  { href: '/ambassadors',  icon: '🤝', label: 'Ambass.'  },
 ];
 
-const APP_LINK = { href: 'https://be-hui.vercel.app', icon: '🌐', label: 'App' };
+// ── Employee Bottom-Nav ───────────────────────────────────────────────────────
+const EMPLOYEE_BOTTOM_NAV = [
+  { href: '/employee/dashboard',    icon: '⊞', label: 'Home'    },
+  { href: '/employee/users',        icon: '👥', label: 'User'   },
+  { href: '/employee/transactions', icon: '⇄',  label: 'Trans.' },
+  { href: '/employee/works',        icon: '🖼️', label: 'Werke' },
+  { href: '/employee/ambassadors',  icon: '🤝', label: 'Ambass.'},
+];
 
-export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
-  const [time, setTime]       = useState<string>('');
+export default function Header({ title, actions, onMenuToggle, employeeMode }: HeaderProps) {
+  const [time, setTime]           = useState<string>('');
   const [actionsOpen, setActionsOpen] = useState(false);
   const pathname = usePathname();
+
+  const BOTTOM_NAV = employeeMode ? EMPLOYEE_BOTTOM_NAV : ADMIN_BOTTOM_NAV;
 
   useEffect(() => {
     const update = () => {
@@ -36,9 +47,17 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
     return () => clearInterval(id);
   }, []);
 
+  const handleSwitchDashboard = () => {
+    // Modus löschen → zurück zum Login mit Auswahl
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('hui_dashboard_mode');
+    }
+    window.location.href = '/login';
+  };
+
   return (
     <>
-      {/* ── Main Header ───────────────────────────────────────────────── */}
+      {/* ── Main Header ─────────────────────────────────────────────────── */}
       <header
         className="hui-header"
         style={{
@@ -61,66 +80,72 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
               borderRadius: 8, cursor: 'pointer',
               color: 'var(--text-secondary)',
               fontSize: 16, padding: '5px 9px', lineHeight: 1,
-              display: 'none', /* overridden by .show-mobile CSS */
+              display: 'none',
               flexShrink: 0,
             }}
             aria-label="Navigation öffnen"
-          >
-            ☰
-          </button>
+          >☰</button>
         )}
 
         {/* Page title */}
-        <h1
-          style={{
-            flex: 1, fontSize: 14, fontWeight: 500,
-            color: 'var(--text-primary)', margin: 0,
-            letterSpacing: '-0.2px',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}
-        >
+        <h1 style={{
+          flex: 1, fontSize: 14, fontWeight: 500,
+          color: 'var(--text-primary)', margin: 0,
+          letterSpacing: '-0.2px',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
           {title}
         </h1>
 
-        {/* Desktop: clock + actions inline */}
+        {/* Desktop: clock + switch + app-link */}
         <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Live clock */}
-          <div
-            className="header-clock"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '4px 10px',
-              background: 'var(--bg-tertiary)',
-              borderRadius: 6, border: '1px solid var(--border)',
-            }}
-          >
+          <div className="header-clock" style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px',
+            background: 'var(--bg-tertiary)',
+            borderRadius: 6, border: '1px solid var(--border)',
+          }}>
             <span className="live-dot" />
             <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.3px' }}>
               {time || '--:--'}
             </span>
           </div>
 
-          {/* ── HUI App öffnen ── */}
+          {/* Dashboard-Wechsel */}
+          <button
+            onClick={handleSwitchDashboard}
+            title={employeeMode ? 'Zu Admin Dashboard wechseln' : 'Zu Employee Portal wechseln'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '5px 10px',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border)',
+              borderRadius: 7, cursor: 'pointer',
+              fontSize: 11.5, color: 'var(--text-muted)',
+              fontFamily: 'var(--font-body)',
+              transition: 'all 0.15s',
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
+          >
+            <span>{employeeMode ? '🛡️' : '👤'}</span>
+            <span>{employeeMode ? 'Admin' : 'Employee'}</span>
+          </button>
+
+          {/* HUI App öffnen */}
           <a
             href="https://be-hui.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="HUI App öffnen"
+            target="_blank" rel="noopener noreferrer"
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '5px 12px',
               background: 'var(--accent)',
-              color: '#fff',
-              borderRadius: 7,
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '-0.1px',
+              color: '#0F1117',
+              borderRadius: 7, fontSize: 12, fontWeight: 600,
               textDecoration: 'none',
-              border: 'none',
-              cursor: 'pointer',
               whiteSpace: 'nowrap',
-              transition: 'opacity 0.15s',
-              flexShrink: 0,
+              transition: 'opacity 0.15s', flexShrink: 0,
             }}
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
@@ -133,7 +158,7 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
           {actions}
         </div>
 
-        {/* Mobile: collapse actions into "⋯" dropdown if any */}
+        {/* Mobile: actions dropdown */}
         {actions && (
           <div className="show-mobile" style={{ position: 'relative', display: 'none' }}>
             <button
@@ -143,9 +168,7 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
                 borderRadius: 8, cursor: 'pointer', color: 'var(--text-secondary)',
                 fontSize: 16, padding: '5px 10px', lineHeight: 1,
               }}
-            >
-              ⋯
-            </button>
+            >⋯</button>
             {actionsOpen && (
               <>
                 <div onClick={() => setActionsOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 200 }} />
@@ -165,10 +188,11 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
         )}
       </header>
 
-      {/* ── Mobile Bottom Navigation ───────────────────────────────────── */}
+      {/* ── Mobile Bottom Navigation ─────────────────────────────────────── */}
       <nav className="bottom-nav" aria-label="Mobile Navigation">
+
         {BOTTOM_NAV.map(({ href, icon, label }) => {
-          const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+          const active = pathname === href || (href !== '/dashboard' && href !== '/employee/dashboard' && pathname.startsWith(href));
           return (
             <Link
               key={href}
@@ -177,33 +201,33 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 flex: 1, height: '100%', textDecoration: 'none', gap: 2,
                 color: active ? 'var(--accent)' : 'var(--text-muted)',
-                fontSize: 9, fontWeight: active ? 700 : 400,
-                letterSpacing: '0.3px', transition: 'color 0.15s',
+                fontWeight: active ? 700 : 400,
+                transition: 'color 0.15s',
                 borderTop: active ? '2px solid var(--accent)' : '2px solid transparent',
               }}
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
-              <span style={{ fontSize: 9, marginTop: 1 }}>{label}</span>
+              <span style={{ fontSize: 19, lineHeight: 1 }}>{icon}</span>
+              <span style={{ fontSize: 9, marginTop: 1, letterSpacing: '0.2px' }}>{label}</span>
             </Link>
           );
         })}
-        {/* Externer App-Link */}
-        <a
-          href={APP_LINK.href}
-          target="_blank"
-          rel="noopener noreferrer"
+
+        {/* Dashboard-Wechsel Button */}
+        <button
+          onClick={handleSwitchDashboard}
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            flex: 1, height: '100%', textDecoration: 'none', gap: 2,
-            color: 'var(--accent)',
-            fontSize: 9, fontWeight: 600,
-            letterSpacing: '0.3px',
-            borderTop: '2px solid var(--accent)',
+            flex: 1, height: '100%', gap: 2,
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-muted)',
+            borderTop: '2px solid transparent',
+            padding: 0,
           }}
         >
-          <span style={{ fontSize: 20, lineHeight: 1 }}>{APP_LINK.icon}</span>
-          <span style={{ fontSize: 9, marginTop: 1 }}>{APP_LINK.label}</span>
-        </a>
+          <span style={{ fontSize: 19, lineHeight: 1 }}>{employeeMode ? '🛡️' : '👤'}</span>
+          <span style={{ fontSize: 9, marginTop: 1, letterSpacing: '0.2px' }}>{employeeMode ? 'Admin' : 'Switch'}</span>
+        </button>
+
       </nav>
     </>
   );
