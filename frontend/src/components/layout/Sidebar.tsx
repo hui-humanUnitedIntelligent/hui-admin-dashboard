@@ -299,6 +299,25 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500 }}>Administrator</div>
           </div>
         </div>
+        {/* ── Switch to Employee Portal ── */}
+        <a
+          href="/login"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 10px', marginBottom: 8,
+            background: 'rgba(116,192,252,0.08)',
+            border: '1px solid rgba(116,192,252,0.2)',
+            borderRadius: 7, textDecoration: 'none',
+            fontSize: 11.5, color: '#74C0FC', fontWeight: 500,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(116,192,252,0.15)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(116,192,252,0.08)'; }}
+        >
+          <span>👤</span>
+          <span>→ Employee Portal</span>
+        </a>
+
         <button
           onClick={logout}
           style={{
