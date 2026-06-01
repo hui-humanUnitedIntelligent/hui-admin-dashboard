@@ -98,7 +98,7 @@ function ReferralLinkCell({link,active,onCopy}:RLCProps) {
 }
 
 // ── Detail Drawer ─────────────────────────────────────────────
-import AmbassadorDrawer from './AmbassadorDrawer';
+import AmbassadorDrawer from '@/app/ambassadors/AmbassadorDrawer';
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function EmployeeAmbassadorsPage() {
