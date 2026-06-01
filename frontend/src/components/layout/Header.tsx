@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { clearAuth } from '@/lib/api';
 
 interface HeaderProps {
@@ -13,30 +12,11 @@ interface HeaderProps {
   employeeMode?: boolean;
 }
 
-// ── Admin Bottom-Nav ──────────────────────────────────────────────────────────
-const ADMIN_BOTTOM_NAV = [
-  { href: '/dashboard',    icon: '⊞', label: 'Home'      },
-  { href: '/users',        icon: '👥', label: 'User'      },
-  { href: '/transactions', icon: '⇄',  label: 'Trans.'   },
-  { href: '/works',        icon: '🖼️', label: 'Werke'    },
-  { href: '/ambassadors',  icon: '🤝', label: 'Ambass.'  },
-];
-
-// ── Employee Bottom-Nav ───────────────────────────────────────────────────────
-const EMPLOYEE_BOTTOM_NAV = [
-  { href: '/employee/dashboard',    icon: '⊞', label: 'Home'    },
-  { href: '/employee/users',        icon: '👥', label: 'User'   },
-  { href: '/employee/transactions', icon: '⇄',  label: 'Trans.' },
-  { href: '/employee/works',        icon: '🖼️', label: 'Werke' },
-  { href: '/employee/ambassadors',  icon: '🤝', label: 'Ambass.'},
-];
 
 export default function Header({ title, actions, onMenuToggle, employeeMode }: HeaderProps) {
   const [time, setTime]           = useState<string>('');
   const [actionsOpen, setActionsOpen] = useState(false);
   const pathname = usePathname();
-
-  const BOTTOM_NAV = employeeMode ? EMPLOYEE_BOTTOM_NAV : ADMIN_BOTTOM_NAV;
 
   useEffect(() => {
     const update = () => {
@@ -187,48 +167,6 @@ export default function Header({ title, actions, onMenuToggle, employeeMode }: H
           </div>
         )}
       </header>
-
-      {/* ── Mobile Bottom Navigation ─────────────────────────────────────── */}
-      <nav className="bottom-nav" aria-label="Mobile Navigation">
-
-        {BOTTOM_NAV.map(({ href, icon, label }) => {
-          const active = pathname === href || (href !== '/dashboard' && href !== '/employee/dashboard' && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                flex: 1, height: '100%', textDecoration: 'none', gap: 2,
-                color: active ? 'var(--accent)' : 'var(--text-muted)',
-                fontWeight: active ? 700 : 400,
-                transition: 'color 0.15s',
-                borderTop: active ? '2px solid var(--accent)' : '2px solid transparent',
-              }}
-            >
-              <span style={{ fontSize: 19, lineHeight: 1 }}>{icon}</span>
-              <span style={{ fontSize: 9, marginTop: 1, letterSpacing: '0.2px' }}>{label}</span>
-            </Link>
-          );
-        })}
-
-        {/* Dashboard-Wechsel Button */}
-        <button
-          onClick={handleSwitchDashboard}
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            flex: 1, height: '100%', gap: 2,
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-muted)',
-            borderTop: '2px solid transparent',
-            padding: 0,
-          }}
-        >
-          <span style={{ fontSize: 19, lineHeight: 1 }}>{employeeMode ? '🛡️' : '👤'}</span>
-          <span style={{ fontSize: 9, marginTop: 1, letterSpacing: '0.2px' }}>{employeeMode ? 'Admin' : 'Switch'}</span>
-        </button>
-
-      </nav>
     </>
   );
 }
