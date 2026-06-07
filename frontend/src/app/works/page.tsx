@@ -95,10 +95,12 @@ async function workAction(action: string, workId: string, data: Record<string, u
 
 // ── Components ────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'published') return <Badge variant="success" dot>Published</Badge>;
-  if (status === 'draft')     return <Badge variant="neutral" dot>Draft</Badge>;
-  if (status === 'flagged')   return <Badge variant="danger"  dot>⚑ Gemeldet</Badge>;
-  if (status === 'deleted')   return <Badge variant="neutral">🗑 Gelöscht</Badge>;
+  if (status === 'published')      return <Badge variant="success" dot>Published</Badge>;
+  if (status === 'pending_review') return <Badge variant="warning" dot>⏳ Pending</Badge>;
+  if (status === 'rejected')       return <Badge variant="danger"  dot>❌ Abgelehnt</Badge>;
+  if (status === 'draft')          return <Badge variant="neutral" dot>Draft</Badge>;
+  if (status === 'flagged')        return <Badge variant="danger"  dot>⚑ Gemeldet</Badge>;
+  if (status === 'deleted')        return <Badge variant="neutral">🗑 Gelöscht</Badge>;
   return <Badge variant="neutral">{status}</Badge>;
 }
 
