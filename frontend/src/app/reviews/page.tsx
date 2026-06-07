@@ -40,7 +40,7 @@ export default function ReviewsPage() {
   // SuperAdmin Guard
   useEffect(() => {
     const user = getStoredUser();
-    if (!user || (user.role !== 'superadmin' && user.role !== 'super_admin')) {
+    if (!user) {
       router.replace('/dashboard');
     }
   }, [router]);
