@@ -175,8 +175,11 @@ export async function GET(req: NextRequest) {
       }
     }
     const logs = await sb(`notification_events?entity_type=eq.ambassador&or=(actor_id.eq.${userId},target_user_id.eq.${userId})&order=created_at.desc&limit=20`);
+    // Bewerbungsdaten (phone + email) aus ambassadors_applications laden
+    const appR = await sb(`ambassadors_applications?user_id=eq.${userId}&select=phone,email&order=created_at.desc&limit=1`);
+    const appData = (Array.isArray(appR.body) && appR.body.length > 0) ? appR.body[0] as Record<string,unknown> : {};
     return NextResponse.json({
-      profile: { id: profile.id, display_name: profile.display_name, username: profile.username, avatar_url: profile.avatar_url, role: profile.role, is_wirker: profile.is_wirker, trust_score: profile.trust_score, follower_count: profile.follower_count, created_at: profile.created_at },
+      profile: { id: profile.id, display_name: profile.display_name, username: profile.username, avatar_url: profile.avatar_url, email: profile.email || null, phone: (profile as Record<string,unknown>).phone as string || appData.phone as string || null, role: profile.role, is_wirker: profile.is_wirker, trust_score: profile.trust_score, follower_count: profile.follower_count, created_at: profile.created_at },
       ambassador: { ...(amb || {}), referral_count: referred.length, revenue_generated: totalAmbShare, impact_generated: totalImpactShare, level: calcLevel(referred.length) },
       referrals: referred.map(p => ({ id: p.id, display_name: p.display_name, username: p.username, avatar_url: p.avatar_url, joined_at: p.created_at })),
       logs: Array.isArray(logs.body) ? logs.body : [],
