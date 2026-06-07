@@ -219,7 +219,9 @@ export default function WorksPage() {
     else if (tab === 'sensitive') base = annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted');
     else if (tab === 'published') base = annotatedAll.filter(w => w.status === 'published');
     else if (tab === 'draft')     base = annotatedAll.filter(w => w.status === 'draft');
-    else base = annotatedAll.filter(w => w.status !== 'deleted' && w.status !== 'flagged'); // 'all'
+    else if (tab === 'pending')   base = pendingWorks;
+    else if (tab === 'rejected')  base = rejectedWorks;
+    else base = annotatedAll.filter(w => !['deleted','flagged','pending_review','rejected'].includes(w.status as string)); // 'all'
 
     if (search) {
       const q = search.toLowerCase();
@@ -340,12 +342,23 @@ export default function WorksPage() {
     });
   }, [refetchAllTabs]);
 
-  // ── Approve (draft/flagged → published) ───────────────────────────────
+  // ── Approve (draft/flagged/pending → published) ──────────────────────
   const handleApprove = useCallback(async (w: WorkWithMeta) => {
     setBusyFor(w.id, true);
     const ok = await workAction('approve_work', w.id);
     setBusyFor(w.id, false);
     if (ok) { showToast('✅ Work freigegeben', 'success'); refetchAllTabs(); }
+    else showToast('Fehler', 'error');
+  }, [refetchAllTabs]);
+
+  // ── Reject (pending_review → rejected) ────────────────────────────────
+  const handleReject = useCallback(async (w: WorkWithMeta) => {
+    const reason = window.prompt('Ablehnungsgrund (optional):') ?? 'Nicht genehmigt';
+    if (reason === null) return;
+    setBusyFor(w.id, true);
+    const ok = await workAction('reject_work', w.id, { reason });
+    setBusyFor(w.id, false);
+    if (ok) { showToast('❌ Werk abgelehnt', 'success'); refetchAllTabs(); }
     else showToast('Fehler', 'error');
   }, [refetchAllTabs]);
 
@@ -358,6 +371,8 @@ export default function WorksPage() {
 
   // ── Tab context messages ────────────────────────────────────────────────
   const tabBanners: Partial<Record<TabKey, { bg: string; border: string; color: string; text: string }>> = {
+    pending:   { bg:'rgba(234,179,8,0.06)',   border:'var(--gold)', color:'var(--gold)', text:'⏳ Diese Werke warten auf Freigabe. Prüfe sie und klicke auf ✅ Freigeben oder ❌ Ablehnen.' },
+    rejected:  { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'❌ Abgelehnte Werke. Nutzer können sie überarbeiten und erneut einreichen.' },
     deleted:   { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'🗑 Hier siehst du gelöschte Werke. Du kannst sie als Draft wiederherstellen.' },
     flagged:   { bg:'rgba(247,183,49,0.08)', border:'var(--gold)', color:'var(--gold)', text:'⚑ Gemeldete Werke sind versteckt. Du kannst die Meldung auflösen oder das Werk endgültig löschen.' },
     sensitive: { bg:'rgba(255,107,107,0.06)', border:'var(--red)',  color:'var(--red)',  text:'⚠️ Werke mit verdächtigen Keywords, hohen Preisen oder fehlenden Bildern. Prüfe jeden Eintrag.' },
@@ -528,8 +543,32 @@ export default function WorksPage() {
                           </>
                         )}
 
+                        {/* PENDING tab: Freigeben + Ablehnen */}
+                        {tab === 'pending' && (
+                          <>
+                            <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
+                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                              {isBusy ? '…' : '✅ Freigeben'}
+                            </button>
+                            <button title="Ablehnen" disabled={isBusy} onClick={() => handleReject(w)}
+                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                              {isBusy ? '…' : '❌ Ablehnen'}
+                            </button>
+                          </>
+                        )}
+
+                        {/* REJECTED tab: Wieder freigeben */}
+                        {tab === 'rejected' && (
+                          <>
+                            <button title="Doch freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
+                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                              {isBusy ? '…' : '✅ Freigeben'}
+                            </button>
+                          </>
+                        )}
+
                         {/* ALL / PUBLISHED / DRAFT / SENSITIVE tabs */}
-                        {tab !== 'deleted' && tab !== 'flagged' && (
+                        {tab !== 'deleted' && tab !== 'flagged' && tab !== 'pending' && tab !== 'rejected' && (
                           <>
                             {w.status === 'draft' && (
                               <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
