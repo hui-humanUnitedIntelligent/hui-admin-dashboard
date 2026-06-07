@@ -16,7 +16,7 @@ type WorkWithMeta = HuiWork & Record<string, unknown> & {
   _sensitive: { flagged: boolean; reasons: string[] };
 };
 
-type TabKey = 'all' | 'published' | 'draft' | 'flagged' | 'deleted' | 'sensitive';
+type TabKey = 'all' | 'published' | 'pending' | 'rejected' | 'draft' | 'flagged' | 'deleted' | 'sensitive';
 
 interface EditForm {
   title: string; description: string; caption: string; category: string;
@@ -203,7 +203,7 @@ export default function WorksPage() {
 
   // Tab counts
     const counts: Record<TabKey, number> = useMemo(() => ({
-    all:       annotatedAll.filter(w => !['deleted','flagged','pending_review','rejected'].includes(w.status as string)).length,
+    all:       annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)).length,
     published: annotatedAll.filter(w => w.status === 'published').length,
     pending:   pendingWorks.length,
     rejected:  rejectedWorks.length,
@@ -221,9 +221,9 @@ export default function WorksPage() {
     else if (tab === 'sensitive') base = annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted');
     else if (tab === 'published') base = annotatedAll.filter(w => w.status === 'published');
     else if (tab === 'draft')     base = annotatedAll.filter(w => w.status === 'draft');
-    else if (tab === 'pending')   base = pendingWorks;
-    else if (tab === 'rejected')  base = rejectedWorks;
-    else base = annotatedAll.filter(w => !['deleted','flagged','pending_review','rejected'].includes(w.status as string)); // 'all'
+    else if ((tab as string) === 'pending')   base = pendingWorks;
+    else if ((tab as string) === 'rejected')  base = rejectedWorks;
+    else base = annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)); // 'all'
 
     if (search) {
       const q = search.toLowerCase();
@@ -546,7 +546,7 @@ export default function WorksPage() {
                         )}
 
                         {/* PENDING tab: Freigeben + Ablehnen */}
-                        {tab === 'pending' && (
+                        {(tab as string) === 'pending' && (
                           <>
                             <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
@@ -560,7 +560,7 @@ export default function WorksPage() {
                         )}
 
                         {/* REJECTED tab: Wieder freigeben */}
-                        {tab === 'rejected' && (
+                        {(tab as string) === 'rejected' && (
                           <>
                             <button title="Doch freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
@@ -570,7 +570,7 @@ export default function WorksPage() {
                         )}
 
                         {/* ALL / PUBLISHED / DRAFT / SENSITIVE tabs */}
-                        {tab !== 'deleted' && tab !== 'flagged' && tab !== 'pending' && tab !== 'rejected' && (
+                        {tab !== 'deleted' && tab !== 'flagged' && (tab as string) !== 'pending' && (tab as string) !== 'rejected' && (
                           <>
                             {w.status === 'draft' && (
                               <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
