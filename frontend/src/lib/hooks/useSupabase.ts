@@ -294,8 +294,8 @@ export function useProfiles(opts: {
       ]);
 
       // Client-side search filter
-      const q = search.toLowerCase();
-      const filtered = search
+      const q = (search || '').toLowerCase();
+      const filtered = q
         ? rows.filter(
             (p) =>
               p.display_name?.toLowerCase().includes(q) ||
