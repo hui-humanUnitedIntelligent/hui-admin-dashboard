@@ -439,7 +439,7 @@ export function useWorks(opts: {
     setLoading(true);
     try {
       // flagged + deleted require service-role → use server-side API route
-      const needsServiceRole = status === 'flagged' || status === 'deleted';
+      const needsServiceRole = status === 'flagged' || status === 'deleted' || status === 'pending_review' || status === 'rejected';
 
       if (needsServiceRole) {
         const params = new URLSearchParams({ limit: String(limit) });
