@@ -422,7 +422,8 @@ function ProfileDrawer({
                   {infoRow('Anzeigename',  user.display_name)}
                   {infoRow('Username',     '@' + (user.username || '—'))}
                   {infoRow('Voller Name',  (user as unknown as Record<string,unknown>).full_name)}
-                  {infoRow('E-Mail',       (user as unknown as Record<string,unknown>).email)}
+                  {infoRow('E-Mail',       user.email)}
+                  {infoRow('Telefon',      user.phone)}
                   {infoRow('Talent',       user.talent)}
                   {infoRow('Tagline',      user.tagline)}
                   {infoRow('Standort',     user.location_label || user.location)}
