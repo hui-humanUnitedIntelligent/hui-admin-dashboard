@@ -252,6 +252,8 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               {isOpen && (
                 <div style={{ paddingBottom: 4 }}>
                   {items.map(item => {
+                    // Reviews nur für superadmin
+                    if (item.href === '/reviews' && currentUser?.role !== 'superadmin' && currentUser?.role !== 'super_admin') return null;
                     const active = isActive(item.href);
                     return (
                       <Link
