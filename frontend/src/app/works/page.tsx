@@ -221,8 +221,8 @@ export default function WorksPage() {
     else if (tab === 'sensitive') base = annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted');
     else if (tab === 'published') base = annotatedAll.filter(w => w.status === 'published');
     else if (tab === 'draft')     base = annotatedAll.filter(w => w.status === 'draft');
-    else if ((tab as string) === 'pending')   base = pendingWorks;
-    else if ((tab as string) === 'rejected')  base = rejectedWorks;
+    else if ((tab as string) === 'pending')   base = (pendingWorks as unknown as WorkWithMeta[]);
+    else if ((tab as string) === 'rejected')  base = (rejectedWorks as unknown as WorkWithMeta[]);
     else base = annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)); // 'all'
 
     if (search) {
