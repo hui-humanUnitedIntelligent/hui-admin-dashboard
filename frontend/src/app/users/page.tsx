@@ -1197,7 +1197,7 @@ export default function UsersPage() {
                 <th style={{ padding: '10px 10px 10px 14px', textAlign: 'left', borderBottom: '1px solid var(--border)', width: 36 }}>
                     <input type="checkbox" checked={profiles.length > 0 && selectedIds.size === profiles.length} onChange={toggleSelectAll} style={{ width: 14, height: 14, accentColor: 'var(--accent)', cursor: 'pointer' }} />
                   </th>
-                  {['User', 'Status', 'Rolle', tab === 'deleted' || tab === 'blocked' ? 'Gelöscht / Blockiert' : 'Membership', 'Impact €', 'Zuletzt aktiv', 'Profil öffnen'].map(h => (
+                  {['User', 'Status', 'Rolle', tab === 'deleted' || tab === 'blocked' ? 'Gelöscht / Blockiert' : 'Membership', 'Impact €', 'Zuletzt aktiv', 'Aktionen'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
               </tr>
@@ -1292,11 +1292,70 @@ export default function UsersPage() {
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
                       {timeAgo(u.last_seen_at || u.last_seen || u.created_at)}
                     </td>
-                    {/* Open Drawer */}
-                    <td style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setDrawerUser(u)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--accent-dim)', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        ☰ Profil
-                      </button>
+                    {/* Actions */}
+                    <td style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                        {/* Profil-Button */}
+                        <button onClick={() => setDrawerUser(u)}
+                          title="Profil öffnen"
+                          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                          ☰
+                        </button>
+                        {/* Blockieren / Entsperren */}
+                        {status === 'active' && (
+                          <button
+                            title="Blockieren"
+                            onClick={() => {
+                              if (!confirm(`„${u.display_name || u.username}" blockieren?`)) return;
+                              adminAction('block_user', u.id).then(ok => {
+                                if (ok) { refetch(); }
+                              });
+                            }}
+                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--gold)', background: 'var(--gold-dim)', color: 'var(--gold)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                            🚫
+                          </button>
+                        )}
+                        {status === 'blocked' && (
+                          <button
+                            title="Entsperren"
+                            onClick={() => {
+                              if (!confirm(`„${u.display_name || u.username}" entsperren?`)) return;
+                              adminAction('unblock_user', u.id, { previousRole: 'basisuser' }).then(ok => {
+                                if (ok) { refetch(); }
+                              });
+                            }}
+                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--green)', background: 'var(--green-dim)', color: 'var(--green)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                            🔓
+                          </button>
+                        )}
+                        {/* Löschen / Wiederherstellen */}
+                        {status !== 'deleted' && (
+                          <button
+                            title="Löschen (wiederherstellbar)"
+                            onClick={() => {
+                              if (!confirm(`„${u.display_name || u.username}" löschen?`)) return;
+                              adminAction('delete_user', u.id).then(ok => {
+                                if (ok) { refetch(); }
+                              });
+                            }}
+                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--red)', background: 'var(--red-dim)', color: 'var(--red)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                            🗑
+                          </button>
+                        )}
+                        {status === 'deleted' && (
+                          <button
+                            title="Wiederherstellen"
+                            onClick={() => {
+                              if (!confirm(`„${u.display_name || u.username}" wiederherstellen?`)) return;
+                              adminAction('restore_user', u.id, { role: 'basisuser' }).then(ok => {
+                                if (ok) { refetch(); }
+                              });
+                            }}
+                            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--green)', background: 'var(--green-dim)', color: 'var(--green)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                            ♻️
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
