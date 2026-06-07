@@ -118,6 +118,8 @@ export async function GET(req: NextRequest) {
           age: a.age, gender: a.gender, location: a.location,
           motivation_text: a.motivation_text,
           media_urls: a.media_urls || [],
+          phone: a.phone || null,
+          email: a.email || null,
           status: a.status, created_at: a.created_at, source: 'table',
         };
       });
