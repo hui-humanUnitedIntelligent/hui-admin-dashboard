@@ -350,6 +350,34 @@ function ProfileDrawer({
           <button onClick={onClose} style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>✕</button>
         </div>
 
+        {/* ── Quick-Action Bar ─────────────────────────────────────────── */}
+        <div style={{ padding: '8px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)', display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+          {status === 'deleted' && (
+            <button onClick={runRestore}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: '1px solid var(--green)', background: 'var(--green-dim)', color: 'var(--green)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+              ♻️ Wiederherstellen
+            </button>
+          )}
+          {status === 'active' && (
+            <button onClick={runBlock}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: '1px solid var(--gold)', background: 'var(--gold-dim)', color: 'var(--gold)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+              🚫 Blockieren
+            </button>
+          )}
+          {status === 'blocked' && (
+            <button onClick={runUnblock}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: '1px solid var(--green)', background: 'var(--green-dim)', color: 'var(--green)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+              🔓 Entsperren
+            </button>
+          )}
+          {status !== 'deleted' && (
+            <button onClick={runDelete}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: '1px solid var(--red)', background: 'var(--red-dim)', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+              🗑 Löschen
+            </button>
+          )}
+        </div>
+
         {/* ── Navigation — Burger Dropdown ───────────────────────────── */}
         <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0, position: 'relative' }}>
           {/* Dropdown trigger */}
