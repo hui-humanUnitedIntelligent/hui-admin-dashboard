@@ -89,3 +89,5 @@ frontend/src/
         ├── useSupabase.ts  # All live data hooks
         └── useAuth.ts      # Authentication
 ```
+
+<!-- deploy: 1780837849 -->
