@@ -335,7 +335,7 @@ export default function AmbassadorsPage() {
                   <Avatar src={a.avatar_url as (string|null)} name={name} size={44} />
                   <div style={{flex:1}}>
                     <div style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{name}</div>
-                    <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{a.username} · {fmtDate(a.created_at || a.applied_at)}</div>
+                    <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{a.username} · {fmtDate((a.created_at || a.applied_at) as string)}</div>
                     <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                       {a.age   && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>{a.age} J.</span>}
                       {a.gender && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>{a.gender}</span>}
