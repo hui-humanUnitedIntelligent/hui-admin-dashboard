@@ -2,12 +2,46 @@
 // ── Ambassador API — Manual-Only Activation ───────────────────────────────
 // Ambassadors ONLY become active via admin approval or admin manual activation.
 // No automatic promotion. Referral links are generated only after activation.
+//
+// ── Level-Logik (zentral) ─────────────────────────────────────────────────
+// Bronze:   0–10   Referrals → 1% Ambassador-Share
+// Silber:  11–50   Referrals → 2% Ambassador-Share
+// Gold:    51–200  Referrals → 3% Ambassador-Share
+// Platin: 201+     Referrals → 4% Ambassador-Share
+// Impact-Pool: immer 15%
 
 import { NextRequest, NextResponse } from 'next/server';
 
 const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const H    = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+
+// ── Reward-Konfiguration (zentral anpassbar) ──────────────────────────────
+export const AMBASSADOR_REWARD_RATES: Record<string, number> = {
+  bronze:   0.01,
+  silver:   0.02,
+  gold:     0.03,
+  platinum: 0.04,
+};
+export const IMPACT_POOL_RATE = 0.15;
+
+// ── Level-Berechnung (zentral) ────────────────────────────────────────────
+export function calcLevel(referralsCount: number): string {
+  const n = Number(referralsCount) || 0;
+  if (n >= 201) return 'platinum';
+  if (n >= 51)  return 'gold';
+  if (n >= 11)  return 'silver';
+  return 'bronze';
+}
+
+export function calcReward(amountTotal: number, level: string) {
+  const rate = AMBASSADOR_REWARD_RATES[level] ?? AMBASSADOR_REWARD_RATES.bronze;
+  return {
+    ambassador_share: amountTotal * rate,
+    impact_share:     amountTotal * IMPACT_POOL_RATE,
+    rate,
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 async function sb(path: string, opts: RequestInit = {}) {
@@ -32,19 +66,12 @@ async function logEvent(type: string, targetId: string | null, actorId: string |
   await sb('notification_events', {
     method: 'POST',
     headers: { ...H, Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      type,
-      actor_id:       actorId,
-      target_user_id: targetId,
-      entity_type:    'ambassador',
-      metadata:       meta,
-      created_at:     new Date().toISOString(),
-    }),
+    body: JSON.stringify({ type, actor_id: actorId, target_user_id: targetId, entity_type: 'ambassador', metadata: meta, created_at: new Date().toISOString() }),
   });
 }
 
 async function getProfile(userId: string) {
-  const r = await sb(`profiles?id=eq.${userId}&select=id,display_name,username,avatar_url,email,role,is_wirker,impact_eur,follower_count,trust_score,created_at,profile_modules`);
+  const r = await sb(`profiles?id=eq.${userId}&select=id,display_name,username,avatar_url,email,role,is_wirker,impact_eur,follower_count,trust_score,created_at,profile_modules,is_ambassador`);
   return Array.isArray(r.body) && r.body.length > 0 ? r.body[0] as Record<string, unknown> : null;
 }
 
@@ -58,7 +85,7 @@ export async function GET(req: NextRequest) {
 
   // ── List all ambassadors (active only) ───────────────────────────────
   if (action === 'list') {
-    const r = await sb(`profiles?select=id,display_name,username,avatar_url,role,is_wirker,impact_eur,follower_count,trust_score,created_at,profile_modules&limit=500`);
+    const r = await sb(`profiles?select=id,display_name,username,avatar_url,role,is_wirker,impact_eur,follower_count,trust_score,created_at,profile_modules,is_ambassador&limit=500`);
     const all = Array.isArray(r.body) ? r.body as Record<string, unknown>[] : [];
     const ambassadors = all
       .filter(p => {
@@ -67,24 +94,60 @@ export async function GET(req: NextRequest) {
       })
       .map(p => {
         const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown>;
+        const refCount = Number(amb.referral_count) || 0;
+        const computedLevel = calcLevel(refCount);
         return {
-          id:               p.id, display_name: p.display_name, username: p.username,
-          avatar_url:       p.avatar_url, role: p.role, is_wirker: p.is_wirker,
-          trust_score:      p.trust_score, created_at: p.created_at,
-          referral_code:    amb.referral_code, referral_link: amb.referral_link,
-          level:            amb.level || 'bronze', status: 'active',
-          activated_at:     amb.activated_at, activated_by: amb.activated_by,
-          referral_count:   Number(amb.referral_count) || 0,
-          revenue_generated:Number(amb.revenue_generated) || 0,
-          link_active:      amb.link_active !== false,
-          rewards:          amb.rewards || [],
+          id: p.id, display_name: p.display_name, username: p.username,
+          avatar_url: p.avatar_url, role: p.role, is_wirker: p.is_wirker,
+          trust_score: p.trust_score, created_at: p.created_at,
+          referral_code: amb.referral_code, referral_link: amb.referral_link,
+          level: computedLevel, status: 'active',
+          activated_at: amb.activated_at, activated_by: amb.activated_by,
+          referral_count: refCount,
+          active_referral_count:   Number(amb.active_referral_count)   || 0,
+          sleeping_referral_count: Number(amb.sleeping_referral_count) || 0,
+          revenue_generated: Number(amb.revenue_generated) || 0,
+          link_active: amb.link_active !== false,
+          rewards: amb.rewards || [],
         };
       });
     return NextResponse.json(ambassadors);
   }
 
-  // ── List pending applications ─────────────────────────────────────────
+  // ── List pending applications (dual source: DB table + profile_modules) ──
   if (action === 'applications') {
+    // Primär: ambassadors_applications Tabelle
+    const appR = await sb(`ambassadors_applications?status=eq.offen&select=*,profiles!user_id(id,display_name,username,avatar_url,role,is_wirker,follower_count,trust_score,created_at)&order=created_at.desc&limit=200`);
+    
+    if (appR.ok && Array.isArray(appR.body) && appR.body.length > 0) {
+      const apps = (appR.body as Record<string, unknown>[]).map(a => {
+        const prof = a.profiles as Record<string, unknown> | null;
+        return {
+          id:             a.id,
+          user_id:        a.user_id,
+          first_name:     a.first_name,
+          last_name:      a.last_name,
+          display_name:   prof?.display_name || `${a.first_name} ${a.last_name}`,
+          username:       prof?.username,
+          avatar_url:     prof?.avatar_url,
+          role:           prof?.role,
+          is_wirker:      prof?.is_wirker,
+          follower_count: prof?.follower_count,
+          trust_score:    prof?.trust_score,
+          age:            a.age,
+          gender:         a.gender,
+          location:       a.location,
+          motivation_text:a.motivation_text,
+          media_urls:     a.media_urls || [],
+          status:         a.status,
+          created_at:     a.created_at,
+          source:         'table',
+        };
+      });
+      return NextResponse.json(apps);
+    }
+
+    // Fallback: profile_modules.ambassador.status === 'pending'
     const r = await sb(`profiles?select=id,display_name,username,avatar_url,role,is_wirker,follower_count,trust_score,created_at,profile_modules&limit=500`);
     const all = Array.isArray(r.body) ? r.body as Record<string, unknown>[] : [];
     const apps = all
@@ -95,11 +158,16 @@ export async function GET(req: NextRequest) {
       .map(p => {
         const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown>;
         return {
-          id: p.id, display_name: p.display_name, username: p.username,
+          id: p.id, user_id: p.id,
+          display_name: p.display_name, username: p.username,
           avatar_url: p.avatar_url, role: p.role, is_wirker: p.is_wirker,
           follower_count: p.follower_count, trust_score: p.trust_score,
           created_at: p.created_at, applied_at: amb.applied_at,
-          motivation: amb.motivation || null,
+          motivation_text: amb.motivation || null,
+          first_name: amb.first_name || null, last_name: amb.last_name || null,
+          age: amb.age || null, gender: amb.gender || null, location: amb.location || null,
+          media_urls: (amb.media_urls as unknown[]) || [],
+          source: 'profile_modules',
         };
       });
     return NextResponse.json(apps);
@@ -110,8 +178,6 @@ export async function GET(req: NextRequest) {
     const profile = await getProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const amb = ((profile.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown> | undefined;
-
-    // Referred users — profiles that have referred_by = this ambassador's code
     const refCode = amb?.referral_code as string;
     let referred: Record<string, unknown>[] = [];
     if (refCode) {
@@ -121,26 +187,19 @@ export async function GET(req: NextRequest) {
         return pm?.referred_by === refCode;
       });
     }
-
-    // Payments from referred users
-    let totalRevenue = 0; let totalImpact = 0;
-    if (referred.length > 0) {
-      const ids = referred.map(p => p.id as string).join(',');
-      const pays = await sb(`payments?payer_id=in.(${ids})&select=amount_eur,impact_amount&limit=1000`);
-      if (Array.isArray(pays.body)) {
-        for (const p of pays.body as Record<string, unknown>[]) {
-          totalRevenue += Number(p.amount_eur) || 0;
-          totalImpact  += Number(p.impact_amount) || 0;
-        }
+    // Revenue aus ambassador_revenue Tabelle
+    const revR = await sb(`ambassador_revenue?ambassador_user_id=eq.${userId}&select=ambassador_share,impact_share&limit=1000`);
+    let totalAmbShare = 0; let totalImpactShare = 0;
+    if (Array.isArray(revR.body)) {
+      for (const r of revR.body as Record<string, unknown>[]) {
+        totalAmbShare   += Number(r.ambassador_share) || 0;
+        totalImpactShare += Number(r.impact_share)    || 0;
       }
     }
-
-    // Recent ambassador log entries
     const logs = await sb(`notification_events?entity_type=eq.ambassador&or=(actor_id.eq.${userId},target_user_id.eq.${userId})&order=created_at.desc&limit=20`);
-
     return NextResponse.json({
       profile: { id: profile.id, display_name: profile.display_name, username: profile.username, avatar_url: profile.avatar_url, role: profile.role, is_wirker: profile.is_wirker, trust_score: profile.trust_score, follower_count: profile.follower_count, created_at: profile.created_at },
-      ambassador: { ...(amb || {}), referral_count: referred.length, revenue_generated: totalRevenue, impact_generated: totalImpact },
+      ambassador: { ...(amb || {}), referral_count: referred.length, revenue_generated: totalAmbShare, impact_generated: totalImpactShare, level: calcLevel(referred.length) },
       referrals: referred.map(p => ({ id: p.id, display_name: p.display_name, username: p.username, avatar_url: p.avatar_url, joined_at: p.created_at })),
       logs: Array.isArray(logs.body) ? logs.body : [],
     });
@@ -154,35 +213,62 @@ export async function GET(req: NextRequest) {
       const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown> | undefined;
       return amb?.is_ambassador === true && amb?.status === 'active';
     });
-    const pending = all.filter(p => {
-      const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown> | undefined;
-      return amb?.status === 'pending';
-    });
-    let totalReferrals = 0; let totalRevenue = 0;
+
+    // Pending aus Tabelle (falls vorhanden) oder profile_modules
+    const pendingR = await sb(`ambassadors_applications?status=eq.offen&select=id&limit=1&head=true`);
+    let pendingCount = 0;
+    if (pendingR.ok) {
+      const countR = await sb(`ambassadors_applications?status=eq.offen&select=id`);
+      pendingCount = Array.isArray(countR.body) ? countR.body.length : 0;
+    }
+    if (!pendingR.ok || pendingCount === 0) {
+      pendingCount = all.filter(p => {
+        const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown> | undefined;
+        return amb?.status === 'pending';
+      }).length;
+    }
+
+    // Revenue aus Tabelle
+    const revR = await sb(`ambassador_revenue?select=ambassador_share,impact_share&limit=10000`);
+    let totalRevenue = 0; let totalImpact = 0;
+    if (Array.isArray(revR.body)) {
+      for (const rv of revR.body as Record<string, unknown>[]) {
+        totalRevenue += Number(rv.ambassador_share) || 0;
+        totalImpact  += Number(rv.impact_share)     || 0;
+      }
+    }
+    // Fallback: aus profile_modules
+    if (totalRevenue === 0) {
+      for (const p of active) {
+        const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown>;
+        totalRevenue += Number(amb.revenue_generated) || 0;
+      }
+      totalImpact = totalRevenue * IMPACT_POOL_RATE;
+    }
+
+    let totalReferrals = 0;
     const levelDist: Record<string, number> = { bronze: 0, silver: 0, gold: 0, platinum: 0 };
     for (const p of active) {
       const amb = ((p.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown>;
-      totalReferrals += Number(amb.referral_count) || 0;
-      totalRevenue   += Number(amb.revenue_generated) || 0;
-      const lvl = (amb.level as string) || 'bronze';
+      const refs = Number(amb.referral_count) || 0;
+      totalReferrals += refs;
+      const lvl = calcLevel(refs);
       levelDist[lvl] = (levelDist[lvl] || 0) + 1;
     }
-    const netImpact = totalRevenue * 0.15 * 0.85;
     return NextResponse.json({
       active_ambassadors: active.length,
-      pending_applications: pending.length,
+      pending_applications: pendingCount,
       total_referrals: totalReferrals,
       total_revenue: totalRevenue,
-      net_impact: netImpact,
+      net_impact: totalImpact,
       level_distribution: levelDist,
     });
   }
 
-  // ── Search profiles (for admin user-search) ───────────────────────────
+  // ── Search profiles ───────────────────────────────────────────────────
   if (action === 'search') {
     if (!query || query.length < 2) return NextResponse.json([]);
     const q = encodeURIComponent(query.toLowerCase());
-    // Search by username, display_name, or email
     const r = await sb(`profiles?select=id,display_name,username,avatar_url,email,role,is_wirker,trust_score,created_at,profile_modules&or=(username.ilike.*${q}*,display_name.ilike.*${q}*,email.ilike.*${q}*)&limit=20`);
     const results = Array.isArray(r.body) ? r.body as Record<string, unknown>[] : [];
     return NextResponse.json(results.map(p => {
@@ -197,10 +283,19 @@ export async function GET(req: NextRequest) {
     }));
   }
 
-  // ── Ambassador logs (audit trail) ────────────────────────────────────
+  // ── Logs ─────────────────────────────────────────────────────────────
   if (action === 'logs') {
-    const r = await sb(`notification_events?entity_type=eq.ambassador&order=created_at.desc&limit=50`);
+    const r = await sb(`notification_events?entity_type=eq.ambassador&order=created_at.desc&limit=100`);
     return NextResponse.json(Array.isArray(r.body) ? r.body : []);
+  }
+
+  // ── Application detail (für Drawer) ──────────────────────────────────
+  if (action === 'application_detail' && userId) {
+    const appR = await sb(`ambassadors_applications?id=eq.${userId}&select=*`);
+    if (appR.ok && Array.isArray(appR.body) && appR.body.length > 0) {
+      return NextResponse.json(appR.body[0]);
+    }
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
@@ -209,12 +304,12 @@ export async function GET(req: NextRequest) {
 // ── POST ──────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   if (!KEY) return NextResponse.json({ error: 'No service key' }, { status: 500 });
-  const body = await req.json();
-  const { action, user_id, admin_id, data } = body;
-  if (!user_id) return NextResponse.json({ error: 'user_id required' }, { status: 400 });
+  const body        = await req.json().catch(() => ({}));
+  const { action, user_id, admin_id, data } = body as { action: string; user_id: string; admin_id?: string; data?: Record<string, unknown> };
+  if (!user_id) return NextResponse.json({ error: 'Missing user_id' }, { status: 400 });
 
   const profile = await getProfile(user_id);
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+  if (!profile) return NextResponse.json({ error: 'User not found' }, { status: 404 });
   const pm  = (profile.profile_modules as Record<string, unknown>) || {};
   const amb = (pm.ambassador as Record<string, unknown>) || {};
   const now = new Date().toISOString();
@@ -222,19 +317,37 @@ export async function POST(req: NextRequest) {
   // ── Apply (user submits application) ─────────────────────────────────
   if (action === 'apply') {
     if (amb?.status === 'active') return NextResponse.json({ error: 'Already an ambassador' }, { status: 400 });
-    const newAmb = { is_ambassador: false, status: 'pending', applied_at: now, motivation: data?.motivation || null, referral_code: null, referral_link: null, level: null, rewards: [], activated_by: null, activated_at: null, link_active: false };
+    const newAmb = { is_ambassador: false, status: 'pending', applied_at: now, motivation: data?.motivation || null,
+      first_name: data?.first_name, last_name: data?.last_name, age: data?.age,
+      gender: data?.gender, location: data?.location, media_urls: data?.media_urls || [],
+      referral_code: null, referral_link: null, level: null, rewards: [], activated_by: null, activated_at: null, link_active: false };
     await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: newAmb } }) });
     await logEvent('ambassador_application', user_id, null, { username: profile.username, motivation: data?.motivation });
     return NextResponse.json({ ok: true, message: 'Application submitted' });
   }
 
-  // ── Approve (admin approves application → activates) ─────────────────
+  // ── Approve application ───────────────────────────────────────────────
   if (action === 'approve') {
     const code = buildReferralCode(profile.username as string);
     const link = buildReferralLink(profile.username as string, user_id);
-    const activatedAmb = { ...amb, is_ambassador: true, status: 'active', referral_code: code, referral_link: link, level: data?.level || 'bronze', activated_by: admin_id || 'admin', activated_at: now, link_active: true, rewards: [{ type: 'badge', name: 'Bronze-Badge', granted_at: now }] };
-    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: activatedAmb } }) });
-    await logEvent('ambassador_approved', user_id, admin_id, { referral_code: code, referral_link: link, level: activatedAmb.level });
+    const initialLevel = 'bronze';
+    const activatedAmb = {
+      ...amb, is_ambassador: true, status: 'active',
+      referral_code: code, referral_link: link, level: initialLevel,
+      activated_by: admin_id || 'admin', activated_at: now, link_active: true,
+      referral_count: 0, active_referral_count: 0, sleeping_referral_count: 0,
+      revenue_generated: 0,
+      rewards: [{ type: 'badge', name: 'Bronze-Badge', granted_at: now }],
+    };
+    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: activatedAmb }, is_ambassador: true }) });
+    // ambassadors_applications Status aktualisieren (falls Tabelle existiert)
+    const appId = data?.application_id as string;
+    if (appId) {
+      await sb(`ambassadors_applications?id=eq.${appId}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'angenommen', reviewed_by: admin_id, reviewed_at: now }) });
+    } else {
+      await sb(`ambassadors_applications?user_id=eq.${user_id}&status=eq.offen`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'angenommen', reviewed_by: admin_id, reviewed_at: now }) });
+    }
+    await logEvent('ambassador_approved', user_id, admin_id || null, { referral_code: code, referral_link: link, level: initialLevel });
     return NextResponse.json({ ok: true, referral_code: code, referral_link: link });
   }
 
@@ -242,46 +355,87 @@ export async function POST(req: NextRequest) {
   if (action === 'reject') {
     const rejected = { ...amb, is_ambassador: false, status: 'rejected', rejected_at: now, rejected_by: admin_id || 'admin', reject_reason: data?.reason || null };
     await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: rejected } }) });
-    await logEvent('ambassador_rejected', user_id, admin_id, { reason: data?.reason });
+    const appId = data?.application_id as string;
+    if (appId) {
+      await sb(`ambassadors_applications?id=eq.${appId}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'abgelehnt', reviewed_by: admin_id, reviewed_at: now }) });
+    } else {
+      await sb(`ambassadors_applications?user_id=eq.${user_id}&status=eq.offen`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'abgelehnt', reviewed_by: admin_id, reviewed_at: now }) });
+    }
+    await logEvent('ambassador_rejected', user_id, admin_id || null, { reason: data?.reason });
     return NextResponse.json({ ok: true });
   }
 
-  // ── Manual activate (admin directly makes a user ambassador) ─────────
+  // ── Manual activate ───────────────────────────────────────────────────
   if (action === 'activate') {
     const code = buildReferralCode(profile.username as string);
     const link = buildReferralLink(profile.username as string, user_id);
-    const activated = { is_ambassador: true, status: 'active', applied_at: null, referral_code: code, referral_link: link, level: data?.level || 'bronze', activated_by: admin_id || 'admin', activated_at: now, link_active: true, rewards: [{ type: 'badge', name: 'Bronze-Badge', granted_at: now }], referral_count: 0, revenue_generated: 0 };
-    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: activated } }) });
-    await logEvent('ambassador_activated_by_admin', user_id, admin_id, { referral_code: code, referral_link: link });
+    const activated = { is_ambassador: true, status: 'active', applied_at: null,
+      referral_code: code, referral_link: link, level: data?.level || 'bronze',
+      activated_by: admin_id || 'admin', activated_at: now, link_active: true,
+      referral_count: 0, active_referral_count: 0, sleeping_referral_count: 0, revenue_generated: 0,
+      rewards: [{ type: 'badge', name: 'Bronze-Badge', granted_at: now }] };
+    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: activated }, is_ambassador: true }) });
+    await logEvent('ambassador_activated_by_admin', user_id, admin_id || null, { referral_code: code, referral_link: link });
     return NextResponse.json({ ok: true, referral_code: code, referral_link: link });
   }
 
   // ── Revoke ────────────────────────────────────────────────────────────
   if (action === 'revoke') {
     const revoked = { ...amb, is_ambassador: false, status: 'revoked', revoked_at: now, revoked_by: admin_id || 'admin', revoke_reason: data?.reason || null, link_active: false };
-    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: revoked } }) });
-    await logEvent('ambassador_revoked', user_id, admin_id, { reason: data?.reason });
+    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: revoked }, is_ambassador: false }) });
+    await logEvent('ambassador_revoked', user_id, admin_id || null, { reason: data?.reason });
     return NextResponse.json({ ok: true });
   }
 
-  // ── Toggle referral link active/inactive ──────────────────────────────
+  // ── Toggle link ───────────────────────────────────────────────────────
   if (action === 'toggle_link') {
     if (amb?.status !== 'active') return NextResponse.json({ error: 'Not an active ambassador' }, { status: 400 });
     const newActive = !amb.link_active;
     await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: { ...amb, link_active: newActive } } }) });
-    await logEvent(newActive ? 'ambassador_link_enabled' : 'ambassador_link_disabled', user_id, admin_id, {});
+    await logEvent(newActive ? 'ambassador_link_enabled' : 'ambassador_link_disabled', user_id, admin_id || null, {});
     return NextResponse.json({ ok: true, link_active: newActive });
   }
 
-  // ── Set level ─────────────────────────────────────────────────────────
+  // ── Set level (manual override) ───────────────────────────────────────
   if (action === 'set_level') {
     if (amb?.status !== 'active') return NextResponse.json({ error: 'Not an active ambassador' }, { status: 400 });
     const newLevel = data?.level || 'bronze';
-    const reward   = { type: 'badge', name: `${newLevel.charAt(0).toUpperCase() + newLevel.slice(1)}-Badge`, granted_at: now };
+    const reward   = { type: 'badge', name: `${String(newLevel).charAt(0).toUpperCase() + String(newLevel).slice(1)}-Badge`, granted_at: now };
     const rewards  = Array.isArray(amb.rewards) ? [...(amb.rewards as unknown[]), reward] : [reward];
     await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: { ...amb, level: newLevel, rewards } } }) });
-    await logEvent('ambassador_level_changed', user_id, admin_id, { new_level: newLevel });
+    await logEvent('ambassador_level_changed', user_id, admin_id || null, { new_level: newLevel });
     return NextResponse.json({ ok: true });
+  }
+
+  // ── Track revenue (für Transaktionen) ────────────────────────────────
+  if (action === 'track_revenue') {
+    if (amb?.status !== 'active') return NextResponse.json({ error: 'Not an active ambassador' }, { status: 400 });
+    const amountTotal = Number(data?.amount_total) || 0;
+    const refCount    = Number(amb.referral_count) || 0;
+    const level       = calcLevel(refCount);
+    const { ambassador_share, impact_share } = calcReward(amountTotal, level);
+
+    // In ambassador_revenue speichern
+    const revR = await sb('ambassador_revenue', {
+      method: 'POST',
+      headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        ambassador_user_id: user_id,
+        referred_user_id:   data?.referred_user_id || null,
+        transaction_id:     data?.transaction_id   || null,
+        amount_total:       amountTotal,
+        impact_share,
+        ambassador_share,
+        ambassador_level:   level,
+      }),
+    });
+
+    // revenue_generated in profile_modules aktualisieren
+    const currentRevenue = Number(amb.revenue_generated) || 0;
+    await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify({ profile_modules: { ...pm, ambassador: { ...amb, revenue_generated: currentRevenue + ambassador_share, level } } }) });
+
+    return NextResponse.json({ ok: revR.ok, ambassador_share, impact_share, level });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
