@@ -160,20 +160,33 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
             {drawerTab === 'overview' && (
               <div style={{ padding: 16 }}>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 12 }}>
-                  {[
-                    ['E-Mail', profile.email || (ambData as {email?:string}).email || '—'],
-                    ['Telefon', (ambData as {phone?:string}).phone || '—'],
+                  {([
+                    ['__email__', profile.email || null],
+                    ['__phone__', (profile as Record<string,unknown>).phone as string || null],
                     ['Rolle', profile.role || '—'],
                     ['Mitglied seit', fmtDate(profile.created_at || '')],
                     ['Aktiviert am', fmtDate(ambRecord.activated_at || '')],
                     ['Referral-Code', ambRecord.referral_code || '—'],
                     ['Link-Status', ambRecord.link_active ? '🔗 Aktiv' : '🔒 Gesperrt'],
-                  ].map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 120, flexShrink: 0 }}>{k}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>{v}</span>
+                  ] as [string, string|null][]).map(([k, v]) => {
+                    const isEmail = k === '__email__';
+                    const isPhone = k === '__phone__';
+                    const label   = isEmail ? 'E-Mail' : isPhone ? 'Telefon' : k;
+                    const display = v || '—';
+                    return (
+                    <div key={k} style={{ display: 'flex', padding: '8px 14px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 120, flexShrink: 0 }}>{label}</span>
+                      {v && (isEmail || isPhone) ? (
+                        <a href={isEmail ? `mailto:${v}` : `tel:${v}`}
+                          style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+                          {isEmail ? '✉️ ' : '📞 '}{display}
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>{display}</span>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Aktionen */}
