@@ -21,6 +21,7 @@ type Action =
   | 'delete_work'
   | 'flag_work'
   | 'approve_work'
+  | 'reject_work'
   | 'restore_work'
   | 'unflag_work'
   | 'restore_user'
@@ -144,7 +145,20 @@ export async function POST(req: NextRequest) {
       break;
 
     case 'approve_work':
-      result = await sbPatch('works', userId, { status: 'published', visibility: 'public' });
+      result = await sbPatch('works', userId, {
+        status: 'published',
+        visibility: 'public',
+        published_at: new Date().toISOString(),
+      });
+      break;
+
+    case 'reject_work':
+      result = await sbPatch('works', userId, {
+        status: 'rejected',
+        visibility: 'private',
+        rejection_reason: (data.reason as string) || 'Nicht genehmigt',
+        rejected_at: new Date().toISOString(),
+      });
       break;
 
     case 'flag_work':
