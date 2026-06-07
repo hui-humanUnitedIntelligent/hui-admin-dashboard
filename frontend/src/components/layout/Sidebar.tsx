@@ -59,12 +59,10 @@ const NAV_GROUPS: NavGroup[] = [
     items_de: [
       { href: '/works',        label: 'Werke & Content',  icon: '🖼️' },
       { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
-      { href: '/reviews',      label: 'Bewertungen',      icon: '⭐' },
     ],
     items_en: [
       { href: '/works',        label: 'Works & Content',  icon: '🖼️' },
       { href: '/memberships',  label: 'Memberships',      icon: '🏅' },
-      { href: '/reviews',      label: 'Reviews',          icon: '⭐' },
     ],
   },
   {
@@ -254,8 +252,8 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
               {isOpen && (
                 <div style={{ paddingBottom: 4 }}>
                   {items.map(item => {
-                    // Reviews nur für superadmin
-                    if (item.href === '/reviews' && currentUser?.role !== 'superadmin' && currentUser?.role !== 'super_admin') return null;
+                    // Reviews: nur für Admins (alle Admin-Rollen)
+                    if (item.href === '/reviews' && !currentUser) return null;
                     const active = isActive(item.href);
                     return (
                       <Link
