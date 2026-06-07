@@ -1,5 +1,5 @@
 // frontend/src/lib/hooks/useUserRealtime.ts
-// ── Supabase Realtime Listener für profiles ───────────────────────────────
+// ── Supabase Realtime Listener für profiles — v2 Live-Sync ───────────────
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -21,7 +21,7 @@ interface UseRealtimeOptions {
   enabled?: boolean;
 }
 
-// ── Core Realtime WebSocket hook ─────────────────────────────────────────
+// ── Core Realtime WebSocket hook (Supabase Realtime v2) ──────────────────
 export function useSupabaseRealtime({
   table,
   event = '*',
@@ -30,12 +30,12 @@ export function useSupabaseRealtime({
 }: UseRealtimeOptions) {
   const wsRef      = useRef<WebSocket | null>(null);
   const onEventRef = useRef(onEvent);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   onEventRef.current = onEvent;
 
   const connect = useCallback(() => {
     if (!SUPABASE_URL || !SUPABASE_ANON || !enabled) return;
 
-    // Extract project ref from URL: https://xxxx.supabase.co
     const projectRef = SUPABASE_URL.replace('https://', '').split('.')[0];
     const wsUrl = `wss://${projectRef}.supabase.co/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`;
 
@@ -43,39 +43,54 @@ export function useSupabaseRealtime({
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
       ws.onopen = () => {
-        // Join channel: realtime:public:<table>
+        // 1. Phoenix join
+        const channelId = `realtime:public:${table}`;
         const joinMsg = {
-          topic:   `realtime:public:${table}`,
-          event:   'phx_join',
+          topic: channelId,
+          event: 'phx_join',
           payload: {
             config: {
               broadcast: { self: false },
-              presence:  { key: '' },
+              presence: { key: '' },
               postgres_changes: [
-                { event, schema: 'public', table },
+                { event: event === '*' ? '*' : event, schema: 'public', table },
               ],
             },
+            access_token: SUPABASE_ANON,
           },
           ref: '1',
         };
         ws.send(JSON.stringify(joinMsg));
+
+        // 2. Heartbeat alle 25s
+        heartbeatInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
+          }
+        }, 25000);
       };
 
       ws.onmessage = (msg) => {
         try {
-          const data = JSON.parse(msg.data);
+          const data = JSON.parse(msg.data as string);
+          if (!data) return;
 
-          // Heartbeat
-          if (data.event === 'phx_reply' && data.payload?.status === 'ok') return;
-          if (data.event === 'heartbeat') {
-            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
-            return;
+          // Ignore heartbeat ACK
+          if (data.event === 'phx_reply' && data.ref === null) return;
+
+          // Postgres changes
+          if (data.event === 'postgres_changes') {
+            const p = data.payload?.data as RealtimePayload;
+            if (p) onEventRef.current(p);
           }
 
-          if (data.event === 'postgres_changes') {
-            const payload = data.payload?.data as RealtimePayload;
-            if (payload) onEventRef.current(payload);
+          // Supabase broadcast format
+          if (data.payload?.type === 'broadcast' && data.payload?.event === 'postgres_changes') {
+            const p = data.payload?.payload as RealtimePayload;
+            if (p) onEventRef.current(p);
           }
         } catch {
           // ignore parse errors
@@ -87,8 +102,10 @@ export function useSupabaseRealtime({
       };
 
       ws.onclose = () => {
-        // Reconnect after 3s
-        if (enabled) setTimeout(connect, 3000);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (enabled) {
+          reconnectTimer.current = setTimeout(connect, 3000);
+        }
       };
     } catch {
       // WebSocket not supported / blocked
@@ -98,15 +115,42 @@ export function useSupabaseRealtime({
   useEffect(() => {
     connect();
     return () => {
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent auto-reconnect on cleanup
+        wsRef.current.onclose = null;
         wsRef.current.close();
       }
     };
   }, [connect]);
 }
 
-// ── Specialized: watch profiles table ────────────────────────────────────
+// ── Optimistic Realtime Hook: Profile changes ─────────────────────────────
+// Gibt INSERT/UPDATE Payload direkt an die UI — kein Full-Refetch nötig
+export function useProfilesRealtimeOptimistic({
+  onInsert,
+  onUpdate,
+  onDelete,
+  enabled = true,
+}: {
+  onInsert?: (profile: Record<string, unknown>) => void;
+  onUpdate?: (profile: Record<string, unknown>) => void;
+  onDelete?: (id: string) => void;
+  enabled?: boolean;
+}) {
+  useSupabaseRealtime({
+    table: 'profiles',
+    event: '*',
+    enabled,
+    onEvent: (payload) => {
+      const { eventType, new: newRow, old: oldRow } = payload;
+      if (eventType === 'INSERT' && onInsert) onInsert(newRow);
+      if (eventType === 'UPDATE' && onUpdate) onUpdate(newRow);
+      if (eventType === 'DELETE' && onDelete) onDelete((oldRow?.id as string) || '');
+    },
+  });
+}
+
+// ── Simple refresh hook (backward compat) ────────────────────────────────
 export function useProfilesRealtime(onRefresh: () => void, enabled = true) {
   useSupabaseRealtime({
     table: 'profiles',
