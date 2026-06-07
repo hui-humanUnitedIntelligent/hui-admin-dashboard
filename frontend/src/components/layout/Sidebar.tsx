@@ -38,6 +38,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/transactions', label: 'Transaktionen',    icon: '⇄'  },
       { href: '/bookings',     label: 'Buchungen',        icon: '📅' },
       { href: '/impact',       label: 'Impact Pool',      icon: '🌱' },
+      { href: '/reviews',      label: 'Reviews',          icon: '💬' },
     ],
     items_en: [
       { href: '/users',        label: 'User Management',  icon: '👥' },
@@ -47,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/transactions', label: 'Transactions',     icon: '⇄'  },
       { href: '/bookings',     label: 'Bookings',         icon: '📅' },
       { href: '/impact',       label: 'Impact Pool',      icon: '🌱' },
+      { href: '/reviews',      label: 'Reviews',          icon: '💬' },
     ],
   },
   {
