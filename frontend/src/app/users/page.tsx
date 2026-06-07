@@ -40,7 +40,7 @@ function findDuplicates(profiles: HuiProfile[]): Map<string, HuiProfile[]> {
   });
   return groups;
 }
-import { useProfilesRealtime } from '@/lib/hooks/useUserRealtime';
+import { useProfilesRealtime, useProfilesRealtimeOptimistic } from '@/lib/hooks/useUserRealtime';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type UserTab    = 'active' | 'blocked' | 'deleted' | 'wirker' | 'duplicates';
@@ -1197,6 +1197,8 @@ export default function UsersPage() {
                         <div style={{ minWidth: 0 }}>
                           <div style={{ color: 'var(--text-primary)', fontWeight: 500, textDecoration: status === 'deleted' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{u.display_name || '—'}</div>
                           <div style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', marginBottom: 2 }}>@{u.username || '—'}</div>
+                          {u.email && <div style={{ color: 'var(--text-muted)', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, marginBottom: 1 }} title={u.email}>✉ {u.email}</div>}
+                          {u.phone && <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 1 }}>📞 {u.phone}</div>}
                           <div
                             title={u.id}
                             onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(u.id); }}
