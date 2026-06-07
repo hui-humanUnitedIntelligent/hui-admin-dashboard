@@ -161,7 +161,8 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
               <div style={{ padding: 16 }}>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 12 }}>
                   {[
-                    ['E-Mail', profile.email || '—'],
+                    ['E-Mail', profile.email || (ambData as {email?:string}).email || '—'],
+                    ['Telefon', (ambData as {phone?:string}).phone || '—'],
                     ['Rolle', profile.role || '—'],
                     ['Mitglied seit', fmtDate(profile.created_at || '')],
                     ['Aktiviert am', fmtDate(ambRecord.activated_at || '')],
