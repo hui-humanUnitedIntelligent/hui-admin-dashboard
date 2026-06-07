@@ -156,6 +156,17 @@ export async function GET(req: NextRequest) {
   if (action === 'detail' && userId) {
     const profile = await getProfile(userId);
     if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    // E-Mail aus auth.users via Admin-API holen (zuverlässiger als profiles.email)
+    let authEmail: string | null = null;
+    try {
+      const authRes = await fetch(`${SUPA}/auth/v1/admin/users/${userId}`, {
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+      });
+      if (authRes.ok) {
+        const authUser = await authRes.json();
+        authEmail = authUser?.email || null;
+      }
+    } catch { /* ignore */ }
     const amb = ((profile.profile_modules as Record<string, unknown>)?.ambassador) as Record<string, unknown> | undefined;
     const refCode = amb?.referral_code as string;
     let referred: Record<string, unknown>[] = [];
@@ -179,7 +190,7 @@ export async function GET(req: NextRequest) {
     const appR = await sb(`ambassadors_applications?user_id=eq.${userId}&select=phone,email&order=created_at.desc&limit=1`);
     const appData = (Array.isArray(appR.body) && appR.body.length > 0) ? appR.body[0] as Record<string,unknown> : {};
     return NextResponse.json({
-      profile: { id: profile.id, display_name: profile.display_name, username: profile.username, avatar_url: profile.avatar_url, email: profile.email || null, phone: (profile as Record<string,unknown>).phone as string || appData.phone as string || null, role: profile.role, is_wirker: profile.is_wirker, trust_score: profile.trust_score, follower_count: profile.follower_count, created_at: profile.created_at },
+      profile: { id: profile.id, display_name: profile.display_name, username: profile.username, avatar_url: profile.avatar_url, email: authEmail || profile.email || null, phone: (profile as Record<string,unknown>).phone as string || appData.phone as string || null, role: profile.role, is_wirker: profile.is_wirker, trust_score: profile.trust_score, follower_count: profile.follower_count, created_at: profile.created_at },
       ambassador: { ...(amb || {}), referral_count: referred.length, revenue_generated: totalAmbShare, impact_generated: totalImpactShare, level: calcLevel(referred.length) },
       referrals: referred.map(p => ({ id: p.id, display_name: p.display_name, username: p.username, avatar_url: p.avatar_url, joined_at: p.created_at })),
       logs: Array.isArray(logs.body) ? logs.body : [],
