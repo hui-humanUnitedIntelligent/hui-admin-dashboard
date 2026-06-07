@@ -179,13 +179,17 @@ export default function WorksPage() {
   // Load all status groups via useWorks (uses service role key → bypasses RLS)
   const { works: allWorks,     loading,        refetch: refetchAll  } = useWorks({ status: 'all',     limit: 500, refreshInterval: 30000 });
   const { works: deletedWorks, refetch: refetchDeleted } = useWorks({ status: 'deleted', limit: 500, refreshInterval: 30000 });
-  const { works: flaggedWorks, refetch: refetchFlagged } = useWorks({ status: 'flagged', limit: 500, refreshInterval: 30000 });
+  const { works: flaggedWorks,  refetch: refetchFlagged  } = useWorks({ status: 'flagged',         limit: 500, refreshInterval: 30000 });
+  const { works: pendingWorks,  refetch: refetchPending  } = useWorks({ status: 'pending_review', limit: 500, refreshInterval: 15000 });
+  const { works: rejectedWorks, refetch: refetchRejected } = useWorks({ status: 'rejected',        limit: 500, refreshInterval: 30000 });
 
   const refetchAllTabs = useCallback(() => {
     refetchAll();
     refetchDeleted();
     refetchFlagged();
-  }, [refetchAll, refetchDeleted, refetchFlagged]);
+    refetchPending();
+    refetchRejected();
+  }, [refetchAll, refetchDeleted, refetchFlagged, refetchPending, refetchRejected]);
 
   // Annotate all works with sensitive flag
   const annotate = (list: HuiWork[]): WorkWithMeta[] =>
@@ -196,14 +200,16 @@ export default function WorksPage() {
   const annotatedFlagged  = useMemo(() => annotate(flaggedWorks), [flaggedWorks]);
 
   // Tab counts
-  const counts: Record<TabKey, number> = useMemo(() => ({
-    all:       annotatedAll.filter(w => w.status !== 'deleted' && w.status !== 'flagged').length,
+    const counts: Record<TabKey, number> = useMemo(() => ({
+    all:       annotatedAll.filter(w => !['deleted','flagged','pending_review','rejected'].includes(w.status as string)).length,
     published: annotatedAll.filter(w => w.status === 'published').length,
+    pending:   pendingWorks.length,
+    rejected:  rejectedWorks.length,
     draft:     annotatedAll.filter(w => w.status === 'draft').length,
     flagged:   annotatedFlagged.length,
     deleted:   annotatedDeleted.length,
     sensitive: annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted').length,
-  }), [annotatedAll, annotatedDeleted, annotatedFlagged]);
+  }), [annotatedAll, annotatedFlagged, annotatedDeleted, pendingWorks, rejectedWorks]);
 
   // Active list based on tab
   const activeList = useMemo(() => {
