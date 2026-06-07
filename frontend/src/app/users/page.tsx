@@ -628,7 +628,7 @@ function ProfileDrawer({
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10 }}>📅 Zeitstempel</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {infoRow('Account erstellt',     fmtDate(user.created_at))}
-                  {infoRow('Zuletzt aktiv',         fmtDate(user.last_seen_at || u.last_seen || ''))}
+                  {infoRow('Zuletzt aktiv',         fmtDate(user.last_seen_at || user.last_seen || ''))}
                   {infoRow('Profil aktualisiert',   fmtDate(user.updated_at || ''))}
                   {infoRow('Member seit',           fmtDate((user as unknown as Record<string,unknown>).member_since as string || ''))}
                 </div>
