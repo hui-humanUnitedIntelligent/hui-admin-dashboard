@@ -34,6 +34,14 @@ export interface HuiProfile {
   updated_at: string | null;
   skills: string[] | null;
   focus_type: string | null;
+  // Extended live-sync fields
+  email: string | null;
+  phone: string | null;
+  full_name: string | null;
+  last_seen_at: string | null;
+  is_blocked: boolean;
+  is_deleted: boolean;
+  username_lower: string | null;
 }
 
 export interface HuiPayment {
@@ -273,7 +281,7 @@ export function useProfiles(opts: {
         params['trust_score'] = 'not.eq.-999';
       }
 
-      const select = 'id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,created_at,updated_at,skills,focus_type';
+      const select = 'id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,last_seen_at,created_at,updated_at,skills,focus_type,email,phone,full_name';
 
       const [rows, count] = await Promise.all([
         sbQuery<HuiProfile>('profiles', params, {
@@ -286,12 +294,16 @@ export function useProfiles(opts: {
       ]);
 
       // Client-side search filter
+      const q = search.toLowerCase();
       const filtered = search
         ? rows.filter(
             (p) =>
-              p.display_name?.toLowerCase().includes(search.toLowerCase()) ||
-              p.username?.toLowerCase().includes(search.toLowerCase()) ||
-              p.talent?.toLowerCase().includes(search.toLowerCase())
+              p.display_name?.toLowerCase().includes(q) ||
+              p.full_name?.toLowerCase().includes(q) ||
+              p.username?.toLowerCase().includes(q) ||
+              p.email?.toLowerCase().includes(q) ||
+              p.phone?.toLowerCase().includes(q) ||
+              p.talent?.toLowerCase().includes(q)
           )
         : rows;
 
