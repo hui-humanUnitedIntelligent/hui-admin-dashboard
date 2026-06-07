@@ -328,6 +328,8 @@ export default function AmbassadorsPage() {
               const name   = [a.first_name, a.last_name].filter(Boolean).join(' ') || a.display_name || a.username;
               const motivation = a.motivation_text || a.motivation;
               const media = Array.isArray(a.media_urls) ? a.media_urls : [];
+              const phone = (a as {phone?:string|null}).phone || null;
+              const email = (a as {email?:string|null}).email || null;
               return (
               <div key={a.id} style={{background:'var(--bg-secondary)',border:'1px solid rgba(255,184,0,0.22)',borderLeft:'3px solid var(--gold)',borderRadius:14,overflow:'hidden'}}>
                 {/* Header */}
@@ -340,6 +342,8 @@ export default function AmbassadorsPage() {
                       {a.age   && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>{a.age} J.</span>}
                       {a.gender && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>{a.gender}</span>}
                       {a.location && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>📍 {a.location}</span>}
+                      {phone && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.07)',color:'var(--text-secondary)',border:'1px solid var(--border)'}}>📞 {phone}</span>}
+                      {email && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.07)',color:'var(--text-secondary)',border:'1px solid var(--border)'}}>✉️ {email}</span>}
                       {a.is_wirker&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.1)',color:'var(--accent)',border:'1px solid rgba(78,205,196,0.3)',fontWeight:600}}>⭐ Wirker</span>}
                       <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(255,184,0,0.1)',color:'var(--gold)',border:'1px solid rgba(255,184,0,0.3)'}}>📋 Antrag</span>
                     </div>
