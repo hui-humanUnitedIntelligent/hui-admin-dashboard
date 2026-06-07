@@ -18,9 +18,13 @@ interface AmbRecord {
   referral_count: number; revenue_generated: number; rewards: {type:string;name:string;granted_at:string}[];
 }
 interface Application {
-  id: string; display_name: string; username: string; avatar_url: string|null;
+  id: string; user_id?: string; display_name: string; username: string; avatar_url: string|null;
   role: string; is_wirker: boolean; follower_count: number; trust_score: number;
-  created_at: string; applied_at: string; motivation: string|null;
+  created_at: string; applied_at?: string; motivation?: string|null;
+  first_name?: string|null; last_name?: string|null; age?: number|null;
+  gender?: string|null; location?: string|null; motivation_text?: string|null;
+  media_urls?: {url:string;type:string;name:string}[];
+  source?: string;
 }
 interface SearchResult {
   id: string; display_name: string; username: string; avatar_url: string|null;
@@ -317,31 +321,86 @@ export default function AmbassadorsPage() {
             <div style={{fontSize:13}}>Keine offenen Anträge</div>
           </div>
         ) : (
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
-            {applications.map(a=>(
-              <div key={a.id} style={{background:'var(--bg-secondary)',border:'1px solid rgba(255,184,0,0.25)',borderLeft:'3px solid var(--gold)',borderRadius:12,padding:16}}>
-                <div style={{display:'flex',alignItems:'flex-start',gap:14,marginBottom:a.motivation?10:0}}>
-                  <Avatar src={a.avatar_url as (string|null)} name={a.display_name||a.username} size={40} />
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            {applications.map(a=>{
+              const userId = (a.user_id || a.id) as string;
+              const appId  = (a.source === 'table' ? a.id : undefined) as string|undefined;
+              const name   = [a.first_name, a.last_name].filter(Boolean).join(' ') || a.display_name || a.username;
+              const motivation = a.motivation_text || a.motivation;
+              const media = Array.isArray(a.media_urls) ? a.media_urls : [];
+              return (
+              <div key={a.id} style={{background:'var(--bg-secondary)',border:'1px solid rgba(255,184,0,0.22)',borderLeft:'3px solid var(--gold)',borderRadius:14,overflow:'hidden'}}>
+                {/* Header */}
+                <div style={{display:'flex',alignItems:'flex-start',gap:14,padding:'14px 16px 10px'}}>
+                  <Avatar src={a.avatar_url as (string|null)} name={name} size={44} />
                   <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{a.display_name||a.username}</div>
-                    <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{a.username} · Beigetreten {fmtDate(a.created_at)}</div>
+                    <div style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:2}}>{name}</div>
+                    <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>@{a.username} · {fmtDate(a.created_at || a.applied_at)}</div>
                     <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                      {a.age   && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>{a.age} J.</span>}
+                      {a.gender && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>{a.gender}</span>}
+                      {a.location && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>📍 {a.location}</span>}
                       {a.is_wirker&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.1)',color:'var(--accent)',border:'1px solid rgba(78,205,196,0.3)',fontWeight:600}}>⭐ Wirker</span>}
-                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>Trust: {a.trust_score}</span>
-                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>Antrag: {fmtDate(a.applied_at)}</span>
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(255,184,0,0.1)',color:'var(--gold)',border:'1px solid rgba(255,184,0,0.3)'}}>📋 Antrag</span>
                     </div>
                   </div>
-                  <div style={{display:'flex',gap:8,flexShrink:0}}>
-                    <button disabled={acting} onClick={async()=>{setActing(true);const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve',user_id:a.id})});if(res.ok){showToast('✅ Antrag genehmigt','success');load();}else showToast('Fehler','error');setActing(false);}}
-                      style={{padding:'7px 14px',borderRadius:8,border:'1px solid var(--green)',background:'rgba(81,207,102,0.1)',color:'var(--green)',cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'var(--font-body)'}}>✅ Genehmigen</button>
-                    <button disabled={acting} onClick={async()=>{const r=prompt('Ablehnungsgrund:');if(r===null)return;setActing(true);const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reject',user_id:a.id,data:{reason:r}})});if(res.ok){showToast('Abgelehnt','info');load();}else showToast('Fehler','error');setActing(false);}}
-                      style={{padding:'7px 14px',borderRadius:8,border:'1px solid var(--red)',background:'rgba(255,99,99,0.08)',color:'var(--red)',cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'var(--font-body)'}}>❌ Ablehnen</button>
-                    <button onClick={()=>setSelectedId(a.id)} style={{padding:'7px 10px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg-tertiary)',color:'var(--text-muted)',cursor:'pointer',fontSize:12,fontFamily:'var(--font-body)'}}>Detail</button>
+                  <div style={{display:'flex',gap:8,flexShrink:0,flexDirection:'column',alignItems:'flex-end'}}>
+                    <div style={{display:'flex',gap:6}}>
+                      <button disabled={acting} onClick={async()=>{
+                        setActing(true);
+                        const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},
+                          body:JSON.stringify({action:'approve',user_id:userId,data:{application_id:appId}})});
+                        if(res.ok){showToast('✅ Antrag genehmigt','success');load();}
+                        else showToast('Fehler beim Genehmigen','error');
+                        setActing(false);
+                      }} style={{padding:'7px 14px',borderRadius:8,border:'1px solid var(--green)',background:'rgba(81,207,102,0.1)',color:'var(--green)',cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'var(--font-body)'}}>
+                        ✅ Annehmen
+                      </button>
+                      <button disabled={acting} onClick={async()=>{
+                        const reason=prompt('Ablehnungsgrund (optional):');
+                        if(reason===null)return;
+                        setActing(true);
+                        const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},
+                          body:JSON.stringify({action:'reject',user_id:userId,data:{reason,application_id:appId}})});
+                        if(res.ok){showToast('Antrag abgelehnt','info');load();}
+                        else showToast('Fehler','error');
+                        setActing(false);
+                      }} style={{padding:'7px 14px',borderRadius:8,border:'1px solid var(--red)',background:'rgba(255,99,99,0.08)',color:'var(--red)',cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'var(--font-body)'}}>
+                        ❌ Ablehnen
+                      </button>
+                    </div>
+                    <button onClick={()=>setSelectedId(userId)}
+                      style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg-tertiary)',color:'var(--text-muted)',cursor:'pointer',fontSize:11,fontFamily:'var(--font-body)'}}>
+                      Details ansehen
+                    </button>
                   </div>
                 </div>
-                {a.motivation&&<div style={{padding:'10px 12px',background:'var(--bg-tertiary)',borderRadius:8,fontSize:11,color:'var(--text-secondary)',lineHeight:1.6,borderLeft:'2px solid var(--gold)'}}>📝 {a.motivation}</div>}
+
+                {/* Motivation */}
+                {motivation && (
+                  <div style={{margin:'0 16px 12px',padding:'10px 14px',background:'var(--bg-tertiary)',borderRadius:10,fontSize:12,color:'var(--text-secondary)',lineHeight:1.65,borderLeft:'2px solid var(--gold)'}}>
+                    <div style={{fontSize:10,fontWeight:700,color:'var(--gold)',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.5px'}}>Motivation</div>
+                    {motivation}
+                  </div>
+                )}
+
+                {/* Medien */}
+                {media.length > 0 && (
+                  <div style={{margin:'0 16px 14px'}}>
+                    <div style={{fontSize:10,fontWeight:700,color:'var(--text-muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.5px'}}>Medien ({media.length})</div>
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                      {media.map((m, i) => (
+                        <a key={i} href={typeof m === 'string' ? m : m.url} target="_blank" rel="noreferrer"
+                          style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',background:'rgba(78,205,196,0.07)',border:'1px solid rgba(78,205,196,0.2)',borderRadius:8,fontSize:11,color:'var(--accent)',textDecoration:'none',fontWeight:600}}>
+                          {(typeof m !== 'string' && m.type === 'video') ? '🎥' : '🖼️'}
+                          {typeof m !== 'string' ? m.name : `Datei ${i+1}`}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+            );})}
           </div>
         )
       )}
