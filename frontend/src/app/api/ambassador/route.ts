@@ -284,6 +284,10 @@ export async function POST(req: NextRequest) {
     const link = buildReferralLink(profile.username as string, user_id);
     const activatedAmb = { ...amb, is_ambassador: true, status: 'active', referral_code: code, referral_link: link, level: 'bronze', activated_by: admin_id || 'admin', activated_at: now, link_active: true, referral_count: 0, active_referral_count: 0, sleeping_referral_count: 0, revenue_generated: 0, rewards: [{ type: 'badge', name: 'Bronze-Badge', granted_at: now }] };
     await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: activatedAmb }, is_ambassador: true }) });
+    // Ref-Link-Eintrag anlegen (eindeutig, unveränderbar)
+    await sb(`ambassador_ref_links`, { method: 'POST',
+      headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ user_id, username: profile.username, ref_link: link, referral_code: code }) });
     const appId = data?.application_id as string;
     if (appId) await sb(`ambassadors_applications?id=eq.${appId}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'angenommen', reviewed_at: now }) });
     else       await sb(`ambassadors_applications?user_id=eq.${user_id}&status=eq.offen`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'angenommen', reviewed_at: now }) });
@@ -313,6 +317,8 @@ export async function POST(req: NextRequest) {
   if (action === 'revoke') {
     const revoked = { ...amb, is_ambassador: false, status: 'revoked', revoked_at: now, revoked_by: admin_id || 'admin', revoke_reason: data?.reason || null, link_active: false };
     await sb(`profiles?id=eq.${user_id}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' }, body: JSON.stringify({ profile_modules: { ...pm, ambassador: revoked }, is_ambassador: false }) });
+    // Ref-Link-Eintrag löschen (C — automatische Löschung bei Entzug)
+    await sb(`ambassador_ref_links?user_id=eq.${user_id}`, { method: 'DELETE', headers: H });
     await logEvent('ambassador_revoked', user_id, admin_id || null, { reason: data?.reason });
     return NextResponse.json({ ok: true });
   }
