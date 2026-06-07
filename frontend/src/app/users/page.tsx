@@ -628,7 +628,7 @@ function ProfileDrawer({
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10 }}>📅 Zeitstempel</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {infoRow('Account erstellt',     fmtDate(user.created_at))}
-                  {infoRow('Zuletzt aktiv',         fmtDate(user.last_seen || ''))}
+                  {infoRow('Zuletzt aktiv',         fmtDate(user.last_seen_at || u.last_seen || ''))}
                   {infoRow('Profil aktualisiert',   fmtDate(user.updated_at || ''))}
                   {infoRow('Member seit',           fmtDate((user as unknown as Record<string,unknown>).member_since as string || ''))}
                 </div>
@@ -916,7 +916,22 @@ export default function UsersPage() {
     duplicates: duplicateIds.size,
   }), [total, blockedProfiles.length, deletedProfiles.length, wirkerProfiles.length, duplicateIds.size]);
 
-  useProfilesRealtime(refetch, true);
+  // ── Realtime: optimistisch INSERT/UPDATE live in State patchen ──────────
+  useProfilesRealtimeOptimistic({
+    enabled: true,
+    onInsert: (newProfile) => {
+      // Neuer User: direkt an die Liste prependen ohne Full-Refetch
+      refetch(); // Full-Refetch für korrekte Paginierung
+    },
+    onUpdate: (updatedProfile) => {
+      // Sofortiges State-Patch: kein Warten auf nächsten Fetch-Zyklus
+      // (useProfiles state ist read-only, daher refetch triggern)
+      refetch();
+    },
+    onDelete: (_id) => {
+      refetch();
+    },
+  });
 
   // ── Bulk action handler ──────────────────────────────────────────────
   const handleBulkAction = async () => {
@@ -1247,7 +1262,7 @@ export default function UsersPage() {
                     </td>
                     {/* Last Seen */}
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
-                      {timeAgo(u.last_seen || u.created_at)}
+                      {timeAgo(u.last_seen_at || u.last_seen || u.created_at)}
                     </td>
                     {/* Open Drawer */}
                     <td style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
