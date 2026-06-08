@@ -159,14 +159,25 @@ export async function GET(req: NextRequest) {
 
   // ── Detail ────────────────────────────────────────────────────
   if (action === 'detail' && userId) {
-    const [profR, refR, appR, refUsersR] = await Promise.all([
+    const [profR, refR, appR, refUsersR, authUserR] = await Promise.all([
       sb(`profiles?id=eq.${userId}&select=*`),
       sb(`ambassador_ref_links?user_id=eq.${userId}&select=*`),
       sb(`ambassadors_applications?user_id=eq.${userId}&select=*&order=created_at.desc&limit=5`),
       // Referrals aus beiden Quellen: ambassador_id (primär) + refCode (Fallback)
       sb(`profiles?referred_by_ambassador_id=eq.${userId}&select=id,display_name,username,avatar_url,is_talent,created_at&order=created_at.desc&limit=200`),
     ]);
-    const profile  = Array.isArray(profR.body) ? profR.body[0] as Record<string,unknown> : null;
+    // E-Mail aus auth.users holen (profiles.email kann null sein)
+    let authEmail: string | null = null;
+    try {
+      const authR = await fetch(`${SUPA}/auth/v1/admin/users/${userId}`,
+        { headers: { ...H, Authorization: `Bearer ${KEY}` } });
+      if (authR.ok) {
+        const authUser = await authR.json() as { email?: string };
+        authEmail = authUser.email || null;
+      }
+    } catch {}
+    const rawProfile = Array.isArray(profR.body) ? profR.body[0] as Record<string,unknown> : null;
+    const profile = rawProfile ? { ...rawProfile, email: rawProfile.email || authEmail } : null;
     const refLinks = Array.isArray(refR.body)  ? refR.body     : [];
     const apps     = Array.isArray(appR.body)  ? appR.body     : [];
     const rawRefs  = Array.isArray(refUsersR.body) ? refUsersR.body as Record<string,unknown>[] : [];
