@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
 
   // ── Detail ────────────────────────────────────────────────────
   if (action === 'detail' && userId) {
-    const [profR, refR, appR, refUsersR, authUserR] = await Promise.all([
+    const [profR, refR, appR, refUsersR] = await Promise.all([
       sb(`profiles?id=eq.${userId}&select=*`),
       sb(`ambassador_ref_links?user_id=eq.${userId}&select=*`),
       sb(`ambassadors_applications?user_id=eq.${userId}&select=*&order=created_at.desc&limit=5`),
