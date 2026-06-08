@@ -185,10 +185,10 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
               <div style={{ padding: 16 }}>
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: 12 }}>
                   {([
-                    ['__email__', profile.email || null],
+                    ['__email__', profile.email as string || null],
                     ['__phone__', (profile as Record<string,unknown>).phone as string || null],
-                    ['Rolle', profile.role || '—'],
-                    ['Mitglied seit', fmtDate(profile.created_at || '')],
+                    ['Rolle', (profile.role as string) || '—'],
+                    ['Mitglied seit', fmtDate(profile.created_at as string)],
                     ['Aktiviert am', fmtDate(ambRecord.activated_at || '')],
                     ['Referral-Code', ambRecord.referral_code || '—'],
                     ['Link-Status', ambRecord.link_active ? '🔗 Aktiv' : '🔒 Gesperrt'],
