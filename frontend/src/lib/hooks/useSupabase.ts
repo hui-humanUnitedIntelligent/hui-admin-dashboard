@@ -29,6 +29,9 @@ export interface HuiProfile {
   followers_count: number;
   trust_score: number;
   is_guardian: boolean;
+  blocked: boolean | null;
+  blocked_at: string | null;
+  blocked_by: string | null;
   last_seen: string | null;
   created_at: string;
   updated_at: string | null;
