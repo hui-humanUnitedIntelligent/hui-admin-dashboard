@@ -159,18 +159,30 @@ export async function GET(req: NextRequest) {
 
   // ── Detail ────────────────────────────────────────────────────
   if (action === 'detail' && userId) {
-    const [profR, refR, appR] = await Promise.all([
+    const [profR, refR, appR, refUsersR] = await Promise.all([
       sb(`profiles?id=eq.${userId}&select=*`),
       sb(`ambassador_ref_links?user_id=eq.${userId}&select=*`),
       sb(`ambassadors_applications?user_id=eq.${userId}&select=*&order=created_at.desc&limit=5`),
+      // Referrals aus beiden Quellen: ambassador_id (primär) + refCode (Fallback)
+      sb(`profiles?referred_by_ambassador_id=eq.${userId}&select=id,display_name,username,avatar_url,is_talent,created_at&order=created_at.desc&limit=200`),
     ]);
-    const profile  = Array.isArray(profR.body) ? profR.body[0] : null;
+    const profile  = Array.isArray(profR.body) ? profR.body[0] as Record<string,unknown> : null;
     const refLinks = Array.isArray(refR.body)  ? refR.body     : [];
     const apps     = Array.isArray(appR.body)  ? appR.body     : [];
-    // Referrals: Nutzer die referred_by_ambassador_id = userId haben
-    const refUsersR = await sb(`profiles?referred_by_ambassador_id=eq.${userId}&select=id,display_name,username,avatar_url,created_at&order=created_at.desc&limit=100`);
-    const referrals = Array.isArray(refUsersR.body) ? refUsersR.body : [];
-    return NextResponse.json({ profile, refLinks, applications: apps, referrals });
+    const rawRefs  = Array.isArray(refUsersR.body) ? refUsersR.body as Record<string,unknown>[] : [];
+    // Aktiv = Profil ausgefüllt (display_name + avatar) ODER is_talent
+    const referrals = rawRefs.map(p => ({
+      id:          p.id,
+      display_name:p.display_name || p.username || "Nutzer",
+      username:    p.username  || null,
+      avatar_url:  p.avatar_url || null,
+      is_active:   p.is_talent === true || (!!p.display_name && !!p.avatar_url),
+      joined_at:   p.created_at,
+    }));
+    const activeCount   = referrals.filter(r => r.is_active).length;
+    const sleepingCount = referrals.filter(r => !r.is_active).length;
+    return NextResponse.json({ profile, refLinks, applications: apps, referrals,
+      stats: { total: referrals.length, active: activeCount, sleeping: sleepingCount } });
   }
 
   // ── Suche ─────────────────────────────────────────────────────
