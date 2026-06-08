@@ -25,7 +25,8 @@ type Action =
   | 'restore_work'
   | 'unflag_work'
   | 'restore_user'
-  | 'hard_delete_work';
+  | 'hard_delete_work'
+  | 'hard_delete_user';
 
 async function sbPatch(table: string, id: string, data: Record<string, unknown>) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
@@ -99,17 +100,68 @@ export async function POST(req: NextRequest) {
 
   switch (action) {
     case 'block_user':
-      result = await sbPatch('profiles', userId, { is_guardian: false, trust_score: -1, role: 'blocked' });
+      result = await sbPatch('profiles', userId, {
+        blocked:    true,
+        blocked_at: new Date().toISOString(),
+        blocked_by: data.adminId as string || 'admin',
+      });
       break;
 
     case 'unblock_user':
-      result = await sbPatch('profiles', userId, { trust_score: 0, role: data.previousRole as string || 'basisuser' });
+      result = await sbPatch('profiles', userId, {
+        blocked:    false,
+        blocked_at: null,
+        blocked_by: null,
+      });
       break;
 
-    case 'delete_user':
-      // Soft delete: set role to 'deleted' + trust_score = -999
-      result = await sbPatch('profiles', userId, { role: 'deleted', trust_score: -999, is_member: false, membership_active: false });
+    case 'delete_user': {
+      // ── Hard Delete: alle Nutzerdaten vollständig entfernen ────────
+      const delFromTable = async (table: string, col: string = 'user_id') => {
+        await fetch(`${SUPABASE_URL}/rest/v1/${table}?${col}=eq.${userId}`, {
+          method: 'DELETE',
+          headers: {
+            apikey:        SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+            Prefer:        'return=minimal',
+          },
+        });
+      };
+      // Reihenfolge: abhängige Tabellen zuerst, dann Profile, dann Auth-User
+      await Promise.all([
+        delFromTable('works'),
+        delFromTable('works_media'),
+        delFromTable('works_engagement'),
+        delFromTable('experiences'),
+        delFromTable('experiences_media'),
+        delFromTable('ambassador_ref_links'),
+        delFromTable('ambassador_stats'),
+        delFromTable('ambassador_transactions'),
+        delFromTable('ambassadors_applications'),
+        delFromTable('bookings'),
+        delFromTable('payments'),
+        delFromTable('impact_pool_entries'),
+        delFromTable('profile_modules', 'id'),
+        delFromTable('wirker_profiles'),
+        delFromTable('notification_events'),
+        delFromTable('notifications'),
+      ]);
+      // Profile löschen
+      await sbHardDelete('profiles', userId);
+      // Auth-User löschen (Supabase Admin API)
+      const authDeleteRes = await fetch(
+        `${SUPABASE_URL}/auth/v1/admin/users/${userId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            apikey:        SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+          },
+        }
+      );
+      result = { ok: authDeleteRes.ok, status: authDeleteRes.status, body: null };
       break;
+    }
 
     case 'change_role':
       result = await sbPatch('profiles', userId, { role: data.role });
