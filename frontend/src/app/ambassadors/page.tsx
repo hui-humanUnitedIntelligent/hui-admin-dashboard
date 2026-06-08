@@ -12,14 +12,14 @@ type MainTab    = 'active' | 'applications' | 'search' | 'logs';
 
 interface AmbRecord {
   id: string; display_name: string; username: string; avatar_url: string | null;
-  role: string; is_wirker: boolean; trust_score: number; created_at: string;
+  role: string; is_talent: boolean; trust_score: number; created_at: string;
   referral_code: string; referral_link: string; level: AmbLevel; status: string;
   activated_at: string; link_active: boolean;
   referral_count: number; revenue_generated: number; rewards: {type:string;name:string;granted_at:string}[];
 }
 interface Application {
   id: string; user_id?: string; display_name: string; username: string; avatar_url: string|null;
-  role: string; is_wirker: boolean; follower_count: number; trust_score: number;
+  role: string; is_talent: boolean; follower_count: number; trust_score: number;
   created_at: string; applied_at?: string; motivation?: string|null;
   first_name?: string|null; last_name?: string|null; age?: number|null;
   gender?: string|null; location?: string|null; motivation_text?: string|null;
@@ -28,7 +28,7 @@ interface Application {
 }
 interface SearchResult {
   id: string; display_name: string; username: string; avatar_url: string|null;
-  email: string|null; role: string; is_wirker: boolean; trust_score: number;
+  email: string|null; role: string; is_talent: boolean; trust_score: number;
   created_at: string; ambassador_status: string|null; is_ambassador: boolean;
 }
 interface AmbDetail {
@@ -344,7 +344,7 @@ export default function AmbassadorsPage() {
                       {a.location && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'var(--bg-tertiary)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>📍 {a.location}</span>}
                       {phone && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.07)',color:'var(--text-secondary)',border:'1px solid var(--border)'}}>📞 {phone}</span>}
                       {email && <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.07)',color:'var(--text-secondary)',border:'1px solid var(--border)'}}>✉️ {email}</span>}
-                      {a.is_wirker&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.1)',color:'var(--accent)',border:'1px solid rgba(78,205,196,0.3)',fontWeight:600}}>⭐ Wirker</span>}
+                      {a.is_talent&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(78,205,196,0.1)',color:'var(--accent)',border:'1px solid rgba(78,205,196,0.3)',fontWeight:600}}>⭐ Wirker</span>}
                       <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'rgba(255,184,0,0.1)',color:'var(--gold)',border:'1px solid rgba(255,184,0,0.3)'}}>📋 Antrag</span>
                     </div>
                   </div>
@@ -439,7 +439,7 @@ export default function AmbassadorsPage() {
                       <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                         <span style={{fontSize:10,color:'var(--text-muted)'}}>@{u.username}</span>
                         {u.email&&<span style={{fontSize:10,color:'var(--text-muted)'}}>· {u.email}</span>}
-                        {u.is_wirker&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:8,background:'rgba(78,205,196,0.1)',color:'var(--accent)',border:'1px solid rgba(78,205,196,0.3)',fontWeight:600}}>⭐ Wirker</span>}
+                        {u.is_talent&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:8,background:'rgba(78,205,196,0.1)',color:'var(--accent)',border:'1px solid rgba(78,205,196,0.3)',fontWeight:600}}>⭐ Wirker</span>}
                         {isAmb&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:8,background:'rgba(81,207,102,0.1)',color:'var(--green)',border:'1px solid rgba(81,207,102,0.3)',fontWeight:600}}>✅ Ambassador</span>}
                         {isPending&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:8,background:'rgba(255,184,0,0.1)',color:'var(--gold)',border:'1px solid rgba(255,184,0,0.3)',fontWeight:600}}>📋 Antrag offen</span>}
                       </div>
