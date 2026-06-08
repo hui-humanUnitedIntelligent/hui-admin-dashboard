@@ -162,7 +162,6 @@ export async function POST(req: NextRequest) {
         visible: false,
         rejected_at: new Date().toISOString(),
         rejection_reason: (data.reason as string) || 'Nicht genehmigt',
-        rejected_at: new Date().toISOString(),
       });
       break;
 
