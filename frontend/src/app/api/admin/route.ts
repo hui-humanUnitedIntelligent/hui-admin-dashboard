@@ -169,8 +169,12 @@ export async function POST(req: NextRequest) {
 
     case 'change_group':
       result = await sbPatch('profiles', userId, {
-        membership_type: data.group,
-        is_wirker: data.group === 'wirker' || data.group === 'talent',
+        membership_type:  data.group,
+        is_wirker:        data.group === 'wirker' || data.group === 'talent',
+        is_talent:        data.group === 'talent',
+        membership_active:data.group === 'talent' ? true : false,
+        talent_since:     data.group === 'talent' ? new Date().toISOString() : null,
+        talent_activated_at: data.group === 'talent' ? new Date().toISOString() : null,
       });
       break;
 
