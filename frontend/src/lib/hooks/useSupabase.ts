@@ -37,6 +37,11 @@ export interface HuiProfile {
   updated_at: string | null;
   skills: string[] | null;
   focus_type: string | null;
+  // Talent-Persistenz
+  is_talent: boolean | null;
+  talent_since: string | null;
+  talent_activated_at: string | null;
+  member_since: string | null;
   // Extended live-sync fields
   email: string | null;
   phone: string | null;
@@ -284,7 +289,7 @@ export function useProfiles(opts: {
         params['trust_score'] = 'not.eq.-999';
       }
 
-      const select = 'id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,last_seen_at,created_at,updated_at,skills,focus_type,email,phone,full_name';
+      const select = 'id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,last_seen_at,created_at,updated_at,skills,focus_type,email,phone,full_name,is_talent,talent_since,talent_activated_at,member_since,blocked,blocked_at,blocked_by';
 
       const [rows, count] = await Promise.all([
         sbQuery<HuiProfile>('profiles', params, {
