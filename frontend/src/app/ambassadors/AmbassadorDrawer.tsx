@@ -268,7 +268,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
                         </div>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{ref.display_name || ref.username}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Registriert {fmtDate(ref.created_at)}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Registriert {fmtDate(ref.joined_at)}</div>
                         </div>
                       </div>
                     ))}
