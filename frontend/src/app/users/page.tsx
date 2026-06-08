@@ -208,6 +208,8 @@ function ProfileDrawer({
     is_guardian:     (user as unknown as Record<string, unknown>).is_guardian as boolean ?? false,
     focus_type:      user.focus_type     || '',
     trust_score:     String(user.trust_score ?? 0),
+    is_talent:       (user as unknown as Record<string,unknown>).is_talent as boolean ?? false,
+    talent_since:    (user as unknown as Record<string,unknown>).talent_since as string | null ?? null,
   });
   const [saving, setSaving]   = useState(false);
   const [confirm, setConfirm] = useState<{ open: boolean; title: string; msg: string; fn: () => Promise<void>; loading: boolean }>({ open: false, title: '', msg: '', fn: async () => {}, loading: false });
