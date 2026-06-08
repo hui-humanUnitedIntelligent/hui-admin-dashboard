@@ -547,7 +547,7 @@ function ProfileDrawer({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {infoRow('Membership aktiv', (user as unknown as Record<string,unknown>).membership_active ? '✅ Ja' : 'Nein')}
                 {infoRow('Talent-Status', (user as unknown as Record<string,unknown>).is_talent ? '🌟 Aktiv' : '—')}
-                {(user as unknown as Record<string,unknown>).talent_since && infoRow('Talent seit', fmtDate((user as unknown as Record<string,unknown>).talent_since as string))}
+                {!!(user as unknown as Record<string,unknown>).talent_since && infoRow('Talent seit', fmtDate(String((user as unknown as Record<string,unknown>).talent_since || '')))}
                 {infoRow('Member seit', fmtDate((user as unknown as Record<string,unknown>).member_since as string || ''))}
                 {infoRow('Erstellt am', fmtDate(user.created_at))}
                 {infoRow('Zuletzt geändert', fmtDate(user.updated_at || ''))}
