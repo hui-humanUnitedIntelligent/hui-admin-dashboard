@@ -63,7 +63,7 @@ async function deleteUser(id: string)             { return adminAction('delete_u
 // ── Status helpers ────────────────────────────────────────────────────────
 function getUserStatus(u: HuiProfile): 'active' | 'blocked' | 'deleted' {
   if (u.trust_score === -999) return 'deleted';
-  if (u.role === 'blocked')   return 'blocked';
+  if (u.blocked === true || u.role === 'blocked') return 'blocked';
   return 'active';
 }
 function timeAgo(iso: string) {
