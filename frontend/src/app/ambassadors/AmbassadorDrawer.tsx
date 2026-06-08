@@ -148,7 +148,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{displayName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{profile.username || '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{String(profile.username || '—')}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: lc.bg, color: lc.color, border: lcBorder }}>{lc.icon} {lc.label}</span>
@@ -161,7 +161,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
                 {[
                   { label: 'Referrals', value: String((ambRecord as { referral_count?: number }).referral_count || 0) },
                   { label: 'Umsatz', value: '€' + Number((ambRecord as { revenue_generated?: number }).revenue_generated || 0).toFixed(0) },
-                  { label: 'Trust Score', value: String(profile.trust_score || 0) },
+                  { label: 'Trust Score', value: String(Number(profile.trust_score) || 0) },
                 ].map(stat => (
                   <div key={stat.label} style={{ background: 'var(--bg-primary)', borderRadius: 8, padding: '8px 10px', textAlign: 'center', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: lc.color }}>{stat.value}</div>
