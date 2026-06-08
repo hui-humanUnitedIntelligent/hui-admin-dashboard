@@ -148,6 +148,8 @@ export async function POST(req: NextRequest) {
       result = await sbPatch('works', userId, {
         status: 'published',
         visibility: 'public',
+        published: true,
+        visible: true,
         published_at: new Date().toISOString(),
       });
       break;
@@ -156,6 +158,9 @@ export async function POST(req: NextRequest) {
       result = await sbPatch('works', userId, {
         status: 'rejected',
         visibility: 'private',
+        published: false,
+        visible: false,
+        rejected_at: new Date().toISOString(),
         rejection_reason: (data.reason as string) || 'Nicht genehmigt',
         rejected_at: new Date().toISOString(),
       });
