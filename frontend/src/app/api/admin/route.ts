@@ -203,14 +203,12 @@ export async function POST(req: NextRequest) {
     case 'approve_work': {
       // Werk freigeben: approval_status='approved', status='published', sofort live
       result = await sbPatch('works', userId, {
-        approval_status:  'approved',
-        rejection_reason: null,
-        status:           'published',
-        visibility:       'public',
-        published:        true,
-        visible:          true,
-        published_at:     new Date().toISOString(),
-        last_submitted_at: null,  // reset — keine erneute Prüfung nötig
+        approval_status:   'approved',
+        rejection_reason:  null,
+        status:            'published',
+        visibility:        'public',
+        published_at:      new Date().toISOString(),
+        last_submitted_at: null,
       });
       // Nutzer benachrichtigen: Werk freigegeben
       try {
@@ -247,8 +245,6 @@ export async function POST(req: NextRequest) {
         rejection_reason: rejectReason,
         status:           'rejected',
         visibility:       'private',
-        published:        false,
-        visible:          false,
         rejected_at:      new Date().toISOString(),
       });
       // Nutzer benachrichtigen: Werk abgelehnt
