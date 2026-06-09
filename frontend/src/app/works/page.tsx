@@ -123,12 +123,14 @@ function TabBar({ tab, setTab, counts }: {
   counts: Record<TabKey, number>;
 }) {
   const tabs: { key: TabKey; label: string; icon: string; danger?: boolean }[] = [
-    { key: 'all',       label: 'Alle',      icon: '' },
-    { key: 'published', label: 'Published', icon: '●' },
-    { key: 'draft',     label: 'Draft',     icon: '' },
-    { key: 'flagged',   label: 'Gemeldet',  icon: '⚑', danger: true },
-    { key: 'deleted',   label: 'Gelöscht',  icon: '🗑' },
-    { key: 'sensitive', label: 'Sensitiv',  icon: '⚠️', danger: true },
+    { key: 'all',       label: 'Alle',           icon: '' },
+    { key: 'pending',   label: 'Eingereicht',     icon: '⏳', danger: false },
+    { key: 'published', label: 'Published',       icon: '●' },
+    { key: 'rejected',  label: 'Abgelehnt',       icon: '✕', danger: true },
+    { key: 'draft',     label: 'Draft',           icon: '' },
+    { key: 'flagged',   label: 'Gemeldet',        icon: '⚑', danger: true },
+    { key: 'deleted',   label: 'Gelöscht',        icon: '🗑' },
+    { key: 'sensitive', label: 'Sensitiv',        icon: '⚠️', danger: true },
   ];
   return (
     <div style={{ display:'flex', gap:4, marginBottom:14, borderBottom:'1px solid var(--border)', paddingBottom:10, flexWrap:'wrap' }}>
@@ -141,9 +143,9 @@ function TabBar({ tab, setTab, counts }: {
             onClick={() => setTab(key)}
             style={{
               padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: active ? 600 : 400,
-              border: `1px solid ${active ? (danger ? 'var(--red)' : 'var(--accent)') : 'var(--border)'}`,
-              background: active ? (danger ? 'var(--red-dim)' : 'var(--accent-dim)') : 'var(--bg-secondary)',
-              color: active ? (danger ? 'var(--red)' : 'var(--accent)') : 'var(--text-secondary)',
+              border: `1px solid ${active ? (key === 'pending' ? '#F59E0B' : danger ? 'var(--red)' : 'var(--accent)') : 'var(--border)'}`,
+              background: active ? (key === 'pending' ? 'rgba(245,158,11,0.12)' : danger ? 'var(--red-dim)' : 'var(--accent-dim)') : 'var(--bg-secondary)',
+              color: active ? (key === 'pending' ? '#F59E0B' : danger ? 'var(--red)' : 'var(--accent)') : 'var(--text-secondary)',
               cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', gap: 5,
             }}
@@ -153,8 +155,8 @@ function TabBar({ tab, setTab, counts }: {
             {cnt > 0 && (
               <span style={{
                 minWidth: 18, height: 18, borderRadius: 9, fontSize: 10, fontWeight: 700,
-                background: active ? (danger ? 'var(--red)' : 'var(--accent)') : (danger ? 'var(--red)' : 'var(--bg-tertiary)'),
-                color: active ? (danger ? '#fff' : '#0F1117') : (danger ? '#fff' : 'var(--text-secondary)'),
+                background: active ? (key === 'pending' ? '#F59E0B' : danger ? 'var(--red)' : 'var(--accent)') : (key === 'pending' ? '#F59E0B' : danger ? 'var(--red)' : 'var(--bg-tertiary)'),
+                color: active ? '#fff' : (key === 'pending' || danger ? '#fff' : 'var(--text-secondary)'),
                 display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
               }}>{cnt}</span>
             )}
