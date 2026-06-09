@@ -200,26 +200,82 @@ export async function POST(req: NextRequest) {
       result = await sbPatch('works', userId, { status: 'draft', visibility: 'private' });
       break;
 
-    case 'approve_work':
+    case 'approve_work': {
+      // Werk freigeben: approval_status='approved', status='published', sofort live
       result = await sbPatch('works', userId, {
-        status: 'published',
-        visibility: 'public',
-        published: true,
-        visible: true,
-        published_at: new Date().toISOString(),
+        approval_status:  'approved',
+        rejection_reason: null,
+        status:           'published',
+        visibility:       'public',
+        published:        true,
+        visible:          true,
+        published_at:     new Date().toISOString(),
+        last_submitted_at: null,  // reset — keine erneute Prüfung nötig
       });
+      // Nutzer benachrichtigen: Werk freigegeben
+      try {
+        // Werk-Daten holen für Nutzerprofil
+        const wRes = await fetch(`${SUPABASE_URL}/rest/v1/works?select=user_id,title&id=eq.${userId}&limit=1`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+        });
+        if (wRes.ok) {
+          const [werk] = await wRes.json() as { user_id: string; title: string }[];
+          if (werk?.user_id) {
+            await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                user_id:  werk.user_id,
+                type:     'work_approved',
+                title:    '✅ Dein Werk wurde freigegeben!',
+                message:  `„${werk.title || 'Dein Werk'}" ist jetzt öffentlich sichtbar.`,
+                work_id:  userId,
+                read:     false,
+              }),
+            });
+          }
+        }
+      } catch (_) { /* Benachrichtigung nicht kritisch */ }
       break;
+    }
 
-    case 'reject_work':
+    case 'reject_work': {
+      const rejectReason = (data.reason as string) || 'Nicht genehmigt';
+      // Werk ablehnen: approval_status='rejected', unsichtbar
       result = await sbPatch('works', userId, {
-        status: 'rejected',
-        visibility: 'private',
-        published: false,
-        visible: false,
-        rejected_at: new Date().toISOString(),
-        rejection_reason: (data.reason as string) || 'Nicht genehmigt',
+        approval_status:  'rejected',
+        rejection_reason: rejectReason,
+        status:           'rejected',
+        visibility:       'private',
+        published:        false,
+        visible:          false,
+        rejected_at:      new Date().toISOString(),
       });
+      // Nutzer benachrichtigen: Werk abgelehnt
+      try {
+        const wRes = await fetch(`${SUPABASE_URL}/rest/v1/works?select=user_id,title&id=eq.${userId}&limit=1`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+        });
+        if (wRes.ok) {
+          const [werk] = await wRes.json() as { user_id: string; title: string }[];
+          if (werk?.user_id) {
+            await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                user_id:  werk.user_id,
+                type:     'work_rejected',
+                title:    '❌ Dein Werk wurde abgelehnt',
+                message:  rejectReason,
+                work_id:  userId,
+                read:     false,
+              }),
+            });
+          }
+        }
+      } catch (_) { /* Benachrichtigung nicht kritisch */ }
       break;
+    }
 
     case 'flag_work':
       result = await sbPatch('works', userId, {
