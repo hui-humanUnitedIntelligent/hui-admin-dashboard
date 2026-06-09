@@ -509,13 +509,13 @@ export default function WorksPage() {
                           <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:1 }}>
                             <span style={{ color:'var(--text-muted)', fontSize:10, fontFamily:'var(--font-mono)' }}>{String(w.id).slice(0,8)}…</span>
                             {tab === 'pending' && (
-                              (w as Record<string,unknown>).is_update
+                              Boolean((w as Record<string,unknown>).is_update)
                                 ? <span style={{ padding:'1px 5px', borderRadius:4, fontSize:8, fontWeight:700, background:'rgba(168,139,250,0.18)', color:'#A78BFA' }}>UPDATE</span>
                                 : <span style={{ padding:'1px 5px', borderRadius:4, fontSize:8, fontWeight:700, background:'rgba(42,191,172,0.18)', color:'#2ABFAC' }}>NEU</span>
                             )}
-                            {tab === 'pending' && (w as Record<string,unknown>).last_submitted_at && (
+                            {tab === 'pending' && Boolean((w as Record<string,unknown>).last_submitted_at) && (
                               <span style={{ fontSize:9, color:'var(--text-muted)' }}>
-                                {timeAgo(String((w as Record<string,unknown>).last_submitted_at))}
+                                {timeAgo(String((w as Record<string,unknown>).last_submitted_at ?? ''))}
                               </span>
                             )}
                           </div>
