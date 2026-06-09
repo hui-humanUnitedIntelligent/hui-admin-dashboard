@@ -358,15 +358,25 @@ export default function WorksPage() {
   }, [refetchAllTabs]);
 
   // ── Reject (pending_review → rejected) ────────────────────────────────
-  const handleReject = useCallback(async (w: WorkWithMeta) => {
-    const reason = window.prompt('Ablehnungsgrund (optional):') ?? 'Nicht genehmigt';
-    if (reason === null) return;
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; work: WorkWithMeta | null; reason: string }>({
+    open: false, work: null, reason: ''
+  });
+
+  const handleReject = useCallback((w: WorkWithMeta) => {
+    setRejectModal({ open: true, work: w, reason: '' });
+  }, []);
+
+  const handleRejectConfirm = useCallback(async () => {
+    const w = rejectModal.work;
+    if (!w) return;
+    const reason = rejectModal.reason.trim() || 'Nicht genehmigt';
+    setRejectModal(p => ({ ...p, open: false }));
     setBusyFor(w.id, true);
     const ok = await workAction('reject_work', w.id, { reason });
     setBusyFor(w.id, false);
-    if (ok) { showToast('❌ Werk abgelehnt', 'success'); refetchAllTabs(); }
+    if (ok) { showToast('❌ Werk abgelehnt — Nutzer benachrichtigt', 'success'); refetchAllTabs(); }
     else showToast('Fehler', 'error');
-  }, [refetchAllTabs]);
+  }, [rejectModal, refetchAllTabs]);
 
   // ── Styles ─────────────────────────────────────────────────────────────
   const fieldStyle: React.CSSProperties = {
