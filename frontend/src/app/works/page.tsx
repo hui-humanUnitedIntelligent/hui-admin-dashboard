@@ -506,7 +506,19 @@ export default function WorksPage() {
                           <div style={{ color:'var(--text-primary)', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:170, textDecoration: w.status === 'deleted' ? 'line-through' : 'none', opacity: w.status === 'deleted' ? 0.6 : 1 }}>
                             {w.title || <span style={{ color:'var(--text-muted)' }}>—</span>}
                           </div>
-                          <div style={{ color:'var(--text-muted)', fontSize:10, fontFamily:'var(--font-mono)' }}>{String(w.id).slice(0,8)}…</div>
+                          <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:1 }}>
+                            <span style={{ color:'var(--text-muted)', fontSize:10, fontFamily:'var(--font-mono)' }}>{String(w.id).slice(0,8)}…</span>
+                            {tab === 'pending' && (
+                              (w as Record<string,unknown>).is_update
+                                ? <span style={{ padding:'1px 5px', borderRadius:4, fontSize:8, fontWeight:700, background:'rgba(168,139,250,0.18)', color:'#A78BFA' }}>UPDATE</span>
+                                : <span style={{ padding:'1px 5px', borderRadius:4, fontSize:8, fontWeight:700, background:'rgba(42,191,172,0.18)', color:'#2ABFAC' }}>NEU</span>
+                            )}
+                            {tab === 'pending' && (w as Record<string,unknown>).last_submitted_at && (
+                              <span style={{ fontSize:9, color:'var(--text-muted)' }}>
+                                {timeAgo(String((w as Record<string,unknown>).last_submitted_at))}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
