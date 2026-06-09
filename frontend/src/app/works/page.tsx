@@ -389,6 +389,11 @@ export default function WorksPage() {
       title="Werke & Content"
       headerActions={
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          {counts.pending > 0 && (
+            <button onClick={() => setTab('pending')} style={{ fontSize:11, background:'rgba(245,158,11,0.12)', color:'#F59E0B', padding:'3px 10px', borderRadius:20, border:'1px solid #F59E0B', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-body)' }}>
+              ⏳ {counts.pending} eingereicht
+            </button>
+          )}
           {counts.flagged > 0 && (
             <button onClick={() => setTab('flagged')} style={{ fontSize:11, background:'var(--red-dim)', color:'var(--red)', padding:'3px 10px', borderRadius:20, border:'1px solid var(--red)', fontWeight:600, cursor:'pointer', fontFamily:'var(--font-body)' }}>
               ⚑ {counts.flagged} gemeldet
@@ -405,11 +410,12 @@ export default function WorksPage() {
       }
     >
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:16 }} className="grid-4">
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:10, marginBottom:16 }} className="grid-6">
         {[
           { label:'Werke gesamt',   value: loading ? '…' : fmt(counts.published + counts.draft), color:'var(--accent)' },
           { label:'Published',      value: loading ? '…' : fmt(counts.published),               color:'var(--green)'  },
           { label:'Draft',          value: loading ? '…' : fmt(counts.draft),                   color:'var(--gold)'   },
+          { label:'Eingereicht',    value: loading ? '…' : fmt(counts.pending),                 color:'#F59E0B'       },
           { label:'Gemeldet',       value: loading ? '…' : fmt(counts.flagged),                 color:'var(--red)'    },
           { label:'Gelöscht',       value: loading ? '…' : fmt(counts.deleted),                 color:'var(--text-muted)' },
         ].map(({ label, value, color }) => (
