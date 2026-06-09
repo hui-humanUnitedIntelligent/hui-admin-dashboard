@@ -840,7 +840,53 @@ export default function WorksPage() {
         confirmLabel="Bestätigen"
         confirmVariant="danger"
       />
+
+      {/* ── Ablehnen-Modal ───────────────────────────────────────── */}
+      {rejectModal.open && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:9999,
+          display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'var(--bg-secondary)', border:'1px solid rgba(255,107,107,0.35)',
+            borderRadius:14, padding:28, width:460, maxWidth:'94vw', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, color:'var(--red)' }}>
+              ❌ Werk ablehnen
+            </div>
+            <div style={{ fontSize:13, color:'var(--text-secondary)', marginBottom:16 }}>
+              <strong style={{color:'var(--text-primary)'}}>„{rejectModal.work?.title || 'Dieses Werk'}"</strong> wird unsichtbar gesetzt.
+              Der Nutzer erhält sofort eine Benachrichtigung mit dem Ablehnungsgrund.
+            </div>
+            <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.6px', display:'block', marginBottom:6 }}>
+              Ablehnungsgrund *
+            </label>
+            <textarea
+              autoFocus
+              value={rejectModal.reason}
+              onChange={e => setRejectModal(p => ({ ...p, reason: e.target.value }))}
+              placeholder="z.B. Bild-Qualität nicht ausreichend, Beschreibung fehlt, oder Inhalte entsprechen nicht den HUI-Richtlinien…"
+              rows={4}
+              style={{ width:'100%', padding:'9px 12px', background:'var(--bg-tertiary)',
+                border:'1px solid var(--border)', borderRadius:9, fontSize:13, color:'var(--text-primary)',
+                fontFamily:'var(--font-body)', resize:'vertical', boxSizing:'border-box',
+                outline:'none', lineHeight:1.5 }}
+            />
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
+              <button onClick={() => setRejectModal({ open:false, work:null, reason:'' })}
+                style={{ padding:'8px 18px', borderRadius:8, border:'1px solid var(--border)',
+                  background:'var(--bg-tertiary)', color:'var(--text-secondary)', cursor:'pointer',
+                  fontSize:13, fontFamily:'var(--font-body)' }}>
+                Abbrechen
+              </button>
+              <button onClick={handleRejectConfirm}
+                style={{ padding:'8px 18px', borderRadius:8, border:'none',
+                  background:'var(--red)', color:'#fff', cursor:'pointer',
+                  fontSize:13, fontWeight:700, fontFamily:'var(--font-body)',
+                  opacity: rejectModal.reason.trim() ? 1 : 0.6 }}>
+                ❌ Ablehnen &amp; Nutzer benachrichtigen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
-// deploy-trigger: 2026-06-08
+// deploy-trigger: 2026-06-09
