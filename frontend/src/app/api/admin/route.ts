@@ -223,12 +223,14 @@ export async function POST(req: NextRequest) {
               method: 'POST',
               headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify({
-                user_id:  werk.user_id,
-                type:     'work_approved',
-                title:    '✅ Dein Werk wurde freigegeben!',
-                message:  `„${werk.title || 'Dein Werk'}" ist jetzt öffentlich sichtbar.`,
-                work_id:  userId,
-                read:     false,
+                user_id:     werk.user_id,
+                type:        'work_approved',
+                title:       '✅ Dein Werk wurde freigegeben!',
+                body:        `„${werk.title || 'Dein Werk'}" ist jetzt öffentlich sichtbar und im Feed live.`,
+                entity_id:   userId,
+                entity_type: 'work',
+                is_read:     false,
+                metadata:    { werk_id: userId, werk_title: werk.title },
               }),
             });
           }
@@ -259,12 +261,18 @@ export async function POST(req: NextRequest) {
               method: 'POST',
               headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
               body: JSON.stringify({
-                user_id:  werk.user_id,
-                type:     'work_rejected',
-                title:    '❌ Dein Werk wurde abgelehnt',
-                message:  rejectReason,
-                work_id:  userId,
-                read:     false,
+                user_id:     werk.user_id,
+                type:        'work_rejected',
+                title:       '❌ Dein Werk wurde abgelehnt',
+                body:        `„${werk.title || 'Dein Werk'}" wurde leider nicht freigegeben.`,
+                entity_id:   userId,
+                entity_type: 'work',
+                is_read:     false,
+                metadata:    {
+                  werk_id:          userId,
+                  werk_title:       werk.title,
+                  rejection_reason: rejectReason,
+                },
               }),
             });
           }
