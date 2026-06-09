@@ -202,18 +202,20 @@ export default function WorksPage() {
   const annotatedAll      = useMemo(() => annotate(allWorks),     [allWorks]);
   const annotatedDeleted  = useMemo(() => annotate(deletedWorks), [deletedWorks]);
   const annotatedFlagged  = useMemo(() => annotate(flaggedWorks), [flaggedWorks]);
+  const annotatedPending  = useMemo(() => annotate(pendingWorks), [pendingWorks]);
+  const annotatedRejected = useMemo(() => annotate(rejectedWorks),[rejectedWorks]);
 
   // Tab counts
     const counts: Record<TabKey, number> = useMemo(() => ({
     all:       annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)).length,
     published: annotatedAll.filter(w => w.status === 'published').length,
-    pending:   pendingWorks.length,
-    rejected:  rejectedWorks.length,
+    pending:   annotatedPending.length,
+    rejected:  annotatedRejected.length,
     draft:     annotatedAll.filter(w => w.status === 'draft').length,
     flagged:   annotatedFlagged.length,
     deleted:   annotatedDeleted.length,
     sensitive: annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted').length,
-  }), [annotatedAll, annotatedFlagged, annotatedDeleted, pendingWorks, rejectedWorks]);
+  }), [annotatedAll, annotatedFlagged, annotatedDeleted, annotatedPending, annotatedRejected]);
 
   // Active list based on tab
   const activeList = useMemo(() => {
@@ -223,8 +225,8 @@ export default function WorksPage() {
     else if (tab === 'sensitive') base = annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted');
     else if (tab === 'published') base = annotatedAll.filter(w => w.status === 'published');
     else if (tab === 'draft')     base = annotatedAll.filter(w => w.status === 'draft');
-    else if ((tab as string) === 'pending')   base = (pendingWorks as unknown as WorkWithMeta[]);
-    else if ((tab as string) === 'rejected')  base = (rejectedWorks as unknown as WorkWithMeta[]);
+    else if ((tab as string) === 'pending')   base = annotatedPending;
+    else if ((tab as string) === 'rejected')  base = annotatedRejected;
     else base = annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)); // 'all'
 
     if (search) {
