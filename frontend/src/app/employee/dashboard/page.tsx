@@ -12,7 +12,7 @@ function fmtEur(n: number) { return new Intl.NumberFormat('de-DE', { style: 'cur
 
 export default function EmployeeDashboard() {
   const router = useRouter();
-  const { totalUsers, activeMembers: activeMemberships, totalWorks, totalPayments, activeBookings, monthlyRevenue, loading } = useKPIs(30000);
+  const { totalUsers, activeMembers: activeMemberships, totalWorks, totalPayments, activeBookings, monthlyRevenue, loading } = useKPIs();
   const { labels: chartLabels, newUsers: chartNewUsers } = useGrowthChart();
 
   // Auth guard
