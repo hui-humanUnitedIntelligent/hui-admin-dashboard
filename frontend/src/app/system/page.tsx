@@ -39,8 +39,8 @@ const INITIAL_CHECKS: ServiceCheck[] = [
 ];
 
 export default function SystemPage() {
-  const health = useSystemHealth(15000);
-  const kpis   = useKPIs(60000);
+  const health = useSystemHealth();
+  const kpis   = useKPIs();
   const [checks, setChecks] = useState<ServiceCheck[]>(INITIAL_CHECKS);
 
   const runChecks = useCallback(async () => {
