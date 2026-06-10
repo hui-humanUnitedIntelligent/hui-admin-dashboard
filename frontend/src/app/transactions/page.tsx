@@ -41,7 +41,7 @@ export default function TransactionsPage() {
     days: daysFilter,
     page,
     limit: LIMIT,
-    refreshInterval: 30000,
+    refreshInterval: 0,
   });
 
   // Stats
