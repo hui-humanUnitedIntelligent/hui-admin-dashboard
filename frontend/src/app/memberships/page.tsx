@@ -26,7 +26,7 @@ function Skeleton() {
 }
 
 export default function MembershipsPage() {
-  const { memberships, total, loading, refetch } = useMemberships({ limit: 200, refreshInterval: 60000 });
+  const { memberships, total, loading, refetch } = useMemberships({ limit: 200, refreshInterval: 0 });
 
   const byType = memberships.reduce<Record<string, number>>((acc, m) => {
     acc[m.membership_type] = (acc[m.membership_type] || 0) + 1;
