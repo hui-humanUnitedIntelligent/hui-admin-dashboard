@@ -54,7 +54,7 @@ function normEntryStatus(entry: HuiEntry): string {
 function StatusBadge({ entry }: { entry: HuiEntry }) {
   const upd = isUpdated(entry);
   const ns  = normEntryStatus(entry);
-  if (ns === 'approved') return (
+  if (ns === 'published') return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <Badge variant="success" dot>Approved</Badge>
       {upd && <span style={{ fontSize: 9, color: '#F59E0B', fontWeight: 700 }}>↻ Upd.</span>}
@@ -110,7 +110,7 @@ function TabBar({ tab, setTab, counts }: {
   const tabs: { key: TabKey; label: string; icon: string; danger?: boolean }[] = [
     { key: 'all',       label: 'Alle',        icon: ''    },
     { key: 'pending',   label: 'Eingereicht', icon: '⏳'  },
-    { key: 'approved',  label: 'Approved',    icon: '●'   },
+    { key: 'published', label: 'Published',   icon: '●'   },
     { key: 'rejected',  label: 'Abgelehnt',   icon: '✕', danger: true },
     { key: 'draft',     label: 'Draft',       icon: ''    },
     { key: 'deleted',   label: 'Gelöscht',    icon: '🗑'  },
