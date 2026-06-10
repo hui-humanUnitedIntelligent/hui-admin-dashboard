@@ -28,7 +28,7 @@ function Skeleton() {
 
 export default function EmployeeBookingsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
-  const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 100, refreshInterval: 30000 });
+  const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 100, refreshInterval: 0 });
 
   const totalAmount = bookings.reduce((s, b) => s + (b.amount || 0), 0);
   const totalImpact = bookings.reduce((s, b) => s + (b.impact_fee || 0), 0);
