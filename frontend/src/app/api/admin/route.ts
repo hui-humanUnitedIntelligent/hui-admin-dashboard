@@ -347,9 +347,10 @@ export async function POST(req: NextRequest) {
     // ── Erlebnisse ──────────────────────────────────────────────────────────
     case 'approve_experience': {
       result = await sbPatch('experiences', userId, {
-        status:           'approved',
-        rejection_reason: null,
-        approved_at:      new Date().toISOString(),
+        status:            'approved',
+        approval_status:   'approved',
+        rejection_reason:  null,
+        approved_at:       new Date().toISOString(),
         last_submitted_at: null,
       });
       try {
@@ -379,9 +380,10 @@ export async function POST(req: NextRequest) {
     case 'reject_experience': {
       const rejectReason = (data.reason as string) || 'Nicht genehmigt';
       result = await sbPatch('experiences', userId, {
-        status:           'rejected',
-        rejection_reason: rejectReason,
-        rejected_at:      new Date().toISOString(),
+        status:            'rejected',
+        approval_status:   'rejected',
+        rejection_reason:  rejectReason,
+        rejected_at:       new Date().toISOString(),
       });
       try {
         const eRes = await fetch(`${SUPABASE_URL}/rest/v1/experiences?select=user_id,title&id=eq.${userId}&limit=1`, {
@@ -410,9 +412,10 @@ export async function POST(req: NextRequest) {
     // ── Projekte ─────────────────────────────────────────────────────────────
     case 'approve_project': {
       result = await sbPatch('projects', userId, {
-        status:           'approved',
-        rejection_reason: null,
-        approved_at:      new Date().toISOString(),
+        status:            'approved',
+        approval_status:   'approved',
+        rejection_reason:  null,
+        approved_at:       new Date().toISOString(),
         last_submitted_at: null,
       });
       try {
@@ -442,9 +445,10 @@ export async function POST(req: NextRequest) {
     case 'reject_project': {
       const rejectReason = (data.reason as string) || 'Nicht genehmigt';
       result = await sbPatch('projects', userId, {
-        status:           'rejected',
-        rejection_reason: rejectReason,
-        rejected_at:      new Date().toISOString(),
+        status:            'rejected',
+        approval_status:   'rejected',
+        rejection_reason:  rejectReason,
+        rejected_at:       new Date().toISOString(),
       });
       try {
         const pRes = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=user_id,title&id=eq.${userId}&limit=1`, {
