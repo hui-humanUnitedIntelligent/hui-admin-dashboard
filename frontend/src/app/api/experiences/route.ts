@@ -6,7 +6,7 @@ const SUPABASE_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // ── Felder inkl. approval_status ─────────────────────────────────────────
-const SELECT_FIELDS = 'id,user_id,title,category,description,price,status,approval_status,rejection_reason,created_at,updated_at,last_submitted_at';
+const SELECT_FIELDS = 'id,user_id,title,category,description,price,status,approval_status,rejection_reason,is_update,created_at,updated_at,last_submitted_at';
 
 interface RawEntry {
   id:                 string;
