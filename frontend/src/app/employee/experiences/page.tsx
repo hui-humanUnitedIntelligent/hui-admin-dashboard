@@ -295,7 +295,7 @@ export default function EmployeeErlebnisseProjektePage() {
   const banner = tabBanners[tab];
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Erlebnisse & Projekte">
       <div style={{ padding:'24px 28px', maxWidth:1400, margin:'0 auto' }}>
 
         {/* ── Header ── */}
