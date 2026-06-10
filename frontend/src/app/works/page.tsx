@@ -181,11 +181,11 @@ export default function WorksPage() {
   });
 
   // Load all status groups via useWorks (uses service role key → bypasses RLS)
-  const { works: allWorks,     loading,        refetch: refetchAll  } = useWorks({ status: 'all',     limit: 500, refreshInterval: 30000 });
-  const { works: deletedWorks, refetch: refetchDeleted } = useWorks({ status: 'deleted', limit: 500, refreshInterval: 30000 });
-  const { works: flaggedWorks,  refetch: refetchFlagged  } = useWorks({ status: 'flagged',         limit: 500, refreshInterval: 30000 });
-  const { works: pendingWorks,  refetch: refetchPending  } = useWorks({ status: 'pending_review', limit: 500, refreshInterval: 15000 });
-  const { works: rejectedWorks, refetch: refetchRejected } = useWorks({ status: 'rejected',        limit: 500, refreshInterval: 30000 });
+  const { works: allWorks,     loading,        refetch: refetchAll  } = useWorks({ status: 'all',     limit: 500, refreshInterval: 0 });
+  const { works: deletedWorks, refetch: refetchDeleted } = useWorks({ status: 'deleted', limit: 500, refreshInterval: 0 });
+  const { works: flaggedWorks,  refetch: refetchFlagged  } = useWorks({ status: 'flagged',         limit: 500, refreshInterval: 0 });
+  const { works: pendingWorks,  refetch: refetchPending  } = useWorks({ status: 'pending_review', limit: 500, refreshInterval: 0 });
+  const { works: rejectedWorks, refetch: refetchRejected } = useWorks({ status: 'rejected',        limit: 500, refreshInterval: 0 });
 
   const refetchAllTabs = useCallback(() => {
     refetchAll();
