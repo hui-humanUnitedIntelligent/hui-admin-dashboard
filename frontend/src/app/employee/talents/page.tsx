@@ -24,7 +24,7 @@ export default function EmployeeTalentsPage() {
     search,
     is_wirker: true,
     limit: 100,
-    refreshInterval: 30000,
+    refreshInterval: 0,
   });
 
   const filtered = availOnly ? profiles.filter((p) => p.is_available) : profiles;
