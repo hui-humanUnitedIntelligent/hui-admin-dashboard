@@ -220,7 +220,7 @@ export default function ErlebnisseProjektePage() {
       (e.category    || '').toLowerCase().includes(q) ||
       (e.description || '').toLowerCase().includes(q)
     );
-  }, [tab, search, allEntries]);
+  }, [tab, search, allEntries, localDeleted]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleApprove = async (entry: HuiEntry) => {
