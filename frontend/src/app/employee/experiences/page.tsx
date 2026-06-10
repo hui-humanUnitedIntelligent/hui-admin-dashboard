@@ -41,23 +41,34 @@ async function entryAction(action: string, entryId: string, data: Record<string,
 }
 
 // ── Status Badge ───────────────────────────────────────────────────────────
+function normEntryStatus(entry: HuiEntry): string {
+  if (entry.approval_status) return entry.approval_status;
+  if (entry.status === 'pending_review') return 'pending';
+  if (entry.status === 'published')      return 'approved';
+  if (entry.status === 'rejected')       return 'rejected';
+  if (entry.status === 'draft')          return 'draft';
+  if (entry.status === 'deleted')        return 'deleted';
+  return entry.status || 'unknown';
+}
+
 function StatusBadge({ entry }: { entry: HuiEntry }) {
   const upd = isUpdated(entry);
-  if (entry.status === 'approved') return (
+  const ns  = normEntryStatus(entry);
+  if (ns === 'approved') return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <Badge variant="success" dot>Approved</Badge>
       {upd && <span style={{ fontSize: 9, color: '#F59E0B', fontWeight: 700 }}>↻ Upd.</span>}
     </span>
   );
-  if (entry.status === 'pending') return (
+  if (ns === 'pending') return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <Badge variant="warning" dot>Eingereicht</Badge>
+      <Badge variant="warning" dot>⏳ Eingereicht</Badge>
       {upd && <span style={{ fontSize: 9, color: '#F59E0B', fontWeight: 700 }}>↻ Akt.</span>}
     </span>
   );
-  if (entry.status === 'rejected') return <Badge variant="danger" dot>Abgelehnt</Badge>;
-  if (entry.status === 'draft')    return <Badge variant="neutral" dot>Draft</Badge>;
-  if (entry.status === 'deleted')  return <Badge variant="neutral">Gelöscht</Badge>;
+  if (ns === 'rejected') return <Badge variant="danger" dot>❌ Abgelehnt</Badge>;
+  if (ns === 'draft')    return <Badge variant="neutral" dot>Draft</Badge>;
+  if (ns === 'deleted')  return <Badge variant="neutral">Gelöscht</Badge>;
   return <Badge variant="neutral">{entry.status}</Badge>;
 }
 
@@ -150,34 +161,52 @@ export default function EmployeeErlebnisseProjektePage() {
   const [deleteTarget,  setDeleteTarget]  = useState<HuiEntry | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // ── Live Daten ────────────────────────────────────────────────────────────
-  const { entries: allEntries,      loading,         refetch: refAll  } = useExperiencesAndProjects({ status: 'all',      limit: 1000, refreshInterval: 30000 });
-  const { entries: pendingEntries,                   refetch: refPend } = useExperiencesAndProjects({ status: 'pending',  limit: 500 });
-  const { entries: rejectedEntries,                  refetch: refRej  } = useExperiencesAndProjects({ status: 'rejected', limit: 500 });
-  const { entries: deletedEntries,                   refetch: refDel  } = useExperiencesAndProjects({ status: 'deleted',  limit: 500 });
+  // ── Live Daten — nur ein einziger Query mit status='all' ─────────────────
+  // Normalisierung erfolgt client-seitig über normStatus()
+  const { entries: allEntries, loading, refetch: refAll } = useExperiencesAndProjects({
+    status: 'all',
+    limit: 1000,
+    refreshInterval: 30000,
+  });
 
-  const refetchAll = useCallback(() => { refAll(); refPend(); refRej(); refDel(); }, [refAll, refPend, refRej, refDel]);
+  const refetchAll = useCallback(() => { refAll(); }, [refAll]);
 
   // ── Counts ────────────────────────────────────────────────────────────────
+  // ── Normalisierung: approval_status aus status ableiten ─────────────────
+  function normStatus(e: HuiEntry): string {
+    if (e.approval_status) return e.approval_status;
+    if (e.status === 'pending_review') return 'pending';
+    if (e.status === 'published')      return 'approved';
+    if (e.status === 'rejected')       return 'rejected';
+    if (e.status === 'draft')          return 'draft';
+    if (e.status === 'deleted')        return 'deleted';
+    return e.status || 'unknown';
+  }
+  function isPending(e: HuiEntry)  { const s = normStatus(e); return s === 'pending'; }
+  function isApproved(e: HuiEntry) { const s = normStatus(e); return s === 'approved'; }
+  function isRejected(e: HuiEntry) { const s = normStatus(e); return s === 'rejected'; }
+  function isDraft(e: HuiEntry)    { return e.status === 'draft'; }
+  function isDeleted(e: HuiEntry)  { return e.status === 'deleted'; }
+
   const counts = useMemo<Record<TabKey, number>>(() => ({
-    all:       allEntries.filter(e => e.status === 'approved' || e.status === 'draft').length,
-    approved:  allEntries.filter(e => e.status === 'approved').length,
-    draft:     allEntries.filter(e => e.status === 'draft').length,
-    pending:   pendingEntries.length,
-    rejected:  rejectedEntries.length,
-    deleted:   deletedEntries.length,
+    all:       allEntries.filter(e => isApproved(e) || isDraft(e)).length,
+    approved:  allEntries.filter(e => isApproved(e)).length,
+    draft:     allEntries.filter(e => isDraft(e)).length,
+    pending:   allEntries.filter(e => isPending(e)).length,
+    rejected:  allEntries.filter(e => isRejected(e)).length,
+    deleted:   allEntries.filter(e => isDeleted(e)).length,
     sensitive: allEntries.filter(e => !e.title || String(e.title).trim().length < 2).length,
-  }), [allEntries, pendingEntries, rejectedEntries, deletedEntries]);
+  }), [allEntries]);
 
   // ── Gefilterte Einträge ───────────────────────────────────────────────────
   const displayEntries = useMemo(() => {
     let base: HuiEntry[] = [];
-    if      (tab === 'all')       base = allEntries.filter(e => e.status === 'approved' || e.status === 'draft');
-    else if (tab === 'approved')  base = allEntries.filter(e => e.status === 'approved');
-    else if (tab === 'draft')     base = allEntries.filter(e => e.status === 'draft');
-    else if (tab === 'pending')   base = pendingEntries;
-    else if (tab === 'rejected')  base = rejectedEntries;
-    else if (tab === 'deleted')   base = deletedEntries;
+    if      (tab === 'all')       base = allEntries.filter(e => isApproved(e) || isDraft(e));
+    else if (tab === 'approved')  base = allEntries.filter(e => isApproved(e));
+    else if (tab === 'draft')     base = allEntries.filter(e => isDraft(e));
+    else if (tab === 'pending')   base = allEntries.filter(e => isPending(e));
+    else if (tab === 'rejected')  base = allEntries.filter(e => isRejected(e));
+    else if (tab === 'deleted')   base = allEntries.filter(e => isDeleted(e));
     else if (tab === 'sensitive') base = allEntries.filter(e => !e.title || String(e.title).trim().length < 2);
     else base = allEntries;
 
