@@ -189,7 +189,7 @@ export default function EmployeeErlebnisseProjektePage() {
   function isDeleted(e: HuiEntry)  { return e.status === 'deleted'; }
 
   const counts = useMemo<Record<TabKey, number>>(() => ({
-    all:       allEntries.filter(e => isApproved(e) || isDraft(e)).length,
+    all:       allEntries.filter(e => isApproved(e)).length,
     published:  allEntries.filter(e => isApproved(e)).length,
     draft:     allEntries.filter(e => isDraft(e)).length,
     pending:   allEntries.filter(e => isPending(e)).length,
@@ -201,7 +201,7 @@ export default function EmployeeErlebnisseProjektePage() {
   // ── Gefilterte Einträge ───────────────────────────────────────────────────
   const displayEntries = useMemo(() => {
     let base: HuiEntry[] = [];
-    if      (tab === 'all')       base = allEntries.filter(e => isApproved(e) || isDraft(e));
+    if      (tab === 'all')       base = allEntries.filter(e => isApproved(e));
     else if (tab === 'published')  base = allEntries.filter(e => isApproved(e));
     else if (tab === 'draft')     base = allEntries.filter(e => isDraft(e));
     else if (tab === 'pending')   base = allEntries.filter(e => isPending(e));
