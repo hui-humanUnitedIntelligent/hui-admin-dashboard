@@ -11,7 +11,7 @@ import { showToast } from '@/components/ui/Toast';
 import { useExperiencesAndProjects, HuiEntry } from '@/lib/hooks/useSupabase';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type TabKey = 'all' | 'pending' | 'approved' | 'rejected' | 'draft' | 'deleted' | 'sensitive';
+type TabKey = 'all' | 'pending' | 'published' | 'rejected' | 'draft' | 'deleted' | 'sensitive';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmt(n: number) { return n.toLocaleString('de-DE'); }
@@ -190,7 +190,7 @@ export default function ErlebnisseProjektePage() {
 
   const counts = useMemo<Record<TabKey, number>>(() => ({
     all:       allEntries.filter(e => !isDeleted(e)).length,
-    approved:  allEntries.filter(e => isApproved(e)).length,
+    published: allEntries.filter(e => isApproved(e)).length,
     draft:     allEntries.filter(e => isDraft(e)).length,
     pending:   allEntries.filter(e => isPending(e)).length,
     rejected:  allEntries.filter(e => isRejected(e)).length,
@@ -202,7 +202,7 @@ export default function ErlebnisseProjektePage() {
   const displayEntries = useMemo(() => {
     let base: HuiEntry[] = [];
     if      (tab === 'all')       base = allEntries.filter(e => !isDeleted(e));
-    else if (tab === 'approved')  base = allEntries.filter(e => isApproved(e));
+    else if (tab === 'published') base = allEntries.filter(e => isApproved(e));
     else if (tab === 'draft')     base = allEntries.filter(e => isDraft(e));
     else if (tab === 'pending')   base = allEntries.filter(e => isPending(e));
     else if (tab === 'rejected')  base = allEntries.filter(e => isRejected(e));
@@ -292,8 +292,8 @@ export default function ErlebnisseProjektePage() {
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 16 }} className="grid-6">
         {([
-          { label: 'Gesamt',      value: loading ? '…' : fmt(counts.approved + counts.draft), color: 'var(--accent)'     },
-          { label: 'Approved',    value: loading ? '…' : fmt(counts.approved),                color: 'var(--green)'      },
+          { label: 'Erlebnisse gesamt', value: loading ? '…' : fmt(counts.published + counts.draft), color: 'var(--accent)'     },
+          { label: 'Published',   value: loading ? '…' : fmt(counts.published),               color: 'var(--green)'      },
           { label: 'Draft',       value: loading ? '…' : fmt(counts.draft),                   color: 'var(--gold)'       },
           { label: 'Eingereicht', value: loading ? '…' : fmt(counts.pending),                 color: '#F59E0B'           },
           { label: 'Abgelehnt',   value: loading ? '…' : fmt(counts.rejected),                color: 'var(--red)'        },
