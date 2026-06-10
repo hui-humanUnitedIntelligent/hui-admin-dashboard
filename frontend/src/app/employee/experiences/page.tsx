@@ -204,7 +204,7 @@ export default function EmployeeErlebnisseProjektePage() {
     let base: HuiEntry[] = [];
     const visibleAll = allEntries.filter(e => !localDeleted.has(e.id));
     if      (tab === 'all')       base = visibleAll.filter(e => isApproved(e));
-    else if (tab === 'published')  base = allEntries.filter(e => isApproved(e));
+    else if (tab === 'published')  base = visibleAll.filter(e => isApproved(e));
     else if (tab === 'draft')     base = visibleAll.filter(e => isDraft(e));
     else if (tab === 'pending')   base = visibleAll.filter(e => isPending(e));
     else if (tab === 'rejected')  base = visibleAll.filter(e => isRejected(e));
@@ -219,7 +219,7 @@ export default function EmployeeErlebnisseProjektePage() {
       (e.category    || '').toLowerCase().includes(q) ||
       (e.description || '').toLowerCase().includes(q)
     );
-  }, [tab, search, allEntries]);
+  }, [tab, search, allEntries, localDeleted]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleApprove = async (entry: HuiEntry) => {
