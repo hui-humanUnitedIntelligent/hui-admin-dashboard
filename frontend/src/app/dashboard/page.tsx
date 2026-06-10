@@ -58,9 +58,9 @@ function RefreshBtn({ onClick, loading }: { onClick: () => void; loading: boolea
 }
 
 export default function DashboardPage() {
-  const kpis     = useKPIs(30000);
-  const { payments, loading: txLoading } = usePayments({ limit: 8, refreshInterval: 30000 });
-  const { profiles: recentUsers } = useProfiles({ limit: 5, refreshInterval: 30000 });
+  const kpis     = useKPIs();
+  const { payments, loading: txLoading } = usePayments({ limit: 8, refreshInterval: 0 });
+  const { profiles: recentUsers } = useProfiles({ limit: 5, refreshInterval: 0 });
   const growth   = useGrowthChart();
   const ambStats = useAmbassadorStats(60000);
 
