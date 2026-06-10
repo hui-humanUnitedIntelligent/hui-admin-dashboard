@@ -652,13 +652,14 @@ export interface HuiEntry {
   title:             string;
   category:          string;
   description?:      string;
-  price?:            number;
+  price?:            number | null;
   status:            string;
-  rejection_reason?: string;
+  rejection_reason?: string | null;
   created_at:        string;
-  updated_at?:       string;
-  last_submitted_at?: string;
+  updated_at?:       string | null;
+  last_submitted_at?: string | null;
   _source:           'experiences' | 'projects';
+  [key: string]:     unknown;
 }
 
 export function useExperiencesAndProjects(opts: {
