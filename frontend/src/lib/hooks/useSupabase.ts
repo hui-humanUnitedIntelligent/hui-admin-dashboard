@@ -645,5 +645,59 @@ export function useSystemHealth(refreshInterval = 30000) {
   return health;
 }
 
+// ── useExperiencesAndProjects ─────────────────────────────────────────────
+export interface HuiEntry {
+  id:                string;
+  user_id:           string;
+  title:             string;
+  category:          string;
+  description?:      string;
+  price?:            number;
+  status:            string;
+  rejection_reason?: string;
+  created_at:        string;
+  updated_at?:       string;
+  last_submitted_at?: string;
+  _source:           'experiences' | 'projects';
+}
 
+export function useExperiencesAndProjects(opts: {
+  status?: string;
+  limit?: number;
+  refreshInterval?: number;
+} = {}) {
+  const { status, limit = 500, refreshInterval = 0 } = opts;
+  const [entries, setEntries] = useState<HuiEntry[]>([]);
+  const [total,   setTotal]   = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchEntries = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (status) params.set('status', status);
+      const res = await fetch(`/api/experiences?${params.toString()}`);
+      if (res.ok) {
+        const rows = await res.json() as HuiEntry[];
+        const arr  = Array.isArray(rows) ? rows : [];
+        setEntries(arr);
+        setTotal(arr.length);
+      }
+    } catch (e) {
+      console.error('[useExperiencesAndProjects] fetch error', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [status, limit]);
+
+  useEffect(() => {
+    fetchEntries();
+    if (refreshInterval > 0) {
+      const id = setInterval(fetchEntries, refreshInterval);
+      return () => clearInterval(id);
+    }
+  }, [fetchEntries, refreshInterval]);
+
+  return { entries, total, loading, refetch: fetchEntries };
+}
 
