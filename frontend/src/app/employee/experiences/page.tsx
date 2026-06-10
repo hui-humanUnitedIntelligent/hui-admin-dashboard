@@ -424,7 +424,7 @@ export default function EmployeeErlebnisseProjektePage() {
       {/* ── Detail Modal ── */}
       <Modal
         open={showDetail && !!selected}
-        title={`${selected._source === 'experiences' ? '🌿 Erlebnis' : '📌 Projekt'}: ${selected.title}`} onClose={() => setShowDetail(false)}
+        title={selected ? `${selected._source === 'experiences' ? '🌿 Erlebnis' : '📌 Projekt'}: ${selected.title}`} onClose={() => setShowDetail(false)}
       >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -507,7 +507,7 @@ export default function EmployeeErlebnisseProjektePage() {
           title={`🗑 „${deleteTarget.title}" löschen?`}
           message="Der Eintrag wird als gelöscht markiert und ist nicht mehr öffentlich sichtbar."
           confirmLabel="Löschen"
-          onConfirm={() => handleDelete(deleteTarget)}
+          onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); }}
           onClose={() => setDeleteTarget(null)}
         />
 
