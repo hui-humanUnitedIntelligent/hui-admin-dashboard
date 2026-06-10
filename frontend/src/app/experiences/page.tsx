@@ -217,7 +217,7 @@ export default function ErlebnisseProjektePage() {
       (e.category    || '').toLowerCase().includes(q) ||
       (e.description || '').toLowerCase().includes(q)
     );
-  }, [tab, search, allEntries, pendingEntries, rejectedEntries, deletedEntries]);
+  }, [tab, search, allEntries]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleApprove = async (entry: HuiEntry) => {
