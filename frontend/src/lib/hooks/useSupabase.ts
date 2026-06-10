@@ -3,6 +3,7 @@
 // MIGRATION: Alle bestehenden Exports bleiben exakt erhalten.
 // Intern nutzen die Hooks jetzt den zentralen supabase-Client + Realtime.
 // Seiten müssen NICHT geändert werden.
+// Build: 2026-06-10T16:54
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
