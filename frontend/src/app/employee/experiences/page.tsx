@@ -422,8 +422,10 @@ export default function EmployeeErlebnisseProjektePage() {
       </div>
 
       {/* ── Detail Modal ── */}
-      {showDetail && selected && (
-        <Modal title={`${selected._source === 'experiences' ? '🌿 Erlebnis' : '📌 Projekt'}: ${selected.title}`} onClose={() => setShowDetail(false)}>
+      <Modal
+        open={showDetail && !!selected}
+        title={`${selected._source === 'experiences' ? '🌿 Erlebnis' : '📌 Projekt'}: ${selected.title}`} onClose={() => setShowDetail(false)}
+      >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -462,12 +464,13 @@ export default function EmployeeErlebnisseProjektePage() {
               <Button variant="ghost" onClick={() => setShowDetail(false)}>Schließen</Button>
             </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
 
       {/* ── Reject Modal ── */}
-      {rejectTarget && (
-        <Modal title={`❌ „${rejectTarget.title}" ablehnen`} onClose={() => setRejectTarget(null)}>
+      <Modal
+        open={!!rejectTarget}
+        title={`❌ „${rejectTarget.title}" ablehnen`} onClose={() => setRejectTarget(null)}
+      >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
               Bitte gib einen Ablehnungsgrund ein. Der Nutzer wird per Benachrichtigung informiert.
@@ -496,19 +499,17 @@ export default function EmployeeErlebnisseProjektePage() {
               <Button variant="ghost" onClick={() => setRejectTarget(null)}>Abbrechen</Button>
             </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
 
       {/* ── Delete Confirm ── */}
-      {deleteTarget && (
         <ConfirmModal
+          open={!!deleteTarget}
           title={`🗑 „${deleteTarget.title}" löschen?`}
           message="Der Eintrag wird als gelöscht markiert und ist nicht mehr öffentlich sichtbar."
           confirmLabel="Löschen"
           onConfirm={() => handleDelete(deleteTarget)}
-          onCancel={() => setDeleteTarget(null)}
+          onClose={() => setDeleteTarget(null)}
         />
-      )}
 
     </DashboardLayout>
   );
