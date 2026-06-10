@@ -44,7 +44,7 @@ async function entryAction(action: string, entryId: string, data: Record<string,
 function normEntryStatus(entry: HuiEntry): string {
   if (entry.approval_status) return entry.approval_status as string;
   if (entry.status === 'pending_review') return 'pending';
-  if (entry.status === 'published')      return 'approved';
+  if (entry.status === 'published')      return 'published';
   if (entry.status === 'rejected')       return 'rejected';
   if (entry.status === 'draft')          return 'draft';
   if (entry.status === 'deleted')        return 'deleted';
@@ -176,14 +176,14 @@ export default function ErlebnisseProjektePage() {
   function normStatus(e: HuiEntry): string {
     if (e.approval_status) return e.approval_status as string;
     if (e.status === 'pending_review') return 'pending';
-    if (e.status === 'published')      return 'approved';
+    if (e.status === 'published')      return 'published';
     if (e.status === 'rejected')       return 'rejected';
     if (e.status === 'draft')          return 'draft';
     if (e.status === 'deleted')        return 'deleted';
     return e.status || 'unknown';
   }
   function isPending(e: HuiEntry)  { const s = normStatus(e); return s === 'pending'; }
-  function isApproved(e: HuiEntry) { const s = normStatus(e); return s === 'approved'; }
+  function isApproved(e: HuiEntry) { const s = normStatus(e); return s === 'published' || s === 'approved'; }
   function isRejected(e: HuiEntry) { const s = normStatus(e); return s === 'rejected'; }
   function isDraft(e: HuiEntry)    { return e.status === 'draft'; }
   function isDeleted(e: HuiEntry)  { return e.status === 'deleted'; }
