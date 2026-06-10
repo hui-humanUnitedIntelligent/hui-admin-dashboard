@@ -11,7 +11,7 @@ import { showToast } from '@/components/ui/Toast';
 import { useExperiencesAndProjects, HuiEntry } from '@/lib/hooks/useSupabase';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type TabKey = 'all' | 'pending' | 'approved' | 'rejected' | 'draft' | 'deleted' | 'sensitive';
+type TabKey = 'all' | 'pending' | 'published' | 'rejected' | 'draft' | 'deleted' | 'sensitive';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmt(n: number) { return n.toLocaleString('de-DE'); }
@@ -110,7 +110,7 @@ function TabBar({ tab, setTab, counts }: {
   const tabs: { key: TabKey; label: string; icon: string; danger?: boolean }[] = [
     { key: 'all',       label: 'Alle',        icon: ''    },
     { key: 'pending',   label: 'Eingereicht', icon: '⏳'  },
-    { key: 'approved',  label: 'Approved',    icon: '●'   },
+    { key: 'published', label: 'Published',   icon: '●'   },
     { key: 'rejected',  label: 'Abgelehnt',   icon: '✕', danger: true },
     { key: 'draft',     label: 'Draft',       icon: ''    },
     { key: 'deleted',   label: 'Gelöscht',    icon: '🗑'  },
@@ -190,7 +190,7 @@ export default function EmployeeErlebnisseProjektePage() {
 
   const counts = useMemo<Record<TabKey, number>>(() => ({
     all:       allEntries.filter(e => isApproved(e) || isDraft(e)).length,
-    approved:  allEntries.filter(e => isApproved(e)).length,
+    published:  allEntries.filter(e => isApproved(e)).length,
     draft:     allEntries.filter(e => isDraft(e)).length,
     pending:   allEntries.filter(e => isPending(e)).length,
     rejected:  allEntries.filter(e => isRejected(e)).length,
@@ -202,7 +202,7 @@ export default function EmployeeErlebnisseProjektePage() {
   const displayEntries = useMemo(() => {
     let base: HuiEntry[] = [];
     if      (tab === 'all')       base = allEntries.filter(e => isApproved(e) || isDraft(e));
-    else if (tab === 'approved')  base = allEntries.filter(e => isApproved(e));
+    else if (tab === 'published')  base = allEntries.filter(e => isApproved(e));
     else if (tab === 'draft')     base = allEntries.filter(e => isDraft(e));
     else if (tab === 'pending')   base = allEntries.filter(e => isPending(e));
     else if (tab === 'rejected')  base = allEntries.filter(e => isRejected(e));
@@ -293,8 +293,8 @@ export default function EmployeeErlebnisseProjektePage() {
       {/* ── KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 16 }} className="grid-6">
         {([
-          { label: 'Gesamt',      value: loading ? '…' : fmt(counts.approved + counts.draft), color: 'var(--accent)'     },
-          { label: 'Approved',    value: loading ? '…' : fmt(counts.approved),                color: 'var(--green)'      },
+          { label: 'Gesamt',      value: loading ? '…' : fmt(counts.published + counts.draft), color: 'var(--accent)'     },
+          { label: 'Approved',    value: loading ? '…' : fmt(counts.published),                color: 'var(--green)'      },
           { label: 'Draft',       value: loading ? '…' : fmt(counts.draft),                   color: 'var(--gold)'       },
           { label: 'Eingereicht', value: loading ? '…' : fmt(counts.pending),                 color: '#F59E0B'           },
           { label: 'Abgelehnt',   value: loading ? '…' : fmt(counts.rejected),                color: 'var(--red)'        },
