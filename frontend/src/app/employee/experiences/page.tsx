@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import Badge from '@/components/ui/Badge';
 
 type TabKey = 'all' | 'published' | 'draft' | 'gemeldet' | 'geloescht' | 'sensitiv';
@@ -40,7 +40,10 @@ export default function EmployeeErlebnisseProjektePage() {
   };
 
   return (
-    <EmployeeLayout title="Erlebnisse & Projekte">
+    <DashboardLayout
+      employeeMode={true}
+      title="Erlebnisse & Projekte"
+    >
       <div style={{ padding: '0 0 40px' }}>
 
         {/* Header */}
@@ -197,6 +200,6 @@ export default function EmployeeErlebnisseProjektePage() {
         </div>
 
       </div>
-    </EmployeeLayout>
+    </DashboardLayout>
   );
 }
