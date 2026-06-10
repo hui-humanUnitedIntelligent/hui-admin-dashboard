@@ -40,7 +40,7 @@ export default function EmployeeErlebnisseProjektePage() {
   };
 
   return (
-    <EmployeeLayout>
+    <EmployeeLayout title="Erlebnisse & Projekte">
       <div style={{ padding: '0 0 40px' }}>
 
         {/* Header */}
