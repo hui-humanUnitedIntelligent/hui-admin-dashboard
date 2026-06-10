@@ -161,6 +161,7 @@ export default function ErlebnisseProjektePage() {
   const [rejectReason,  setRejectReason]  = useState('');
   const [rejectLoading, setRejectLoading] = useState(false);
   const [deleteTarget,  setDeleteTarget]  = useState<HuiEntry | null>(null);
+  const [localDeleted,  setLocalDeleted]  = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // ── Live Daten — nur ein einziger Query mit status='all' ─────────────────
