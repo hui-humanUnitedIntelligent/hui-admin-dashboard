@@ -654,6 +654,7 @@ export interface HuiEntry {
   description?:      string;
   price?:            number | null;
   status:            string;
+  approval_status?:  string | null;
   rejection_reason?: string | null;
   created_at:        string;
   updated_at?:       string | null;
