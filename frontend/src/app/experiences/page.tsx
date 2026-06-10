@@ -33,6 +33,39 @@ function isUpdated(entry: HuiEntry): boolean {
 // ── Hilfsfunktion unknown→string
 function str(v: unknown): string { return v == null ? '—' : String(v); }
 
+
+// ── Cover Images Hilfkomponente (kein unknown-Problem in JSX) ──────────────
+function EntryCoverImages({ entry }: { entry: HuiEntry }) {
+  const rec = entry as Record<string, unknown>;
+  const cover = typeof rec.cover_url === 'string' ? rec.cover_url : undefined;
+  const imgs: string[] = (() => {
+    try {
+      const raw = rec.images;
+      const parsed = JSON.parse(typeof raw === 'string' ? raw : '[]');
+      return Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>[]).map(x => x.url || x).filter((u): u is string => typeof u === 'string')
+        : [];
+    } catch { return []; }
+  })();
+  const all = cover ? [cover, ...imgs.filter(u => u !== cover)] : imgs;
+  if (all.length === 0) {
+    return (
+      <div style={{ height: 70, background: 'var(--bg-tertiary)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, border: '1px solid var(--border)' }}>
+        📷 Kein Bild
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+      {all.slice(0, 5).map((url, i) => (
+        <div key={i} style={{ flexShrink: 0, width: i===0?180:80, height: i===0?120:80, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-tertiary)', border: `${i===0?2:1}px solid ${i===0?'var(--accent)':'var(--border)'}` }}>
+          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── API Action ─────────────────────────────────────────────────────────────
 async function entryAction(action: string, entryId: string, data: Record<string, unknown> = {}): Promise<boolean> {
   try {
@@ -493,24 +526,7 @@ export default function ErlebnisseProjektePage() {
             )}
 
             {/* Cover-Bild */}
-            {(() => {
-              const cover = (selected as Record<string,unknown>).cover_url as string | undefined;
-              const imgs: string[] = (() => {
-                try { const p = JSON.parse((selected as Record<string,unknown>).images as string || '[]'); return Array.isArray(p) ? p.map((x: Record<string,unknown>) => x.url || x).filter(Boolean) as string[] : []; } catch { return []; }
-              })();
-              const all = cover ? [cover, ...imgs.filter(u => u !== cover)] : imgs;
-              return all.length > 0 ? (
-                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-                  {all.slice(0, 5).map((url, i) => (
-                    <div key={i} style={{ flexShrink: 0, width: i===0?180:80, height: i===0?120:80, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-tertiary)', border: `${i===0?2:1}px solid ${i===0?'var(--accent)':'var(--border)'}` }}>
-                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display='none'; }}/>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ height: 70, background: 'var(--bg-tertiary)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, border: '1px solid var(--border)' }}>📷 Kein Bild</div>
-              );
-            })()}
+            <EntryCoverImages entry={selected} />
 
             {/* Info-Grid — exakt wie Werke */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
