@@ -27,6 +27,7 @@ const EMP_NAV: NavGroup[] = [
     id: 'content', label: 'Content', icon: '🎨',
     items: [
       { href: '/employee/works',        label: 'Werke & Content',  icon: '🖼️' },
+      { href: '/employee/experiences',  label: 'Erlebnisse & Projekte', icon: '🌿' },
       { href: '/employee/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
     ],
   },
