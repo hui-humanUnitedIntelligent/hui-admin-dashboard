@@ -30,6 +30,9 @@ function isUpdated(entry: HuiEntry): boolean {
   return new Date(entry.last_submitted_at as string).getTime() > new Date(entry.created_at).getTime() + 5000;
 }
 
+// ── Hilfsfunktion unknown→string
+function str(v: unknown): string { return v == null ? '—' : String(v); }
+
 // ── API Action ─────────────────────────────────────────────────────────────
 async function entryAction(action: string, entryId: string, data: Record<string, unknown> = {}): Promise<boolean> {
   try {
@@ -548,7 +551,7 @@ export default function ErlebnisseProjektePage() {
             {(selected as Record<string,unknown>).caption && (
               <div style={{ padding: '7px 10px', background: 'var(--bg-tertiary)', borderRadius: 6 }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Caption</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{String((selected as Record<string,unknown>).caption)}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{str((selected as Record<string,unknown>).caption)}</div>
               </div>
             )}
 
