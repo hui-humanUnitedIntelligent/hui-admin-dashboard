@@ -543,10 +543,10 @@ export default function EmployeeErlebnisseProjektePage() {
                   <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6 }}>{s(selected.description)}</div>
                 </div>
               )}
-              {Boolean((selected as Record<string,unknown>).caption) && (
+              {typeof (selected as Record<string, unknown>).caption === 'string' && (
                 <div style={{ padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
                   <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:4 }}>Caption</div>
-                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6 }}>{s((selected as Record<string,unknown>).caption)}</div>
+                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6 }}>{(selected as Record<string, unknown>).caption as string}</div>
                 </div>
               )}
             </div>
@@ -590,7 +590,7 @@ export default function EmployeeErlebnisseProjektePage() {
           title="🗑 Eintrag löschen?"
           message={`„${deleteTarget?.title || 'Kein Titel'}" wird gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`}
           confirmLabel="Löschen"
-          variant="danger"
+          confirmVariant="danger"
           onClose={() => setDeleteTarget(null)}
           onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); }}
         />
