@@ -42,7 +42,7 @@ async function entryAction(action: string, entryId: string, data: Record<string,
 
 // ── Status Badge ───────────────────────────────────────────────────────────
 function normEntryStatus(entry: HuiEntry): string {
-  if (entry.approval_status) return entry.approval_status;
+  if (entry.approval_status) return entry.approval_status as string;
   if (entry.status === 'pending_review') return 'pending';
   if (entry.status === 'published')      return 'approved';
   if (entry.status === 'rejected')       return 'rejected';
@@ -174,7 +174,7 @@ export default function ErlebnisseProjektePage() {
   // ── Counts ────────────────────────────────────────────────────────────────
   // ── Normalisierung: approval_status aus status ableiten ─────────────────
   function normStatus(e: HuiEntry): string {
-    if (e.approval_status) return e.approval_status;
+    if (e.approval_status) return e.approval_status as string;
     if (e.status === 'pending_review') return 'pending';
     if (e.status === 'published')      return 'approved';
     if (e.status === 'rejected')       return 'rejected';
