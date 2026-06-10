@@ -443,11 +443,11 @@ export default function ErlebnisseProjektePage() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, paddingTop: 6 }}>
-              {selected.status === 'pending' && (
-                <>
-                  <Button variant="primary" onClick={() => { handleApprove(selected); setShowDetail(false); }}>✅ Freigeben</Button>
-                  <Button variant="danger" onClick={() => { setShowDetail(false); setRejectTarget(selected); setRejectReason(''); }}>❌ Ablehnen</Button>
-                </>
+              {(isPending(selected) || isRejected(selected)) && (
+                <Button variant="primary" onClick={() => { handleApprove(selected); setShowDetail(false); }}>✅ Freigeben</Button>
+              )}
+              {isPending(selected) && (
+                <Button variant="danger" onClick={() => { setShowDetail(false); setRejectTarget(selected); setRejectReason(''); }}>❌ Ablehnen</Button>
               )}
               <Button variant="ghost" onClick={() => setShowDetail(false)}>Schließen</Button>
             </div>
@@ -455,36 +455,51 @@ export default function ErlebnisseProjektePage() {
         )}
       </Modal>
 
-      {/* ── Reject Modal ── */}
+      {/* ── Reject Modal — identisch zu Werke & Content ── */}
       <Modal
         open={rejectTarget !== null}
-        title={rejectTarget !== null ? `❌ Ablehnen: ${rejectTarget.title}` : ''}
-        onClose={() => setRejectTarget(null)}
+        title={rejectTarget !== null ? `❌ Ablehnen: „${rejectTarget.title}"` : ''}
+        onClose={() => { setRejectTarget(null); setRejectReason(''); }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-            Bitte gib einen Ablehnungsgrund ein. Der Nutzer wird per Benachrichtigung informiert.
-          </p>
-          <textarea
-            value={rejectReason}
-            onChange={e => setRejectReason(e.target.value)}
-            placeholder="z. B. Inhalte entsprechen nicht den Community-Richtlinien…"
-            rows={4}
-            style={{
-              width: '100%', padding: '10px 12px',
-              background: 'var(--bg-primary)', border: '1px solid var(--border)',
-              borderRadius: 8, color: 'var(--text-primary)', fontSize: 13,
-              resize: 'vertical', outline: 'none', fontFamily: 'var(--font-body)',
-              boxSizing: 'border-box',
-            }}
-          />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="danger" disabled={!rejectReason.trim() || rejectLoading} onClick={handleRejectSubmit}>
-              {rejectLoading ? 'Wird abgelehnt…' : '❌ Ablehnen & Nutzer benachrichtigen'}
-            </Button>
-            <Button variant="ghost" onClick={() => setRejectTarget(null)}>Abbrechen</Button>
+        {rejectTarget !== null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Info-Box */}
+            <div style={{ background: 'rgba(255,107,107,0.06)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--red)' }}>
+              <strong style={{ color: 'var(--text-primary)' }}>„{rejectTarget.title || 'Dieser Eintrag'}"</strong> wird als abgelehnt markiert.
+              Der Nutzer erhält eine Benachrichtigung im Resonanzzentrum mit dem Ablehnungsgrund.
+            </div>
+            {/* Grund-Eingabe */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                Ablehnungsgrund <span style={{ color: 'var(--red)' }}>*</span>
+              </label>
+              <textarea
+                autoFocus
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="z. B. Inhalte entsprechen nicht den Community-Richtlinien. Bitte überarbeite den Titel und die Beschreibung…"
+                rows={4}
+                style={{
+                  width: '100%', padding: '10px 12px',
+                  background: 'var(--bg-primary)', border: `1px solid ${rejectReason.trim() ? 'var(--border)' : 'var(--red)'}`,
+                  borderRadius: 8, color: 'var(--text-primary)', fontSize: 13,
+                  resize: 'vertical', outline: 'none', fontFamily: 'var(--font-body)',
+                  boxSizing: 'border-box', transition: 'border-color 0.2s',
+                }}
+              />
+              {!rejectReason.trim() && (
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--red)' }}>Pflichtfeld — Grund ist erforderlich</p>
+              )}
+            </div>
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="danger" disabled={!rejectReason.trim() || rejectLoading} onClick={handleRejectSubmit}>
+                {rejectLoading ? '⏳ Wird abgelehnt…' : '❌ Ablehnen & Nutzer benachrichtigen'}
+              </Button>
+              <Button variant="ghost" onClick={() => { setRejectTarget(null); setRejectReason(''); }}>Abbrechen</Button>
+            </div>
           </div>
-        </div>
+        )}
       </Modal>
 
       {/* ── Delete Confirm ── */}
