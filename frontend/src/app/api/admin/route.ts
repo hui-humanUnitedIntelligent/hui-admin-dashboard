@@ -475,11 +475,13 @@ export async function POST(req: NextRequest) {
     }
 
     case 'delete_experience':
-      result = await sbPatch('experiences', userId, { status: 'deleted' });
+      // Hard-Delete: Zeile vollständig entfernen → Realtime → Nutzerprofil sofort sync
+      result = await sbHardDelete('experiences', userId);
       break;
 
     case 'delete_project':
-      result = await sbPatch('projects', userId, { status: 'deleted' });
+      // Hard-Delete: Zeile vollständig entfernen → Realtime → Nutzerprofil sofort sync
+      result = await sbHardDelete('projects', userId);
       break;
 
     default:
