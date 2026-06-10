@@ -166,7 +166,7 @@ export default function EmployeeErlebnisseProjektePage() {
   const { entries: allEntries, loading, refetch: refAll } = useExperiencesAndProjects({
     status: 'all',
     limit: 1000,
-    refreshInterval: 30000,
+    refreshInterval: 0,
   });
 
   const refetchAll = useCallback(() => { refAll(); }, [refAll]);
