@@ -78,7 +78,7 @@ function buildMonthlyBuckets(
 
 export default function ImpactPage() {
   const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
-  const { payments, loading: payLoading } = usePayments({ refreshInterval: 30000, limit: 1000 });
+  const { payments, loading: payLoading } = usePayments({ refreshInterval: 0, limit: 1000 });
 
   const chartRef      = useRef<HTMLCanvasElement>(null);
   const barChartRef   = useRef<HTMLCanvasElement>(null);
