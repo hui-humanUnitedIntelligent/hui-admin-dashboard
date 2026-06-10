@@ -424,52 +424,134 @@ export default function ErlebnisseProjektePage() {
         </table>
       </div>
 
-      {/* ── Detail Modal ── */}
+      {/* ── Detail Modal — exakt wie Werke & Content ── */}
       <Modal
         open={showDetail && selected !== null}
-        title={selected !== null ? `${selected._source === 'experiences' ? '🌿 Erlebnis' : '📌 Projekt'}: ${selected.title}` : ''}
+        title={selected !== null ? `${selected._source === 'experiences' ? '🌿 Erlebnis' : '📌 Projekt'}: ${selected.title || 'Kein Titel'}` : ''}
+        width={700}
         onClose={() => setShowDetail(false)}
+        footer={selected !== null ? (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <Button variant="ghost" onClick={() => setShowDetail(false)}>Schließen</Button>
+            {(isPending(selected) || normEntryStatus(selected) === 'pending') && (
+              <Button variant="primary" onClick={() => { handleApprove(selected); setShowDetail(false); }}>✅ Freigeben</Button>
+            )}
+            {(isPending(selected) || normEntryStatus(selected) === 'pending') && (
+              <Button variant="danger" onClick={() => { setShowDetail(false); setRejectTarget(selected); setRejectReason(''); }}>❌ Ablehnen</Button>
+            )}
+            {isRejected(selected) && (
+              <Button variant="primary" onClick={() => { handleApprove(selected); setShowDetail(false); }}>✅ Trotzdem freigeben</Button>
+            )}
+            {!isDeleted(selected) && (
+              <Button variant="danger" onClick={() => { setShowDetail(false); setDeleteTarget(selected); }}>🗑 Löschen</Button>
+            )}
+          </div>
+        ) : undefined}
       >
         {selected !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+            {/* UPDATE-Banner: bei is_update=true oder re-submission */}
+            {isUpdated(selected) && (
+              <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid #F59E0B', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>↻</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 2 }}>
+                    Update eines bereits eingereichten Eintrags
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    Der Nutzer hat diesen Eintrag nach einer Ablehnung überarbeitet und erneut eingereicht.
+                    {selected.last_submitted_at && ` Letzte Einreichung: ${new Date(selected.last_submitted_at as string).toLocaleString('de-DE')}`}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pending-Banner */}
+            {isPending(selected) && (
+              <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, fontSize: 12, color: '#F59E0B' }}>
+                ⏳ Dieser Eintrag wartet auf Freigabe. Prüfe Inhalt, Bilder und Preis sorgfältig.
+              </div>
+            )}
+
+            {/* Ablehnungs-Banner */}
+            {isRejected(selected) && (
+              <div style={{ padding: '10px 14px', background: 'rgba(255,107,107,0.06)', border: '1px solid var(--red)', borderRadius: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--red)', marginBottom: 4 }}>❌ Abgelehnter Eintrag</div>
+                {selected.rejection_reason && (
+                  <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Ablehnungsgrund: </span>{String(selected.rejection_reason)}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Der Nutzer kann den Eintrag überarbeiten und erneut einreichen.
+                </div>
+              </div>
+            )}
+
+            {/* Cover-Bild */}
+            {(() => {
+              const cover = (selected as Record<string,unknown>).cover_url as string | undefined;
+              const imgs: string[] = (() => {
+                try { const p = JSON.parse((selected as Record<string,unknown>).images as string || '[]'); return Array.isArray(p) ? p.map((x: Record<string,unknown>) => x.url || x).filter(Boolean) as string[] : []; } catch { return []; }
+              })();
+              const all = cover ? [cover, ...imgs.filter(u => u !== cover)] : imgs;
+              return all.length > 0 ? (
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                  {all.slice(0, 5).map((url, i) => (
+                    <div key={i} style={{ flexShrink: 0, width: i===0?180:80, height: i===0?120:80, borderRadius: 8, overflow: 'hidden', background: 'var(--bg-tertiary)', border: `${i===0?2:1}px solid ${i===0?'var(--accent)':'var(--border)'}` }}>
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display='none'; }}/>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ height: 70, background: 'var(--bg-tertiary)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, border: '1px solid var(--border)' }}>📷 Kein Bild</div>
+              );
+            })()}
+
+            {/* Info-Grid — exakt wie Werke */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {([
-                ['Typ',          selected._source === 'experiences' ? 'Erlebnis' : 'Projekt'],
-                ['Status',       selected.status],
-                ['Kategorie',    selected.category || '—'],
-                ['Preis',        selected.price ? `€${Number(selected.price).toLocaleString('de-DE')}` : '—'],
-                ['Erstellt',     selected.created_at ? new Date(selected.created_at).toLocaleDateString('de-DE') : '—'],
-                ['Aktualisiert', selected.last_submitted_at ? new Date(selected.last_submitted_at as string).toLocaleDateString('de-DE') : '—'],
+                ['Typ',            selected._source === 'experiences' ? 'Erlebnis' : 'Projekt'],
+                ['Status (DB)',    String(selected.status || '—')],
+                ['Freigabe-Status',normEntryStatus(selected)],
+                ['Kategorie',      String(selected.category || '—')],
+                ['Format',         String((selected as Record<string,unknown>).format || '—')],
+                ['Preis',          selected.price ? `€${Number(selected.price).toLocaleString('de-DE')} ${(selected as Record<string,unknown>).price_per || ''}`.trim() : '—'],
+                ['Max. Teilnehmer',String((selected as Record<string,unknown>).max_participants || '—')],
+                ['Anmeldung nötig',((selected as Record<string,unknown>).registration_required) ? 'Ja' : 'Nein'],
+                ['Sichtbarkeit',   String((selected as Record<string,unknown>).visibility || '—')],
+                ['Standort',       String((selected as Record<string,unknown>).location_text || '—')],
+                ['Datum',          String((selected as Record<string,unknown>).date || '—')],
+                ['Uhrzeit',        ((selected as Record<string,unknown>).time_start || (selected as Record<string,unknown>).time_end) ? `${(selected as Record<string,unknown>).time_start || ''}–${(selected as Record<string,unknown>).time_end || ''}` : '—'],
+                ['Erstellt',       timeAgo(selected.created_at)],
+                ['Eingereicht',    timeAgo(selected.last_submitted_at as string)],
+                ['User-ID',        String(selected.user_id || '—').slice(0, 18) + '…'],
+                ['Eintrag-ID',     String(selected.id || '—').slice(0, 18) + '…'],
               ] as [string, string][]).map(([k, v]) => (
-                <div key={k}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{k}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{v}</div>
+                <div key={k} style={{ padding: '7px 10px', background: 'var(--bg-tertiary)', borderRadius: 6 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>{k}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 500, wordBreak: 'break-all' }}>{v}</div>
                 </div>
               ))}
             </div>
+
+            {/* Beschreibung */}
             {selected.description && (
-              <div>
+              <div style={{ padding: '7px 10px', background: 'var(--bg-tertiary)', borderRadius: 6 }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Beschreibung</div>
-                <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6, background: 'var(--bg-primary)', borderRadius: 8, padding: 12 }}>
-                  {String(selected.description)}
-                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{String(selected.description)}</div>
               </div>
             )}
-            {selected.rejection_reason && (
-              <div style={{ padding: 12, background: 'rgba(255,107,107,0.06)', border: '1px solid var(--red)', borderRadius: 8 }}>
-                <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 700, marginBottom: 4 }}>❌ ABLEHNUNGSGRUND</div>
-                <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{String(selected.rejection_reason)}</div>
+
+            {/* Caption */}
+            {(selected as Record<string,unknown>).caption && (
+              <div style={{ padding: '7px 10px', background: 'var(--bg-tertiary)', borderRadius: 6 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Caption</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{String((selected as Record<string,unknown>).caption)}</div>
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8, paddingTop: 6 }}>
-              {(isPending(selected) || isRejected(selected)) && (
-                <Button variant="primary" onClick={() => { handleApprove(selected); setShowDetail(false); }}>✅ Freigeben</Button>
-              )}
-              {isPending(selected) && (
-                <Button variant="danger" onClick={() => { setShowDetail(false); setRejectTarget(selected); setRejectReason(''); }}>❌ Ablehnen</Button>
-              )}
-              <Button variant="ghost" onClick={() => setShowDetail(false)}>Schließen</Button>
-            </div>
+
           </div>
         )}
       </Modal>
