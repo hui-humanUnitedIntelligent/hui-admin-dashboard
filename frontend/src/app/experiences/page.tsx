@@ -46,7 +46,9 @@ export default function ErlebnisseProjektePage() {
   };
 
   return (
-    <DashboardLayout title="Erlebnisse & Projekte">
+    <DashboardLayout
+      title="Erlebnisse & Projekte"
+    >
       <div style={{ padding: '0 0 40px' }}>
 
         {/* ── Page Header ── */}
