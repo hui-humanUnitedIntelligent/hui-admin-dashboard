@@ -929,15 +929,15 @@ export default function UsersPage() {
     search, role: roleFilter,
     status: activeStatus as 'active' | 'blocked' | 'deleted',
     is_wirker: isWirkerTab ? true : undefined,
-    page, limit: LIMIT, refreshInterval: 15000,
+    page, limit: LIMIT, refreshInterval: 0,
   });
 
-  const { profiles: blockedProfiles } = useProfiles({ status: 'blocked',   limit: 500, refreshInterval: 30000 });
-  const { profiles: deletedProfiles } = useProfiles({ status: 'deleted',   limit: 500, refreshInterval: 30000 });
-  const { profiles: wirkerProfiles  } = useProfiles({ status: 'active', is_wirker: true, limit: 500, refreshInterval: 60000 });
+  const { profiles: blockedProfiles } = useProfiles({ status: 'blocked',   limit: 500, refreshInterval: 0 });
+  const { profiles: deletedProfiles } = useProfiles({ status: 'deleted',   limit: 500, refreshInterval: 0 });
+  const { profiles: wirkerProfiles  } = useProfiles({ status: 'active', is_wirker: true, limit: 500, refreshInterval: 0 });
 
   // ── All profiles for duplicate detection ─────────────────────────────
-  const { profiles: allProfilesForDup } = useProfiles({ status: 'active', limit: 2000, refreshInterval: 60000 });
+  const { profiles: allProfilesForDup } = useProfiles({ status: 'active', limit: 2000, refreshInterval: 0 });
   const duplicateGroups = findDuplicates(allProfilesForDup);
   const duplicateIds    = new Set(Array.from(duplicateGroups.values()).flat().map(p => p.id));
 
