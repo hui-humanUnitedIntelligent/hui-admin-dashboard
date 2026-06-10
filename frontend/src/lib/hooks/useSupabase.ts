@@ -444,7 +444,7 @@ export function useWorks(opts: {
       if (needsServiceRole) {
         const params = new URLSearchParams({ limit: String(limit) });
         if (status) params.set('status', status);
-        const res = await window.fetch(`/api/works?${params}`);
+        const res = await fetch(`/api/works?${params}`);
         if (res.ok) {
           const rows = await res.json() as HuiWork[];
           setWorks(Array.isArray(rows) ? rows : []);
@@ -627,7 +627,7 @@ export function useExperiencesAndProjects(opts: {
     try {
       const params = new URLSearchParams({ limit: String(limit) });
       if (status) params.set('status', status);
-      const res = await window.fetch(`/api/experiences?${params}`);
+      const res = await fetch(`/api/experiences?${params}`);
       if (res.ok) {
         const rows = await res.json() as HuiEntry[];
         const arr  = Array.isArray(rows) ? rows : [];
