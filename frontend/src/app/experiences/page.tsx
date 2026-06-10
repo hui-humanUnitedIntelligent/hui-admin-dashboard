@@ -203,14 +203,15 @@ export default function ErlebnisseProjektePage() {
   // ── Gefilterte Einträge ───────────────────────────────────────────────────
   const displayEntries = useMemo(() => {
     let base: HuiEntry[] = [];
-    if      (tab === 'all')       base = allEntries.filter(e => isApproved(e));
-    else if (tab === 'published') base = allEntries.filter(e => isApproved(e));
-    else if (tab === 'draft')     base = allEntries.filter(e => isDraft(e));
-    else if (tab === 'pending')   base = allEntries.filter(e => isPending(e));
-    else if (tab === 'rejected')  base = allEntries.filter(e => isRejected(e));
-    else if (tab === 'deleted')   base = allEntries.filter(e => isDeleted(e));
-    else if (tab === 'sensitive') base = allEntries.filter(e => !e.title || String(e.title).trim().length < 2);
-    else base = allEntries;
+    const visibleAll = allEntries.filter(e => !localDeleted.has(e.id));
+    if      (tab === 'all')       base = visibleAll.filter(e => isApproved(e));
+    else if (tab === 'published') base = visibleAll.filter(e => isApproved(e));
+    else if (tab === 'draft')     base = visibleAll.filter(e => isDraft(e));
+    else if (tab === 'pending')   base = visibleAll.filter(e => isPending(e));
+    else if (tab === 'rejected')  base = visibleAll.filter(e => isRejected(e));
+    else if (tab === 'deleted')   base = visibleAll.filter(e => isDeleted(e));
+    else if (tab === 'sensitive') base = visibleAll.filter(e => !e.title || String(e.title).trim().length < 2);
+    else base = visibleAll;
 
     if (!search.trim()) return base;
     const q = search.toLowerCase();
@@ -249,10 +250,18 @@ export default function ErlebnisseProjektePage() {
 
   const handleDelete = async (entry: HuiEntry) => {
     const action = entry._source === 'experiences' ? 'delete_experience' : 'delete_project';
-    const ok = await entryAction(action, entry.id);
-    if (ok) { showToast('Gelöscht', 'info'); refetchAll(); }
-    else      showToast('Fehler beim Löschen', 'error');
+    // Optimistic: sofort aus der Liste entfernen
+    setLocalDeleted(prev => new Set([...prev, entry.id]));
     setDeleteTarget(null);
+    const ok = await entryAction(action, entry.id);
+    if (ok) {
+      showToast('Gelöscht ✓', 'info');
+      // Realtime feuert → allEntries wird aktualisiert
+      setTimeout(() => setLocalDeleted(new Set()), 3000);
+    } else {
+      showToast('Fehler beim Löschen', 'error');
+      setLocalDeleted(prev => { const s = new Set(prev); s.delete(entry.id); return s; });
+    }
   };
 
   // ── Context Banners ───────────────────────────────────────────────────────
