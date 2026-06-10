@@ -400,7 +400,7 @@ export async function POST(req: NextRequest) {
                 title: '❌ Dein Erlebnis wurde abgelehnt',
                 body:  `„${entry.title || 'Dein Erlebnis'}" wurde nicht freigegeben. Grund: ${rejectReason}`,
                 entity_id: userId, entity_type: 'experience', is_read: false,
-                metadata: { entry_id: userId, entry_title: entry.title, reason: rejectReason },
+                metadata: { entry_id: userId, entry_title: entry.title, rejection_reason: rejectReason },
               }),
             });
           }
@@ -465,7 +465,7 @@ export async function POST(req: NextRequest) {
                 title: '❌ Dein Projekt wurde abgelehnt',
                 body:  `„${entry.title || 'Dein Projekt'}" wurde nicht freigegeben. Grund: ${rejectReason}`,
                 entity_id: userId, entity_type: 'project', is_read: false,
-                metadata: { entry_id: userId, entry_title: entry.title, reason: rejectReason },
+                metadata: { entry_id: userId, entry_title: entry.title, rejection_reason: rejectReason },
               }),
             });
           }
