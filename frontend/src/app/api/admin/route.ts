@@ -26,7 +26,14 @@ type Action =
   | 'unflag_work'
   | 'restore_user'
   | 'hard_delete_work'
-  | 'hard_delete_user';
+  | 'hard_delete_user'
+  // ── Erlebnisse & Projekte ──────────────────────────
+  | 'approve_experience'
+  | 'reject_experience'
+  | 'approve_project'
+  | 'reject_project'
+  | 'delete_experience'
+  | 'delete_project';
 
 async function sbPatch(table: string, id: string, data: Record<string, unknown>) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`;
@@ -335,6 +342,140 @@ export async function POST(req: NextRequest) {
     case 'hard_delete_work':
       // Permanently delete a work from the database (irreversible)
       result = await sbHardDelete('works', userId);
+      break;
+
+    // ── Erlebnisse ──────────────────────────────────────────────────────────
+    case 'approve_experience': {
+      result = await sbPatch('experiences', userId, {
+        status:           'approved',
+        rejection_reason: null,
+        approved_at:      new Date().toISOString(),
+        last_submitted_at: null,
+      });
+      try {
+        const eRes = await fetch(`${SUPABASE_URL}/rest/v1/experiences?select=user_id,title&id=eq.${userId}&limit=1`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+        });
+        if (eRes.ok) {
+          const [entry] = await eRes.json() as { user_id: string; title: string }[];
+          if (entry?.user_id) {
+            await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                user_id: entry.user_id, type: 'experience_approved',
+                title: '✅ Dein Erlebnis wurde freigegeben!',
+                body:  `„${entry.title || 'Dein Erlebnis'}" ist jetzt öffentlich sichtbar.`,
+                entity_id: userId, entity_type: 'experience', is_read: false,
+                metadata: { entry_id: userId, entry_title: entry.title },
+              }),
+            });
+          }
+        }
+      } catch (_) { /* non-critical */ }
+      break;
+    }
+
+    case 'reject_experience': {
+      const rejectReason = (data.reason as string) || 'Nicht genehmigt';
+      result = await sbPatch('experiences', userId, {
+        status:           'rejected',
+        rejection_reason: rejectReason,
+        rejected_at:      new Date().toISOString(),
+      });
+      try {
+        const eRes = await fetch(`${SUPABASE_URL}/rest/v1/experiences?select=user_id,title&id=eq.${userId}&limit=1`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+        });
+        if (eRes.ok) {
+          const [entry] = await eRes.json() as { user_id: string; title: string }[];
+          if (entry?.user_id) {
+            await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                user_id: entry.user_id, type: 'experience_rejected',
+                title: '❌ Dein Erlebnis wurde abgelehnt',
+                body:  `„${entry.title || 'Dein Erlebnis'}" wurde nicht freigegeben. Grund: ${rejectReason}`,
+                entity_id: userId, entity_type: 'experience', is_read: false,
+                metadata: { entry_id: userId, entry_title: entry.title, reason: rejectReason },
+              }),
+            });
+          }
+        }
+      } catch (_) { /* non-critical */ }
+      break;
+    }
+
+    // ── Projekte ─────────────────────────────────────────────────────────────
+    case 'approve_project': {
+      result = await sbPatch('projects', userId, {
+        status:           'approved',
+        rejection_reason: null,
+        approved_at:      new Date().toISOString(),
+        last_submitted_at: null,
+      });
+      try {
+        const pRes = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=user_id,title&id=eq.${userId}&limit=1`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+        });
+        if (pRes.ok) {
+          const [entry] = await pRes.json() as { user_id: string; title: string }[];
+          if (entry?.user_id) {
+            await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                user_id: entry.user_id, type: 'project_approved',
+                title: '✅ Dein Projekt wurde freigegeben!',
+                body:  `„${entry.title || 'Dein Projekt'}" ist jetzt öffentlich sichtbar.`,
+                entity_id: userId, entity_type: 'project', is_read: false,
+                metadata: { entry_id: userId, entry_title: entry.title },
+              }),
+            });
+          }
+        }
+      } catch (_) { /* non-critical */ }
+      break;
+    }
+
+    case 'reject_project': {
+      const rejectReason = (data.reason as string) || 'Nicht genehmigt';
+      result = await sbPatch('projects', userId, {
+        status:           'rejected',
+        rejection_reason: rejectReason,
+        rejected_at:      new Date().toISOString(),
+      });
+      try {
+        const pRes = await fetch(`${SUPABASE_URL}/rest/v1/projects?select=user_id,title&id=eq.${userId}&limit=1`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+        });
+        if (pRes.ok) {
+          const [entry] = await pRes.json() as { user_id: string; title: string }[];
+          if (entry?.user_id) {
+            await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+              method: 'POST',
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                user_id: entry.user_id, type: 'project_rejected',
+                title: '❌ Dein Projekt wurde abgelehnt',
+                body:  `„${entry.title || 'Dein Projekt'}" wurde nicht freigegeben. Grund: ${rejectReason}`,
+                entity_id: userId, entity_type: 'project', is_read: false,
+                metadata: { entry_id: userId, entry_title: entry.title, reason: rejectReason },
+              }),
+            });
+          }
+        }
+      } catch (_) { /* non-critical */ }
+      break;
+    }
+
+    case 'delete_experience':
+      result = await sbPatch('experiences', userId, { status: 'deleted' });
+      break;
+
+    case 'delete_project':
+      result = await sbPatch('projects', userId, { status: 'deleted' });
       break;
 
     default:
