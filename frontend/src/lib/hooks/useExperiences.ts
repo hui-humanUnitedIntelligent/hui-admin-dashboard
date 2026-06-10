@@ -1,0 +1,112 @@
+// frontend/src/lib/hooks/useExperiences.ts
+// ── HUI Admin — useExperiences Hook mit Realtime ─────────────────────────
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '../supabase';
+import type { HuiEntry } from './useSupabase';
+
+export type { HuiEntry };
+
+export interface UseExperiencesOptions {
+  status?:          string;
+  limit?:           number;
+  refreshInterval?: number;
+  realtime?:        boolean;
+}
+
+export interface UseExperiencesReturn {
+  entries:      HuiEntry[];
+  total:        number;
+  loading:      boolean;
+  error:        string | null;
+  refetch:      () => void;
+  updateStatus: (id: string, status: string, table?: 'experiences' | 'projects') => Promise<boolean>;
+}
+
+export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiencesReturn {
+  const { status, limit = 500, refreshInterval = 0, realtime = true } = opts;
+  const [entries, setEntries] = useState<HuiEntry[]>([]);
+  const [total,   setTotal]   = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
+  const channelRef            = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // ── Fetch via bestehende /api/experiences Route ──────────────────────
+  const fetchEntries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (status) params.set('status', status);
+      const res = await fetch(`/api/experiences?${params}`);
+      if (res.ok) {
+        const rows = (await res.json()) as HuiEntry[];
+        const arr  = Array.isArray(rows) ? rows : [];
+        setEntries(arr);
+        setTotal(arr.length);
+      } else {
+        setError(`HTTP ${res.status}`);
+      }
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [status, limit]);
+
+  // ── Realtime-Subscription (experiences + projects) ───────────────────
+  useEffect(() => {
+    if (!realtime) return;
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
+
+    const channel = supabase
+      .channel('admin:experiences')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'experiences' }, fetchEntries)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects'    }, fetchEntries)
+      .subscribe();
+
+    channelRef.current = channel;
+    return () => { supabase.removeChannel(channel); };
+  }, [realtime, fetchEntries]);
+
+  // ── Initial fetch + Polling-Fallback ─────────────────────────────────
+  useEffect(() => {
+    fetchEntries();
+    if (refreshInterval > 0) {
+      const id = setInterval(fetchEntries, refreshInterval);
+      return () => clearInterval(id);
+    }
+  }, [fetchEntries, refreshInterval]);
+
+  // ── updateStatus (via /api/admin) ────────────────────────────────────
+  const updateStatus = useCallback(async (
+    id: string,
+    newStatus: string,
+    table: 'experiences' | 'projects' = 'experiences'
+  ): Promise<boolean> => {
+    // Optimistic update
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, approval_status: newStatus } : e));
+    try {
+      const action = table === 'projects'
+        ? (newStatus === 'approved' ? 'approve_project'    : 'reject_project')
+        : (newStatus === 'approved' ? 'approve_experience' : 'reject_experience');
+
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, userId: id }),
+      });
+      if (!res.ok) { fetchEntries(); return false; }
+      return true;
+    } catch {
+      fetchEntries();
+      return false;
+    }
+  }, [fetchEntries]);
+
+  return { entries, total, loading, error, refetch: fetchEntries, updateStatus };
+}
+
+// Backward-compat alias
+export const useExperiencesAndProjects = useExperiences;
