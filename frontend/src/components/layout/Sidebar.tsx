@@ -58,10 +58,12 @@ const NAV_GROUPS: NavGroup[] = [
     icon: '🎨',
     items_de: [
       { href: '/works',        label: 'Werke & Content',  icon: '🖼️' },
+      { href: '/experiences',  label: 'Erlebnisse & Projekte', icon: '🌿' },
       { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
     ],
     items_en: [
       { href: '/works',        label: 'Works & Content',  icon: '🖼️' },
+      { href: '/experiences',  label: 'Experiences & Projects', icon: '🌿' },
       { href: '/memberships',  label: 'Memberships',      icon: '🏅' },
     ],
   },
