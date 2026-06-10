@@ -170,7 +170,7 @@ export interface HuiMembership {
 }
 
 // ── useKPIs ───────────────────────────────────────────────────────────────
-export function useKPIs(refreshInterval = 30000) {
+export function useKPIs(refreshInterval = 0) {
   const [kpis, setKpis] = useState({
     totalUsers: 0,
     activeWirker: 0,
@@ -615,7 +615,7 @@ export function useMemberships(opts: { limit?: number; refreshInterval?: number 
 }
 
 // ── useSystemHealth ───────────────────────────────────────────────────────
-export function useSystemHealth(refreshInterval = 30000) {
+export function useSystemHealth(refreshInterval = 0) {
   const [health, setHealth] = useState({
     supabase: 'unknown' as 'ok' | 'error' | 'unknown',
     latency: 0,
