@@ -206,16 +206,31 @@ function useRealtimeTable(
 ) {
   const ref = useRef<ChannelRef>(null);
   useEffect(() => {
+    // Guard: kein Realtime ohne valide Supabase-Config oder wenn disabled
     if (!enabled) return;
-    if (ref.current) supabase.removeChannel(ref.current);
+    const url  = process.env.NEXT_PUBLIC_SUPABASE_URL  || '';
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    if (!url || !anon) return;
 
-    let ch = supabase.channel(channelId);
-    for (const table of tables) {
-      ch = ch.on('postgres_changes', { event: '*', schema: 'public', table }, onEvent);
+    try {
+      if (ref.current) { supabase.removeChannel(ref.current); ref.current = null; }
+
+      let ch = supabase.channel(channelId);
+      for (const table of tables) {
+        ch = ch.on('postgres_changes' as never, { event: '*', schema: 'public', table }, onEvent);
+      }
+      ch.subscribe((status: string) => {
+        if (status === 'CHANNEL_ERROR') console.warn('[Realtime] channel error:', channelId);
+      });
+      ref.current = ch;
+    } catch (e) {
+      console.warn('[Realtime] setup failed:', channelId, e);
     }
-    ch.subscribe();
-    ref.current = ch;
-    return () => { if (ref.current) supabase.removeChannel(ref.current); };
+
+    return () => {
+      try { if (ref.current) { supabase.removeChannel(ref.current); ref.current = null; } }
+      catch { /* ignore cleanup errors */ }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, enabled]);
 }
