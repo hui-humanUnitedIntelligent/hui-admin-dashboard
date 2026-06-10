@@ -24,6 +24,8 @@ function timeAgo(iso: string | null | undefined) {
   return new Date(iso).toLocaleDateString('de-DE');
 }
 function isUpdated(entry: HuiEntry): boolean {
+  // is_update=true → explizit als Update markiert (abgelehntes Erlebnis wurde angepasst)
+  if ((entry as Record<string,unknown>).is_update === true) return true;
   if (!entry.last_submitted_at || !entry.created_at) return false;
   return new Date(entry.last_submitted_at as string).getTime() > new Date(entry.created_at).getTime() + 5000;
 }
@@ -357,7 +359,14 @@ export default function ErlebnisseProjektePage() {
                   <div style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {entry.title || '(kein Titel)'}
                   </div>
-                  {isUpdated(entry) && <span style={{ fontSize: 9, color: '#F59E0B', fontWeight: 700 }}>↻ AKTUALISIERT</span>}
+                  {isUpdated(entry) && (
+                      <span style={{
+                        display:'inline-flex', alignItems:'center', gap:3,
+                        fontSize:9, fontWeight:800, color:'#fff',
+                        background:'#F59E0B', borderRadius:20,
+                        padding:'2px 7px', letterSpacing:'0.4px',
+                      }}>↻ UPDATE</span>
+                    )}
                   {entry.rejection_reason && (
                     <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       ❌ {String(entry.rejection_reason)}
