@@ -347,7 +347,7 @@ export async function POST(req: NextRequest) {
     // ── Erlebnisse ──────────────────────────────────────────────────────────
     case 'approve_experience': {
       result = await sbPatch('experiences', userId, {
-        status:            'approved',
+        status:            'published',   // Feed filtert nach status='published'
         approval_status:   'approved',
         rejection_reason:  null,
         approved_at:       new Date().toISOString(),
@@ -412,7 +412,7 @@ export async function POST(req: NextRequest) {
     // ── Projekte ─────────────────────────────────────────────────────────────
     case 'approve_project': {
       result = await sbPatch('projects', userId, {
-        status:            'approved',
+        status:            'published',   // sichtbar in Feed + Profil
         approval_status:   'approved',
         rejection_reason:  null,
         approved_at:       new Date().toISOString(),
