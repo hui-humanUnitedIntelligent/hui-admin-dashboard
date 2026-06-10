@@ -7,7 +7,22 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const SELECT_FIELDS = 'id,user_id,title,category,description,price,status,rejection_reason,created_at,updated_at,last_submitted_at';
 
-async function queryTable(table: string, status: string | null, limit: string) {
+interface RawEntry {
+  id:                 string;
+  user_id:            string;
+  title:              string;
+  category:           string;
+  description?:       string;
+  price?:             number | null;
+  status:             string;
+  rejection_reason?:  string | null;
+  created_at:         string;
+  updated_at?:        string | null;
+  last_submitted_at?: string | null;
+  _source?:           string;
+}
+
+async function queryTable(table: string, status: string | null, limit: string): Promise<RawEntry[]> {
   const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
   url.searchParams.set('select', SELECT_FIELDS);
   url.searchParams.set('order',  'updated_at.desc');
@@ -21,7 +36,7 @@ async function queryTable(table: string, status: string | null, limit: string) {
     cache: 'no-store',
   });
   if (!res.ok) return [];
-  const rows = await res.json() as Record<string, unknown>[];
+  const rows = await res.json() as RawEntry[];
   return rows.map(r => ({ ...r, _source: table }));
 }
 
