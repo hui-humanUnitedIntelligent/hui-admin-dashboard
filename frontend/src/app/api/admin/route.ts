@@ -24,6 +24,9 @@ type Action =
   | 'reject_work'
   | 'restore_work'
   | 'unflag_work'
+| 'clear_sensitive_work'
+| 'clear_sensitive_experience'
+| 'clear_sensitive_project'
   | 'restore_user'
   | 'hard_delete_work'
   | 'hard_delete_user'
@@ -475,6 +478,32 @@ export async function POST(req: NextRequest) {
         }
       } catch (_) { /* non-critical */ }
       break;
+    }
+
+    case 'clear_sensitive_work': {
+      // Setzt sensitivity_status='cleared' → detectSensitive() ignoriert diesen Eintrag künftig
+      await sbUpdate('works', userId, {
+        sensitivity_status:  'cleared',
+        sensitivity_reason:  null,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'clear_sensitive_experience': {
+      await sbUpdate('experiences', userId, {
+        sensitivity_status:  'cleared',
+        sensitivity_reason:  null,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'clear_sensitive_project': {
+      // Projekte werden in der experiences-Tabelle gespeichert (selber Weg)
+      await sbUpdate('experiences', userId, {
+        sensitivity_status:  'cleared',
+        sensitivity_reason:  null,
+      });
+      return NextResponse.json({ ok: true });
     }
 
     case 'delete_experience':
