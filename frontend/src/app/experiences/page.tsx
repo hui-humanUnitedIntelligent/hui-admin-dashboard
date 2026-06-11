@@ -26,7 +26,8 @@ function timeAgo(iso: string | null | undefined): string {
 
 function isUpdated(entry: HuiEntry): boolean {
   const r = entry as Record<string, unknown>;
-  if (r.is_update === true) return true;
+  // is_update kann boolean true oder string 'true' sein
+  if (r.is_update === true || r.is_update === 'true') return true;
   if (!entry.last_submitted_at || !entry.created_at) return false;
   return new Date(str(entry.last_submitted_at)).getTime() > new Date(entry.created_at).getTime() + 5000;
 }
@@ -50,7 +51,8 @@ const isSensitive = (e: HuiEntry) => !e.title || String(e.title).trim().length <
 
 // ── Diff-Hilfsfunktionen ──────────────────────────────────────────────────
 function parseSnapshot(entry: HuiEntry): Record<string, unknown> | null {
-  const raw = entry.admin_comment;
+  // admin_comment kann über direkten Typ oder Record-Index kommen
+  const raw = entry.admin_comment ?? (entry as Record<string, unknown>).admin_comment;
   if (typeof raw !== 'string' || !raw.startsWith('__snapshot__:')) return null;
   try { return JSON.parse(raw.slice('__snapshot__:'.length)); }
   catch { return null; }
@@ -544,38 +546,40 @@ export default function ErlebnisseProjektePage() {
               {(()=>{
                 const snap = parseSnapshot(selected);
                 const hasDiff = !!snap && isUpdated(selected);
+                const sel = selected as Record<string,unknown>;
                 return (
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {/* Medienvergleich — oben */}
                     {hasDiff&&<MediaDiffBlockExp entry={selected} snap={snap}/>}
+                    {/* Hinweis-Banner */}
                     {hasDiff&&(
                       <div style={{ padding:'8px 12px', background:'#FFFBEA', borderLeft:'4px solid #FFB300', borderRadius:6, fontSize:11, color:'#9a6700', fontWeight:500 }}>
                         🔍 Gelb markierte Felder wurden geändert — hover für ALT/NEU-Vergleich.
                       </div>
                     )}
+                    {/* Grid: alle Felder */}
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       <DiffFieldExp label="Typ"             newVal={selected._source==='experiences'?'Erlebnis':'Projekt'} />
                       <DiffFieldExp label="Status (DB)"     newVal={str(selected.status)} />
                       <DiffFieldExp label="Freigabe-Status" newVal={normStatus(selected)} />
-                      <DiffFieldExp label="Kategorie"       newVal={str(selected.category)}  oldVal={hasDiff?snap!.category:undefined} />
+                      <DiffFieldExp label="Kategorie"       newVal={str(selected.category)}         oldVal={hasDiff?snap!.category:undefined} />
+                      <DiffFieldExp label="Erlebnis-Typ"    newVal={str(sel.experience_type||'—')}  oldVal={hasDiff?snap!.experience_type:undefined} />
                       <DiffFieldExp label="Preis"           newVal={selected.price?`€${Number(selected.price).toLocaleString('de-DE')}`:'—'} oldVal={hasDiff?(snap!.price!=null?`€${Number(snap!.price).toLocaleString('de-DE')}`:'—'):undefined} />
+                      <DiffFieldExp label="Datum"           newVal={str(sel.date||'—')}             oldVal={hasDiff?snap!.date:undefined} />
+                      <DiffFieldExp label="Zeit"            newVal={sel.time_start?`${str(sel.time_start)} – ${str(sel.time_end)}`:'—'} oldVal={hasDiff?(snap!.time_start?`${str(snap!.time_start)} – ${str(snap!.time_end)}`:'—'):undefined} />
+                      <DiffFieldExp label="Max. Teilnehmer" newVal={str(sel.max_participants||'—')} oldVal={hasDiff?snap!.max_participants:undefined} />
+                      <DiffFieldExp label="Standort"        newVal={str(sel.location_text||'—')}    oldVal={hasDiff?snap!.location_text:undefined} />
                       <DiffFieldExp label="Erstellt"        newVal={timeAgo(selected.created_at)} />
                       <DiffFieldExp label="Eingereicht"     newVal={timeAgo(str(selected.last_submitted_at))} />
                       <DiffFieldExp label="User-ID"         newVal={str(selected.user_id).slice(0,18)+'…'} />
                     </div>
-                    {bool(selected.title)&&(
-                      <DiffFieldExp label="Titel"       newVal={str(selected.title)}       oldVal={hasDiff?snap!.title:undefined} />
-                    )}
+                    {/* Volltextfelder */}
+                    <DiffFieldExp label="Titel"        newVal={str(selected.title)}       oldVal={hasDiff?snap!.title:undefined} />
                     {bool(selected.description)&&(
                       <DiffFieldExp label="Beschreibung" newVal={str(selected.description)} oldVal={hasDiff?snap!.description:undefined} />
                     )}
-                    {bool((selected as Record<string,unknown>).location_text)&&(
-                      <DiffFieldExp label="Standort" newVal={str((selected as Record<string,unknown>).location_text)} oldVal={hasDiff?snap!.location_text:undefined} />
-                    )}
-                    {bool((selected as Record<string,unknown>).date)&&(
-                      <DiffFieldExp label="Datum" newVal={str((selected as Record<string,unknown>).date)} oldVal={hasDiff?snap!.date:undefined} />
-                    )}
-                    {bool((selected as Record<string,unknown>).time_start)&&(
-                      <DiffFieldExp label="Zeit" newVal={`${str((selected as Record<string,unknown>).time_start)} – ${str((selected as Record<string,unknown>).time_end)}`} oldVal={hasDiff?`${str(snap!.time_start)} – ${str(snap!.time_end)}`:undefined} />
+                    {bool(sel.caption)&&(
+                      <DiffFieldExp label="Kurztext" newVal={str(sel.caption)} oldVal={hasDiff?snap!.caption:undefined} />
                     )}
                   </div>
                 );
