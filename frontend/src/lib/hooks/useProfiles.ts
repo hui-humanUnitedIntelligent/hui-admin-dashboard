@@ -45,42 +45,53 @@ export function useProfiles(opts: UseProfilesOptions = {}) {
   const fetchProfiles = useCallback(async () => {
     setLoading(true); setError(null);
     try {
+      // ── Alle Profile laden, client-seitig filtern (RLS-Bypass via Service Key) ──
       const params: Record<string, string> = {};
-      if (role && role !== 'all') params['role'] = `eq.${role}`;
       if (is_wirker !== undefined) params['is_wirker'] = `eq.${is_wirker}`;
 
-      if      (status === 'deleted') { params['trust_score'] = 'eq.-999'; }
-      else if (status === 'blocked') { params['role']        = 'eq.blocked'; }
-      else if (status === 'active')  {
-        params['trust_score'] = 'not.eq.-999';
-        if (!params['role'])  params['role'] = 'not.eq.blocked';
-      } else {
-        params['trust_score'] = 'not.eq.-999';
+      const allRows = await sbQuery<HuiProfile>('profiles', params, {
+        select: PROFILE_SELECT,
+        order: 'created_at.desc',
+        limit: 1000,
+      });
+
+      // Status-Filter
+      let filtered = allRows;
+      if (status === 'deleted') {
+        filtered = filtered.filter(p => p.trust_score === -999);
+      } else if (status === 'blocked') {
+        filtered = filtered.filter(p => p.role === 'blocked' || p.blocked === true);
+      } else if (status === 'active') {
+        filtered = filtered.filter(p =>
+          p.trust_score !== -999 && p.role !== 'blocked' && p.role !== 'deleted'
+        );
       }
 
-      const [rows, count] = await Promise.all([
-        sbQuery<HuiProfile>('profiles', params, {
-          select: PROFILE_SELECT,
-          order: 'created_at.desc',
-          limit,
-          offset: page * limit,
-        }),
-        sbCount('profiles', params),
-      ]);
+      // Rollen-Filter (basisuser + basis_user beide abdecken)
+      if (role && role !== 'all') {
+        filtered = filtered.filter(p =>
+          role === 'basisuser'
+            ? (p.role === 'basisuser' || p.role === 'basis_user')
+            : p.role === role
+        );
+      }
 
-      const q        = (search || '').toLowerCase();
-      const filtered = q
-        ? rows.filter(p =>
-            p.display_name?.toLowerCase().includes(q) ||
-            p.full_name?.toLowerCase().includes(q)    ||
-            p.username?.toLowerCase().includes(q)     ||
-            p.email?.toLowerCase().includes(q)        ||
-            p.phone?.toLowerCase().includes(q)        ||
-            p.talent?.toLowerCase().includes(q)
-          )
-        : rows;
+      // Suche
+      const q = (search || '').toLowerCase();
+      if (q) {
+        filtered = filtered.filter(p =>
+          p.display_name?.toLowerCase().includes(q) ||
+          p.full_name?.toLowerCase().includes(q)    ||
+          p.username?.toLowerCase().includes(q)     ||
+          p.email?.toLowerCase().includes(q)        ||
+          p.phone?.toLowerCase().includes(q)        ||
+          p.talent?.toLowerCase().includes(q)
+        );
+      }
 
-      setProfiles(filtered); setTotal(count);
+      const count = filtered.length;
+      const paginated = filtered.slice(page * limit, (page + 1) * limit);
+      setProfiles(paginated); setTotal(count);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
