@@ -1,12 +1,10 @@
 // frontend/src/app/employee/experiences/page.tsx
 // ─────────────────────────────────────────────────────────────────────────────
-// ARCHITEKTUR-REGEL: Dieser Page ist ein reiner Wrapper.
-// Alle Logik, Daten und UI kommen aus @/app/experiences/page (ErlebnisseProjekteView).
-// KEINE eigene Logik. KEINE eigene Datenquelle. KEINE Duplikation.
-// Änderungen NUR in frontend/src/app/experiences/page.tsx vornehmen — gilt automatisch für beide Rollen.
+// EMPLOYEE-ROUTE: /employee/experiences
+// Alle Logik, UI und Daten: @/components/views/ExperiencesView (IDENTISCH mit Superadmin)
+// Einziger Unterschied: role="employee" → kein Löschen-Button
 // ─────────────────────────────────────────────────────────────────────────────
-'use client';
-import { ErlebnisseProjekteView } from '@/app/experiences/page';
+import { ErlebnisseProjekteView } from '@/components/views/ExperiencesView';
 
 export default function EmployeeExperiencesPage() {
   return <ErlebnisseProjekteView role="employee" />;
