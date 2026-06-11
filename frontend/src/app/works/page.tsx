@@ -386,10 +386,12 @@ function TabBar({ tab, setTab, counts }: {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-export default function WorksPage() {
+export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab, setTab]               = useState<TabKey>('all');
   // DB-Keywords lazy laden
   useEffect(() => { loadDbKeywords(); }, []);
+  // Rollencheck — Employee sieht keine Destruktiv-Aktionen
+  const isSuperadmin = role === 'superadmin';
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState<WorkWithMeta | null>(null);
   const [editMode, setEditMode]     = useState(false);
@@ -882,26 +884,26 @@ export default function WorksPage() {
                   {selected.status === 'deleted' && (
                     <>
                       <Button variant="primary" onClick={() => handleRestore(selected)}>♻️ Wiederherstellen</Button>
-                      <Button variant="danger" onClick={() => handleHardDelete(selected)}>🗑 Endgültig löschen</Button>
+                      {isSuperadmin && <Button variant="danger" onClick={() => handleHardDelete(selected)}>🗑 Endgültig löschen</Button>}
                     </>
                   )}
                   {selected.status === 'flagged' && (
                     <>
                       <Button variant="primary" onClick={() => handleUnflag(selected)}>✅ Meldung auflösen</Button>
-                      <Button variant="danger"  onClick={() => handleDelete(selected)}>🗑 Löschen</Button>
+                      {isSuperadmin && <Button variant="danger"  onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
                     </>
                   )}
                   {selected.status === 'published' && (
                     <>
-                      <Button variant="ghost"  onClick={() => handleUnpublish(selected)}>📤 Depublizieren</Button>
-                      <Button variant="danger" onClick={() => handleFlag(selected)}>⚑ Melden</Button>
-                      <Button variant="danger" onClick={() => handleDelete(selected)}>🗑 Löschen</Button>
+                      {isSuperadmin && <Button variant="ghost"  onClick={() => handleUnpublish(selected)}>📤 Depublizieren</Button>}
+                      {isSuperadmin && <Button variant="danger" onClick={() => handleFlag(selected)}>⚑ Melden</Button>}
+                      {isSuperadmin && <Button variant="danger" onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
                     </>
                   )}
                   {selected.status === 'draft' && (
                     <>
                       <Button variant="primary" onClick={() => handleApprove(selected)}>✅ Freigeben</Button>
-                      <Button variant="danger"  onClick={() => handleDelete(selected)}>🗑 Löschen</Button>
+                      {isSuperadmin && <Button variant="danger"  onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
                     </>
                   )}
                 </>
