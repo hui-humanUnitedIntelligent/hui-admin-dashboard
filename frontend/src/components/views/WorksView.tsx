@@ -642,7 +642,6 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
   const banner = tabBanners[tab];
 
   return (
-    <>
     <DashboardLayout
       title="Werke & Content"
       headerActions={
@@ -1169,17 +1168,15 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
           </div>
         </div>
       )}
+      {/* Lightbox — eine Komponente für Superadmin + Employee */}
+      {lightboxImages.length > 0 && (
+        <ImageLightbox
+          images={lightboxImages}
+          initialIndex={lightboxIndex}
+          onClose={closeLightbox}
+        />
+      )}
     </DashboardLayout>
-
-    {/* ── ImageLightbox (einzige Komponente für Superadmin + Employee) ── */}
-    {lightboxImages.length > 0 && (
-      <ImageLightbox
-        images={lightboxImages}
-        initialIndex={lightboxIndex}
-        onClose={closeLightbox}
-      />
-    )}
-    </>
   );
 }
 // deploy-trigger: 2026-06-09
