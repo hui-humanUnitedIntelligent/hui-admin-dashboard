@@ -85,7 +85,7 @@ function wValStr(v: unknown): string {
 }
 
 function DiffFieldWork({ label, newVal, oldVal }: { label: string; newVal: unknown; oldVal?: unknown }) {
-  const [hov, setHov] = React.useState(false);
+  const [hov, setHov] = useState(false);
   const changed = oldVal !== undefined && wValStr(newVal) !== wValStr(oldVal);
   const nStr = wValStr(newVal); const oStr = wValStr(oldVal);
   return (
@@ -791,53 +791,59 @@ export default function WorksPage() {
             );
           })()}
 
-          {!editMode ? (
-            <>{(()=>{ const snap = parseWorkSnapshot(selected); const isUpd = Boolean(selected.is_update); const hasDiff = !!snap && isUpd; return (<>
-            {hasDiff&&<MediaDiffBlockWork w={selected} snap={snap}/>}
-            {hasDiff&&<div style={{ padding:'6px 10px', background:'rgba(255,138,0,0.08)', borderLeft:'4px solid #FF8A00', borderRadius:6, fontSize:11, color:'#B45309', marginBottom:2 }}>
-              🔍 Felder mit orangem Rand wurden geändert. Hover für Alt/Neu-Vergleich.
-            </div>}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              <DiffFieldWork label="ID"          newVal={String(selected.id)} />
-              <DiffFieldWork label="Titel"       newVal={String(selected.title||'—')}        oldVal={hasDiff?snap!.title:undefined} />
-              <DiffFieldWork label="Status"      newVal={String(selected.status||'—')} />
-              <DiffFieldWork label="Sichtbarkeit" newVal={String(selected.visibility||'—')}  oldVal={hasDiff?snap!.visibility:undefined} />
-              <DiffFieldWork label="Kategorie"   newVal={String(selected.category||'—')}     oldVal={hasDiff?snap!.category:undefined} />
-              <DiffFieldWork label="Post-Typ"    newVal={String(selected.post_type||'—')} />
-              <DiffFieldWork label="Preis"       newVal={`€${((selected.price as number)||0).toLocaleString('de-DE')}`} oldVal={hasDiff?(snap!.price!=null?`€${Number(snap!.price).toLocaleString('de-DE')}`:'—'):undefined} />
-              <DiffFieldWork label="Für Verkauf" newVal={Boolean(selected.for_sale)?'Ja':'Nein'} oldVal={hasDiff?snap!.for_sale:undefined} />
-              <DiffFieldWork label="Lagerbestand" newVal={String(selected.stock_quantity??'—')} />
-              <DiffFieldWork label="Kommentare"  newVal={Boolean(selected.allow_comments)?'✅ erlaubt':'🚫 gesperrt'} />
-              <DiffFieldWork label="Likes"       newVal={Boolean(selected.allow_likes)?'✅ erlaubt':'🚫 gesperrt'} />
-              <DiffFieldWork label="Standort"    newVal={String(selected.location_text||'—')} oldVal={hasDiff?snap!.location_text:undefined} />
-              <DiffFieldWork label="Views"       newVal={String(selected.views_count||0)} />
-              <DiffFieldWork label="Likes #"     newVal={String(selected.likes_count||0)} />
-              <DiffFieldWork label="Kommentare #" newVal={String(selected.comments_count||0)} />
-              <DiffFieldWork label="Erstellt"    newVal={timeAgo(String(selected.created_at||''))} />
-              <DiffFieldWork label="User-ID"     newVal={String(selected.user_id||'—').slice(0,18)+'…'} />
-            </div>
-              {selected.description && (
-                <div style={{ gridColumn:'1/-1' }}>
-                  <DiffFieldWork label="Beschreibung" newVal={String(selected.description)} oldVal={snap?snap!.description:undefined}/>
-                </div>
-              )}
-              {selected.caption && (
-                <div style={{ gridColumn:'1/-1' }}>
-                  <DiffFieldWork label="Caption" newVal={String(selected.caption)} oldVal={snap?snap!.caption:undefined}/>
-                </div>
-              )}
-              {Array.isArray(selected.tags) && (selected.tags as string[]).length > 0 && (
-                <div style={{ gridColumn:'1/-1', padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
-                  <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:6 }}>Tags</div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                    {(selected.tags as string[]).map(t => (
-                      <span key={t} style={{ padding:'2px 8px', borderRadius:20, background:'var(--accent-dim)', color:'var(--accent)', fontSize:11 }}>#{t}</span>
-                    ))}
+          {!editMode ? (() => {
+            const wSnap = parseWorkSnapshot(selected);
+            const wHasDiff = !!wSnap && Boolean(selected.is_update);
+            return (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {wHasDiff&&<MediaDiffBlockWork w={selected} snap={wSnap}/>}
+                {wHasDiff&&(
+                  <div style={{ padding:'6px 10px', background:'rgba(255,138,0,0.08)', borderLeft:'4px solid #FF8A00', borderRadius:6, fontSize:11, color:'#B45309' }}>
+                    🔍 Felder mit orangem Rand wurden geändert — hover für Alt/Neu-Vergleich.
                   </div>
+                )}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                  <DiffFieldWork label="ID"           newVal={String(selected.id)} />
+                  <DiffFieldWork label="Titel"        newVal={String(selected.title||'—')}       oldVal={wHasDiff?wSnap!.title:undefined} />
+                  <DiffFieldWork label="Status"       newVal={String(selected.status||'—')} />
+                  <DiffFieldWork label="Sichtbarkeit" newVal={String(selected.visibility||'—')}  oldVal={wHasDiff?wSnap!.visibility:undefined} />
+                  <DiffFieldWork label="Kategorie"    newVal={String(selected.category||'—')}    oldVal={wHasDiff?wSnap!.category:undefined} />
+                  <DiffFieldWork label="Post-Typ"     newVal={String(selected.post_type||'—')} />
+                  <DiffFieldWork label="Preis"        newVal={`€${((selected.price as number)||0).toLocaleString('de-DE')}`} oldVal={wHasDiff?(wSnap!.price!=null?`€${Number(wSnap!.price).toLocaleString('de-DE')}`:'—'):undefined} />
+                  <DiffFieldWork label="Für Verkauf"  newVal={Boolean(selected.for_sale)?'Ja':'Nein'} oldVal={wHasDiff?wSnap!.for_sale:undefined} />
+                  <DiffFieldWork label="Lagerbestand" newVal={String(selected.stock_quantity??'—')} />
+                  <DiffFieldWork label="Kommentare"   newVal={Boolean(selected.allow_comments)?'✅ erlaubt':'🚫 gesperrt'} />
+                  <DiffFieldWork label="Likes"        newVal={Boolean(selected.allow_likes)?'✅ erlaubt':'🚫 gesperrt'} />
+                  <DiffFieldWork label="Standort"     newVal={String(selected.location_text||'—')} oldVal={wHasDiff?wSnap!.location_text:undefined} />
+                  <DiffFieldWork label="Views"        newVal={String(selected.views_count||0)} />
+                  <DiffFieldWork label="Likes #"      newVal={String(selected.likes_count||0)} />
+                  <DiffFieldWork label="Kommentare #" newVal={String(selected.comments_count||0)} />
+                  <DiffFieldWork label="Erstellt"     newVal={timeAgo(String(selected.created_at||''))} />
+                  <DiffFieldWork label="User-ID"      newVal={String(selected.user_id||'—').slice(0,18)+'…'} />
+                  {selected.description&&(
+                    <div style={{ gridColumn:'1/-1' }}>
+                      <DiffFieldWork label="Beschreibung" newVal={String(selected.description)} oldVal={wHasDiff?wSnap!.description:undefined}/>
+                    </div>
+                  )}
+                  {selected.caption&&(
+                    <div style={{ gridColumn:'1/-1' }}>
+                      <DiffFieldWork label="Caption" newVal={String(selected.caption)} oldVal={wHasDiff?wSnap!.caption:undefined}/>
+                    </div>
+                  )}
+                  {Array.isArray(selected.tags)&&(selected.tags as string[]).length>0&&(
+                    <div style={{ gridColumn:'1/-1', padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
+                      <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:6 }}>Tags</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                        {(selected.tags as string[]).map(t=>(
+                          <span key={t} style={{ padding:'2px 8px', borderRadius:20, background:'var(--accent-dim)', color:'var(--accent)', fontSize:11 }}>#{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ) : form ? (
+              </div>
+            );
+          })() : form ? (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div>
