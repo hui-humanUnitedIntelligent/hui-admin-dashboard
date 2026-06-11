@@ -323,13 +323,10 @@ export function useProfiles(opts: {
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      // ── Alle Profile laden, dann client-seitig filtern (Admin braucht alle Daten) ──
-      const params: Record<string, string> = {};
-      if (is_wirker !== undefined) params['is_wirker'] = `eq.${is_wirker}`;
-
-      const rows = await sbQuery<HuiProfile>('profiles', params, {
-        select: PROFILE_SELECT, order: 'created_at.desc', limit: 1000,
-      });
+      // ── Profile über /api/profiles laden (server-seitiger Service Key, kein RLS) ──
+      const apiRes = await globalThis.fetch('/api/profiles');
+      const apiData = apiRes.ok ? await apiRes.json() : { profiles: [] };
+      const rows: HuiProfile[] = apiData.profiles || [];
 
       // Client-seitig filtern
       let filtered = rows;
