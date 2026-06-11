@@ -721,7 +721,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                   ✅ Sensitiv-Flag manuell entfernt — Inhalt geprüft und freigegeben
                 </div>
               )}
-              <CoverImages entry={selected}/>
+              <CoverImages entry={selected} onOpenLightbox={openLightbox}/>
               {(()=>{
                 const snap = parseSnapshot(selected);
                 const hasDiff = !!snap && isUpdated(selected);
