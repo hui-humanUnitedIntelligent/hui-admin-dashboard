@@ -636,7 +636,7 @@ export default function ErlebnisseProjektePage({ role = 'superadmin' }: { role?:
               {isPending(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Freigeben</Button>}
               {isPending(selected)&&<Button variant="danger"  onClick={()=>{setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}>❌ Ablehnen</Button>}
               {isRejected(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Trotzdem freigeben</Button>}
-              {!isDeleted(selected)&&<Button variant="danger" onClick={()=>{setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
+              {!isDeleted(selected)&&isSuperadmin&&<Button variant="danger" onClick={()=>{setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
             </div>
           ):undefined}
         >
