@@ -642,6 +642,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
   const banner = tabBanners[tab];
 
   return (
+    <>
     <DashboardLayout
       title="Werke & Content"
       headerActions={
@@ -1178,6 +1179,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
         onClose={closeLightbox}
       />
     )}
+    </>
   );
 }
 // deploy-trigger: 2026-06-09
