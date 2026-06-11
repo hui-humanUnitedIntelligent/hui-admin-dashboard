@@ -190,6 +190,8 @@ export interface HuiEntry {
   updated_at?:       string | null;
   last_submitted_at?: string | null;
   _source:           'experiences' | 'projects';
+  admin_comment?:    string | null;
+  is_update?:        boolean | null;
   [key: string]:     unknown;
 }
 
