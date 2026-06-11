@@ -379,7 +379,7 @@ function Kachel({ label, value, color }: { label:string; value:number; color:str
   );
 }
 
-function CoverImages({ entry }: { entry: HuiEntry }) {
+function CoverImages({ entry, onOpenLightbox }: { entry: HuiEntry; onOpenLightbox: (images: string[], index: number) => void }) {
   const r   = entry as Record<string, unknown>;
   const cv  = typeof r.cover_url === 'string' ? r.cover_url : undefined;
   const raw = typeof r.images    === 'string' ? r.images    : '[]';
@@ -402,7 +402,7 @@ function CoverImages({ entry }: { entry: HuiEntry }) {
             src={url} alt=""
             style={{ width:'100%', height:'100%', objectFit:'cover' }}
             containerStyle={{ width:'100%', height:'100%' }}
-            onOpenLightbox={() => openLightbox(all, i)}
+            onOpenLightbox={() => onOpenLightbox(all, i)}
             onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}
           />
         </div>
