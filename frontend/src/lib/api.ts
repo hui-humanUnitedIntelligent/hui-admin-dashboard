@@ -26,10 +26,12 @@ export async function sbQuery<T = unknown>(
   if (options.offset) url.searchParams.set('offset', String(options.offset));
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
+  // Service Role Key als apikey → RLS wird bypassed (Admin-Dashboard braucht alle Daten)
+  const adminKey = SUPABASE_SERVICE || SUPABASE_ANON;
   const res = await fetch(url.toString(), {
     headers: {
-      apikey:        SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_SERVICE || SUPABASE_ANON}`,
+      apikey:        adminKey,
+      Authorization: `Bearer ${adminKey}`,
       'Content-Type': 'application/json',
       Prefer: 'count=exact',
     },
@@ -58,10 +60,11 @@ export async function sbCount(table: string, params: Record<string, string> = {}
   url.searchParams.set('select', 'id');
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
+  const adminKeyC = SUPABASE_SERVICE || SUPABASE_ANON;
   const res = await fetch(url.toString(), {
     headers: {
-      apikey:        SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_SERVICE || SUPABASE_ANON}`,
+      apikey:        adminKeyC,
+      Authorization: `Bearer ${adminKeyC}`,
       Prefer: 'count=exact',
       'Range-Unit': 'items',
       Range: '0-0',
@@ -82,11 +85,12 @@ export async function sbUpdate(
   data: Record<string, unknown>
 ): Promise<boolean> {
   if (!SUPABASE_URL || !SUPABASE_ANON) return false;
+  const adminKeyU = SUPABASE_SERVICE || SUPABASE_ANON;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: 'PATCH',
     headers: {
-      apikey:        SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_SERVICE || SUPABASE_ANON}`,
+      apikey:        adminKeyU,
+      Authorization: `Bearer ${adminKeyU}`,
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },
@@ -97,11 +101,12 @@ export async function sbUpdate(
 
 export async function sbDelete(table: string, id: string): Promise<boolean> {
   if (!SUPABASE_URL || !SUPABASE_ANON) return false;
+  const adminKeyD = SUPABASE_SERVICE || SUPABASE_ANON;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: 'DELETE',
     headers: {
-      apikey:        SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_SERVICE || SUPABASE_ANON}`,
+      apikey:        adminKeyD,
+      Authorization: `Bearer ${adminKeyD}`,
       Prefer: 'return=minimal',
     },
   });
