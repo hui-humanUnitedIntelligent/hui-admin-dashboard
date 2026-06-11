@@ -1,12 +1,10 @@
 // frontend/src/app/employee/works/page.tsx
 // ─────────────────────────────────────────────────────────────────────────────
-// ARCHITEKTUR-REGEL: Dieser Page ist ein reiner Wrapper.
-// Alle Logik, Daten und UI kommen aus @/app/works/page (WorksView).
-// KEINE eigene Logik. KEINE eigene Datenquelle. KEINE Duplikation.
-// Änderungen NUR in frontend/src/app/works/page.tsx vornehmen — gilt automatisch für beide Rollen.
+// EMPLOYEE-ROUTE: /employee/works
+// Alle Logik, UI und Daten: @/components/views/WorksView (IDENTISCH mit Superadmin)
+// Einziger Unterschied: role="employee" → keine destruktiven Buttons
 // ─────────────────────────────────────────────────────────────────────────────
-'use client';
-import { WorksView } from '@/app/works/page';
+import { WorksView } from '@/components/views/WorksView';
 
 export default function EmployeeWorksPage() {
   return <WorksView role="employee" />;
