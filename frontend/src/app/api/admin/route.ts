@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
         status:            'published',   // Feed filtert nach status='published'
         approval_status:   'approved',
         rejection_reason:  null,
-        approved_at:       new Date().toISOString(),
+        is_update:         false,
         last_submitted_at: null,
       });
       try {
@@ -415,7 +415,7 @@ export async function POST(req: NextRequest) {
         status:            'published',   // sichtbar in Feed + Profil
         approval_status:   'approved',
         rejection_reason:  null,
-        approved_at:       new Date().toISOString(),
+        is_update:         false,
         last_submitted_at: null,
       });
       try {
