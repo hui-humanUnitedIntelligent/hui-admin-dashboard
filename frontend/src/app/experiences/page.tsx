@@ -69,24 +69,54 @@ function DiffFieldExp({ label, newVal, oldVal }: { label: string; newVal: unknow
   const nStr = valStr(newVal); const oStr = valStr(oldVal);
   return (
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      style={{ padding:'7px 10px', background:changed?'#FFF7D1':'var(--bg-tertiary)', borderRadius:6,
-        borderLeft:changed?'4px solid #FF8A00':'4px solid transparent', position:'relative',
-        cursor:changed?'help':'default' }}>
+      style={{
+        padding: '8px 12px',
+        background: changed ? '#FFF7C2' : 'var(--bg-tertiary)',
+        borderRadius: 6,
+        borderLeft: changed ? '4px solid #FFB300' : '4px solid transparent',
+        position: 'relative',
+        cursor: changed ? 'help' : 'default',
+        transition: 'background 0.15s',
+      }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:4 }}>
-        <div style={{ fontSize:10, color:changed?'#B45309':'var(--text-muted)', textTransform:'uppercase',
-          letterSpacing:'0.5px', marginBottom:2, fontWeight:changed?700:400 }}>{label}</div>
-        {changed&&<span style={{ fontSize:9, fontWeight:700, color:'#FF8A00', background:'rgba(255,138,0,0.12)',
-          padding:'1px 6px', borderRadius:10, flexShrink:0, whiteSpace:'nowrap' }}>Geändert</span>}
+        <div style={{
+          fontSize: 10,
+          color: changed ? '#9a6700' : 'var(--text-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          marginBottom: 3,
+          fontWeight: changed ? 700 : 400,
+        }}>{label}</div>
+        {changed && (
+          <span style={{
+            fontSize: 9, fontWeight: 700,
+            color: '#fff',
+            background: '#FFB300',
+            padding: '2px 7px',
+            borderRadius: 10,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+            letterSpacing: '0.3px',
+          }}>Geändert</span>
+        )}
       </div>
-      <div style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500, wordBreak:'break-all' }}>{nStr}</div>
-      {changed&&hov&&(
-        <div style={{ position:'absolute', bottom:'110%', left:0, zIndex:9999, background:'#1A1A18', color:'#fff',
-          borderRadius:8, padding:'8px 12px', fontSize:11, minWidth:180, maxWidth:280,
-          boxShadow:'0 4px 16px rgba(0,0,0,0.3)', pointerEvents:'none' }}>
-          <div style={{ marginBottom:3, opacity:0.65, fontSize:10, textTransform:'uppercase' }}>ALT</div>
-          <div style={{ color:'#FCA5A5', wordBreak:'break-word', marginBottom:5 }}>{oStr||'—'}</div>
-          <div style={{ marginBottom:3, opacity:0.65, fontSize:10, textTransform:'uppercase' }}>NEU</div>
-          <div style={{ color:'#86EFAC', wordBreak:'break-word' }}>{nStr}</div>
+      <div style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500, wordBreak:'break-all', lineHeight:1.4 }}>{nStr}</div>
+      {changed && hov && (
+        <div style={{
+          position: 'absolute', bottom: '110%', left: 0, zIndex: 9999,
+          background: '#333', color: '#fff',
+          borderRadius: 6,
+          padding: '6px 10px',
+          fontSize: 11,
+          minWidth: 200, maxWidth: 300,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          pointerEvents: 'none',
+          lineHeight: 1.5,
+        }}>
+          <div style={{ marginBottom: 4, opacity: 0.7, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>ALT</div>
+          <div style={{ color: '#ff8a80', wordBreak: 'break-word', marginBottom: 6 }}>{oStr || '—'}</div>
+          <div style={{ marginBottom: 4, opacity: 0.7, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>NEU</div>
+          <div style={{ color: '#69f0ae', wordBreak: 'break-word' }}>{nStr}</div>
         </div>
       )}
     </div>
@@ -102,19 +132,40 @@ function MediaDiffBlockExp({ entry, snap }: { entry: HuiEntry; snap: Record<stri
   const oc = (snap.cover_url as string)||oldImgs[0]||'';
   if (nc===oc && JSON.stringify(newImgs)===JSON.stringify(oldImgs)) return null;
   return (
-    <div style={{ padding:'10px 14px', background:'#FFF7D1', borderLeft:'4px solid #FF8A00', borderRadius:6, marginBottom:4 }}>
-      <div style={{ fontSize:10, color:'#B45309', fontWeight:700, textTransform:'uppercase', marginBottom:8 }}>
-        Medien geändert <span style={{ fontSize:9, background:'rgba(255,138,0,0.12)', color:'#FF8A00', padding:'1px 6px', borderRadius:10, marginLeft:4 }}>Geändert</span>
+    <div style={{
+      padding: '10px 14px',
+      background: '#FFF7C2',
+      borderLeft: '4px solid #FFB300',
+      borderRadius: 6,
+      marginBottom: 4,
+    }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+        <div style={{ fontSize:10, color:'#9a6700', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.5px' }}>
+          📷 Medien
+        </div>
+        <span style={{ fontSize:9, fontWeight:700, color:'#fff', background:'#FFB300', padding:'2px 7px', borderRadius:10 }}>Geändert</span>
       </div>
-      <div style={{ display:'flex', gap:16 }}>
-        {oldImgs.length>0&&<div><div style={{ fontSize:10, color:'#B45309', marginBottom:4, opacity:0.8 }}>ALT</div>
-          <div style={{ display:'flex', gap:4 }}>{oldImgs.slice(0,3).map((url,i)=>(
-            <div key={i} style={{ width:60,height:60,borderRadius:6,overflow:'hidden',background:'#e5e5e5',opacity:0.7,border:'1px solid #d1d5db' }}>
-              <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/></div>))}</div></div>}
-        {newImgs.length>0&&<div><div style={{ fontSize:10, color:'#FF8A00', marginBottom:4, fontWeight:700 }}>NEU</div>
-          <div style={{ display:'flex', gap:4 }}>{newImgs.slice(0,3).map((url,i)=>(
-            <div key={i} style={{ width:60,height:60,borderRadius:6,overflow:'hidden',background:'#FEF3C7',border:'2px solid #FF8A00' }}>
-              <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }}/></div>))}</div></div>}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <div>
+          <div style={{ fontSize:10, color:'#666', marginBottom:6, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.4px' }}>ALT</div>
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+            {oldImgs.length>0 ? oldImgs.slice(0,4).map((url,i)=>(
+              <div key={i} style={{ width:64,height:64,borderRadius:6,overflow:'hidden',background:'#e0e0e0',border:'1px solid #ccc',opacity:0.75 }}>
+                <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/>
+              </div>
+            )) : <div style={{ fontSize:11, color:'#999', padding:'8px 0' }}>Kein Bild</div>}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'#9a6700', marginBottom:6, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.4px' }}>NEU</div>
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+            {newImgs.length>0 ? newImgs.slice(0,4).map((url,i)=>(
+              <div key={i} style={{ width:64,height:64,borderRadius:6,overflow:'hidden',background:'#FFF7C2',border:'2px solid #FFB300' }}>
+                <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }}/>
+              </div>
+            )) : <div style={{ fontSize:11, color:'#999', padding:'8px 0' }}>Kein Bild</div>}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -497,8 +548,8 @@ export default function ErlebnisseProjektePage() {
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {hasDiff&&<MediaDiffBlockExp entry={selected} snap={snap}/>}
                     {hasDiff&&(
-                      <div style={{ padding:'6px 10px', background:'rgba(255,138,0,0.08)', borderLeft:'4px solid #FF8A00', borderRadius:6, fontSize:11, color:'#B45309' }}>
-                        🔍 Geänderte Felder sind orange markiert — hover für Vergleich.
+                      <div style={{ padding:'8px 12px', background:'#FFFBEA', borderLeft:'4px solid #FFB300', borderRadius:6, fontSize:11, color:'#9a6700', fontWeight:500 }}>
+                        🔍 Gelb markierte Felder wurden geändert — hover für ALT/NEU-Vergleich.
                       </div>
                     )}
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
