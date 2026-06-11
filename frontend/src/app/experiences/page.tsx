@@ -226,12 +226,15 @@ export default function ErlebnisseProjektePage() {
     if (ok) {
       // Optimistic update: Status sofort in UI aktualisieren ohne auf refetch zu warten
       setSelected(prev => prev?.id === e.id
-        ? { ...prev, status: 'published', approval_status: 'approved' }
+        ? { ...prev, status: 'published', approval_status: 'approved', rejection_reason: null }
         : prev);
       showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success');
-      refetchAll();
+      // Sofort refetch ohne Verzögerung
+      await refetchAll();
     }
-    else     showToast('Fehler beim Freigeben', 'error');
+    else {
+      showToast('Fehler beim Freigeben', 'error');
+    }
   };
 
   const handleRejectConfirm = async () => {
@@ -394,7 +397,12 @@ export default function ErlebnisseProjektePage() {
                   </div>
                 </div>
               )}
-              {isPending(selected)&&!isUpdated(selected)&&(
+              {isApproved(selected)&&(
+                <div style={{ padding:'10px 14px', background:'rgba(14,196,184,0.08)', border:'1px solid var(--accent)', borderRadius:8, fontSize:12, color:'var(--accent)', fontWeight:600 }}>
+                  ✅ Freigegeben — dieser Eintrag ist jetzt öffentlich sichtbar.
+                </div>
+              )}
+              {isPending(selected)&&!isUpdated(selected)&&!isApproved(selected)&&(
                 <div style={{ padding:'10px 14px', background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.4)', borderRadius:8, fontSize:12, color:'#F59E0B', fontWeight:500 }}>
                   ⏳ Erste Einreichung — wartet auf Freigabe.
                 </div>
