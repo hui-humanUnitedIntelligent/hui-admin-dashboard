@@ -12,6 +12,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
 import { useWorks, HuiWork } from '@/lib/hooks/useSupabase';
+import { ImageLightbox, ClickableImage } from '@/components/ui/ImageLightbox';
 // api imports handled via useWorks hook
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -395,6 +396,11 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
   useEffect(() => { loadDbKeywords(); }, []);
   // Rollencheck — Employee sieht keine Destruktiv-Aktionen
   const isSuperadmin = role === 'superadmin';
+  // ── Lightbox State ──────────────────────────────────────────────────────────
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex,  setLightboxIndex]  = useState(0);
+  const openLightbox = (images: string[], index = 0) => { setLightboxImages(images); setLightboxIndex(index); };
+  const closeLightbox = () => setLightboxImages([]);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState<WorkWithMeta | null>(null);
   const [editMode, setEditMode]     = useState(false);
@@ -975,7 +981,13 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
               <div style={{ display:'flex', gap:6, marginBottom:14, overflowX:'auto', paddingBottom:4 }}>
                 {all.slice(0,6).map((url, i) => (
                   <div key={i} style={{ flexShrink:0, width:i===0?180:80, height:i===0?120:80, borderRadius:8, overflow:'hidden', background:'var(--bg-tertiary)', border:`${i===0?2:1}px solid ${i===0?'var(--accent)':'var(--border)'}` }}>
-                    <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.currentTarget.style.display='none'; }}/>
+                    <ClickableImage
+                      src={url} alt=""
+                      style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                      containerStyle={{ width:'100%', height:'100%' }}
+                      onOpenLightbox={() => openLightbox(all, i)}
+                      onError={e => { e.currentTarget.style.display='none'; }}
+                    />
                   </div>
                 ))}
               </div>
