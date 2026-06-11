@@ -459,6 +459,24 @@ export default function ErlebnisseProjektePage() {
     }
   };
 
+  // ── Clear Sensitive Flag ──────────────────────────────────────────────
+  const handleClearSensitive = async (e: HuiEntry) => {
+    setActionLoading(e.id);
+    const action = e._source === 'experiences' ? 'clear_sensitive_experience' : 'clear_sensitive_project';
+    const ok = await entryAction(action, e.id);
+    setActionLoading(null);
+    if (ok) {
+      showToast('✅ Sensitiv-Flag entfernt', 'success');
+      // Optimistic update
+      setSelected(prev => prev?.id === e.id
+        ? { ...prev, sensitivity_status: 'cleared', sensitivity_reason: null } as HuiEntry
+        : prev);
+      await refetchAll();
+    } else {
+      showToast('Fehler beim Entfernen', 'error');
+    }
+  };
+
   const handleRejectConfirm = async () => {
     if (!rejectTarget) return;
     const reason = rejectReason.trim();
@@ -645,12 +663,34 @@ export default function ErlebnisseProjektePage() {
               )}
               {/* Sensitive alert */}
               {detectSensitiveExp(selected).flagged && (
-                <div style={{ marginBottom:14, padding:'10px 14px', background:'rgba(255,107,107,0.07)', border:'1px solid var(--red)', borderRadius:8 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'var(--red)', marginBottom:6 }}>⚠️ Sensitiver Inhalt erkannt</div>
+                <div style={{ marginBottom:14, padding:'10px 14px', background:'rgba(255,107,107,0.08)', border:'1px solid var(--red)', borderRadius:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'var(--red)' }}>⚠️ Sensitiver Inhalt erkannt</div>
+                    <button
+                      onClick={() => handleClearSensitive(selected)}
+                      disabled={actionLoading === selected.id}
+                      style={{
+                        fontSize:11, padding:'3px 10px', borderRadius:20,
+                        background:'rgba(34,197,94,0.1)', color:'#22C55E',
+                        border:'1px solid #22C55E', cursor:'pointer',
+                        fontWeight:600, fontFamily:'var(--font-body)'
+                      }}
+                      title="Flag entfernen — Inhalt wurde geprüft und ist unbedenklich"
+                    >
+                      {actionLoading === selected.id ? '…' : '✅ Flag entfernen'}
+                    </button>
+                  </div>
                   {detectSensitiveExp(selected).reasons.map((r, i) => (
-                    <div key={i} style={{ fontSize:11, color:'var(--red)', marginTop:2, opacity:0.9 }}>{r}</div>
+                    <div key={i} style={{ fontSize:11, color:'var(--red)', marginTop:2, opacity:0.9 }}>• {r}</div>
                   ))}
-                  <div style={{ fontSize:10, color:'var(--red)', opacity:0.65, marginTop:6 }}>Admin entscheidet — kein automatisches Löschen.</div>
+                  <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:6 }}>
+                    Nach dem Entfernen wird der Eintrag nicht mehr im Sensitiv-Tab angezeigt.
+                  </div>
+                </div>
+              )}
+              {(selected as Record<string,unknown>).sensitivity_status === 'cleared' && (
+                <div style={{ marginBottom:14, padding:'8px 12px', background:'rgba(34,197,94,0.08)', border:'1px solid #22C55E', borderRadius:8, fontSize:11, color:'#22C55E' }}>
+                  ✅ Sensitiv-Flag manuell entfernt — Inhalt geprüft und freigegeben
                 </div>
               )}
               <CoverImages entry={selected}/>
