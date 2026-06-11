@@ -1,7 +1,7 @@
 // frontend/src/app/works/page.tsx
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -69,6 +69,76 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE');
 }
 function fmt(n: number | null | undefined) { return (n ?? 0).toLocaleString('de-DE'); }
+
+// ── Diff-Helfer für Update-Vergleich ─────────────────────────────────────
+function parseWorkSnapshot(w: WorkWithMeta): Record<string, unknown> | null {
+  const raw = w.admin_comment as unknown;
+  if (typeof raw !== 'string' || !raw.startsWith('__snapshot__:')) return null;
+  try { return JSON.parse(raw.slice('__snapshot__:'.length)); }
+  catch { return null; }
+}
+function wValStr(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (Array.isArray(v)) return (v as unknown[]).join(', ') || '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function DiffFieldWork({ label, newVal, oldVal }: { label: string; newVal: unknown; oldVal?: unknown }) {
+  const [hov, setHov] = React.useState(false);
+  const changed = oldVal !== undefined && wValStr(newVal) !== wValStr(oldVal);
+  const nStr = wValStr(newVal); const oStr = wValStr(oldVal);
+  return (
+    <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{ padding:'7px 10px', background:changed?'#FFF7D1':'var(--bg-tertiary)', borderRadius:6,
+        borderLeft:changed?'4px solid #FF8A00':'4px solid transparent', position:'relative',
+        cursor:changed?'help':'default' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:4 }}>
+        <div style={{ fontSize:10, color:changed?'#B45309':'var(--text-muted)', textTransform:'uppercase',
+          letterSpacing:'0.5px', marginBottom:2, fontWeight:changed?700:400 }}>{label}</div>
+        {changed&&<span style={{ fontSize:9, fontWeight:700, color:'#FF8A00', background:'rgba(255,138,0,0.12)',
+          padding:'1px 6px', borderRadius:10, flexShrink:0, whiteSpace:'nowrap' }}>Geändert</span>}
+      </div>
+      <div style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500, wordBreak:'break-all' }}>{nStr}</div>
+      {changed&&hov&&(
+        <div style={{ position:'absolute', bottom:'110%', left:0, zIndex:9999, background:'#1A1A18', color:'#fff',
+          borderRadius:8, padding:'8px 12px', fontSize:11, minWidth:180, maxWidth:280,
+          boxShadow:'0 4px 16px rgba(0,0,0,0.3)', pointerEvents:'none' }}>
+          <div style={{ marginBottom:3, opacity:0.65, fontSize:10, textTransform:'uppercase' }}>ALT</div>
+          <div style={{ color:'#FCA5A5', wordBreak:'break-word', marginBottom:5 }}>{oStr||'—'}</div>
+          <div style={{ marginBottom:3, opacity:0.65, fontSize:10, textTransform:'uppercase' }}>NEU</div>
+          <div style={{ color:'#86EFAC', wordBreak:'break-word' }}>{nStr}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MediaDiffBlockWork({ w, snap }: { w: WorkWithMeta; snap: Record<string,unknown>|null }) {
+  if (!snap) return null;
+  const newImgs = parseImages(w.images as unknown);
+  const oldImgs = parseImages(snap.images as unknown);
+  const nc = (w.cover_url as string)||newImgs[0]||'';
+  const oc = (snap.cover_url as string)||oldImgs[0]||'';
+  if (nc===oc && JSON.stringify(newImgs)===JSON.stringify(oldImgs)) return null;
+  return (
+    <div style={{ padding:'10px 14px', background:'#FFF7D1', borderLeft:'4px solid #FF8A00', borderRadius:6, marginBottom:4 }}>
+      <div style={{ fontSize:10, color:'#B45309', fontWeight:700, textTransform:'uppercase', marginBottom:8 }}>
+        Medien geändert <span style={{ fontSize:9, background:'rgba(255,138,0,0.12)', color:'#FF8A00', padding:'1px 6px', borderRadius:10, marginLeft:4 }}>Geändert</span>
+      </div>
+      <div style={{ display:'flex', gap:16 }}>
+        {oldImgs.length>0&&<div><div style={{ fontSize:10, color:'#B45309', marginBottom:4, opacity:0.8 }}>ALT</div>
+          <div style={{ display:'flex', gap:4 }}>{oldImgs.slice(0,3).map((url,i)=>(
+            <div key={i} style={{ width:60,height:60,borderRadius:6,overflow:'hidden',background:'#e5e5e5',opacity:0.7,border:'1px solid #d1d5db' }}>
+              <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/></div>))}</div></div>}
+        {newImgs.length>0&&<div><div style={{ fontSize:10, color:'#FF8A00', marginBottom:4, fontWeight:700 }}>NEU</div>
+          <div style={{ display:'flex', gap:4 }}>{newImgs.slice(0,3).map((url,i)=>(
+            <div key={i} style={{ width:60,height:60,borderRadius:6,overflow:'hidden',background:'#FEF3C7',border:'2px solid #FF8A00' }}>
+              <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }}/></div>))}</div></div>}
+      </div>
+    </div>
+  );
+}
 
 function buildForm(w: WorkWithMeta): EditForm {
   return {
@@ -722,41 +792,38 @@ export default function WorksPage() {
           })()}
 
           {!editMode ? (
+            <>{(()=>{ const snap = parseWorkSnapshot(selected); const isUpd = Boolean(selected.is_update); const hasDiff = !!snap && isUpd; return (<>
+            {hasDiff&&<MediaDiffBlockWork w={selected} snap={snap}/>}
+            {hasDiff&&<div style={{ padding:'6px 10px', background:'rgba(255,138,0,0.08)', borderLeft:'4px solid #FF8A00', borderRadius:6, fontSize:11, color:'#B45309', marginBottom:2 }}>
+              🔍 Felder mit orangem Rand wurden geändert. Hover für Alt/Neu-Vergleich.
+            </div>}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              {([
-                ['ID',           String(selected.id)],
-                ['Titel',        String(selected.title||'—')],
-                ['Status',       String(selected.status||'—')],
-                ['Sichtbarkeit', String(selected.visibility||'—')],
-                ['Kategorie',    String(selected.category||'—')],
-                ['Post-Typ',     String(selected.post_type||'—')],
-                ['Preis',        `€${((selected.price as number)||0).toLocaleString('de-DE')}`],
-                ['Für Verkauf',  Boolean(selected.for_sale)?'Ja':'Nein'],
-                ['Lagerbestand', String(selected.stock_quantity??'—')],
-                ['Kommentare',   Boolean(selected.allow_comments)?'✅ erlaubt':'🚫 gesperrt'],
-                ['Likes',        Boolean(selected.allow_likes)?'✅ erlaubt':'🚫 gesperrt'],
-                ['Standort',     String(selected.location_text||'—')],
-                ['Views',        String(selected.views_count||0)],
-                ['Likes #',      String(selected.likes_count||0)],
-                ['Kommentare #', String(selected.comments_count||0)],
-                ['Erstellt',     timeAgo(String(selected.created_at||''))],
-                ['User-ID',      String(selected.user_id||'—').slice(0,18)+'…'],
-              ] as [string, string][]).map(([k, v]) => (
-                <div key={k} style={{ padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
-                  <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:2 }}>{k}</div>
-                  <div style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500, wordBreak:'break-all' }}>{v}</div>
-                </div>
-              ))}
+              <DiffFieldWork label="ID"          newVal={String(selected.id)} />
+              <DiffFieldWork label="Titel"       newVal={String(selected.title||'—')}        oldVal={hasDiff?snap!.title:undefined} />
+              <DiffFieldWork label="Status"      newVal={String(selected.status||'—')} />
+              <DiffFieldWork label="Sichtbarkeit" newVal={String(selected.visibility||'—')}  oldVal={hasDiff?snap!.visibility:undefined} />
+              <DiffFieldWork label="Kategorie"   newVal={String(selected.category||'—')}     oldVal={hasDiff?snap!.category:undefined} />
+              <DiffFieldWork label="Post-Typ"    newVal={String(selected.post_type||'—')} />
+              <DiffFieldWork label="Preis"       newVal={`€${((selected.price as number)||0).toLocaleString('de-DE')}`} oldVal={hasDiff?(snap!.price!=null?`€${Number(snap!.price).toLocaleString('de-DE')}`:'—'):undefined} />
+              <DiffFieldWork label="Für Verkauf" newVal={Boolean(selected.for_sale)?'Ja':'Nein'} oldVal={hasDiff?snap!.for_sale:undefined} />
+              <DiffFieldWork label="Lagerbestand" newVal={String(selected.stock_quantity??'—')} />
+              <DiffFieldWork label="Kommentare"  newVal={Boolean(selected.allow_comments)?'✅ erlaubt':'🚫 gesperrt'} />
+              <DiffFieldWork label="Likes"       newVal={Boolean(selected.allow_likes)?'✅ erlaubt':'🚫 gesperrt'} />
+              <DiffFieldWork label="Standort"    newVal={String(selected.location_text||'—')} oldVal={hasDiff?snap!.location_text:undefined} />
+              <DiffFieldWork label="Views"       newVal={String(selected.views_count||0)} />
+              <DiffFieldWork label="Likes #"     newVal={String(selected.likes_count||0)} />
+              <DiffFieldWork label="Kommentare #" newVal={String(selected.comments_count||0)} />
+              <DiffFieldWork label="Erstellt"    newVal={timeAgo(String(selected.created_at||''))} />
+              <DiffFieldWork label="User-ID"     newVal={String(selected.user_id||'—').slice(0,18)+'…'} />
+            </div>
               {selected.description && (
-                <div style={{ gridColumn:'1/-1', padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
-                  <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:4 }}>Beschreibung</div>
-                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6 }}>{String(selected.description)}</div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <DiffFieldWork label="Beschreibung" newVal={String(selected.description)} oldVal={snap?snap!.description:undefined}/>
                 </div>
               )}
               {selected.caption && (
-                <div style={{ gridColumn:'1/-1', padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
-                  <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:4 }}>Caption</div>
-                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6 }}>{String(selected.caption)}</div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <DiffFieldWork label="Caption" newVal={String(selected.caption)} oldVal={snap?snap!.caption:undefined}/>
                 </div>
               )}
               {Array.isArray(selected.tags) && (selected.tags as string[]).length > 0 && (
