@@ -401,7 +401,7 @@ function CoverImages({ entry }: { entry: HuiEntry }) {
   );
 }
 
-export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
+function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab,           setTab]          = useState<TabKey>('all');
   const isSuperadmin = role === 'superadmin';
   const [search,        setSearch]       = useState('');
