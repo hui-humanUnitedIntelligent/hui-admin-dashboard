@@ -1,7 +1,7 @@
 // frontend/src/app/works/page.tsx
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -72,16 +72,70 @@ const SENSITIVE_KEYWORDS: { kw: string; cat: string }[] = [
 ];
 const HIGH_PRICE_THRESHOLD = 5000;
 
+// ── DB-Keywords (aus Supabase, werden zur Laufzeit geladen) ──────────────
+interface DbKeyword { keyword: string; category: string; severity: number; }
+let _dbKeywords: DbKeyword[] = [];
+let _dbLoaded = false;
+
+async function loadDbKeywords(): Promise<DbKeyword[]> {
+  if (_dbLoaded) return _dbKeywords;
+  try {
+    const res = await fetch('/api/sensitive-keywords', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json() as { keyword: string; category: string; severity: number }[];
+      _dbKeywords = data.map(d => ({
+        kw: d.keyword, keyword: d.keyword, category: d.category, severity: d.severity,
+        cat: catLabel(d.category),
+      })) as unknown as DbKeyword[];
+      _dbLoaded = true;
+    }
+  } catch { /* graceful fallback auf hardcoded list */ }
+  return _dbKeywords;
+}
+
+function catLabel(cat: string): string {
+  const map: Record<string, string> = {
+    sexual_text:      '🔞 Sexuell',    sexual_image:   '🔞 Sexuell (Bild)',
+    violence_text:    '⚠️ Gewalt',     violence_image: '⚠️ Gewalt (Bild)',
+    racism_hate:      '🚫 Hassrede',   extremism:      '🚫 Extremismus',
+    discrimination:   '🚫 Diskriminierung', self_harm: '🆘 Selbstverletzung',
+    drugs:            '💊 Drogen',     illegal_activity: '🚨 Illegal',
+    dangerous_behavior: '⚡ Gefährlich', emojis:       '🚨 Symbol',
+    toxic_slang:      '🚫 Toxisch',
+  };
+  return map[cat] || `⚠️ ${cat}`;
+}
+
 function detectSensitive(w: WorkWithMeta): { flagged: boolean; reasons: string[] } {
+  // Wenn Admin bereits geprüft hat und status gesetzt → das übernehmen
+  if (w.sensitivity_status === 'flagged' && w.sensitivity_reason) {
+    return { flagged: true, reasons: [String(w.sensitivity_reason)] };
+  }
+  if (w.sensitivity_status === 'cleared') {
+    return { flagged: false, reasons: [] };
+  }
+
   const reasons: string[] = [];
   const text = [w.title||'', w.description||'', w.caption||'', ((w.tags as string[])||[]).join(' '), w.category||''].join(' ').toLowerCase();
   const seen = new Set<string>();
+
+  // Hardcoded list (schnell, immer verfügbar)
   for (const { kw, cat } of SENSITIVE_KEYWORDS) {
     if (text.includes(kw) && !seen.has(cat)) {
       seen.add(cat);
       reasons.push(`${cat}: "${kw}"`);
     }
   }
+  // DB-Keywords (wenn geladen)
+  for (const d of _dbKeywords as unknown as { kw?: string; keyword?: string; cat?: string; category?: string }[]) {
+    const kw = (d.kw || d.keyword || '').toLowerCase();
+    const cat = d.cat || catLabel(d.category || '');
+    if (kw && text.includes(kw) && !seen.has(cat)) {
+      seen.add(cat);
+      reasons.push(`${cat}: "${kw}"`);
+    }
+  }
+
   const price = (w.price as number) || 0;
   if (price > HIGH_PRICE_THRESHOLD) reasons.push(`💰 Hoher Preis: €${price.toLocaleString('de-DE')}`);
   if (!w.title || String(w.title).trim().length < 2) reasons.push('⚠️ Fehlender Titel');
@@ -334,6 +388,8 @@ function TabBar({ tab, setTab, counts }: {
 // ════════════════════════════════════════════════════════════════════════════
 export default function WorksPage() {
   const [tab, setTab]               = useState<TabKey>('all');
+  // DB-Keywords lazy laden
+  useEffect(() => { loadDbKeywords(); }, []);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState<WorkWithMeta | null>(null);
   const [editMode, setEditMode]     = useState(false);
