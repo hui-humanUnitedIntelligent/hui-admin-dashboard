@@ -404,7 +404,7 @@ export default function ErlebnisseProjektePage() {
               {all.length.toLocaleString('de-DE')} gesamt
             </span>
           </div>
-          <div style={{ fontSize:12, color:'var(--text-muted)' }}>Freigabe, Ablehnung und Moderation von Erlebnissen und Projekten</div>
+
         </div>
 
         <div style={{ display:'flex', gap:10, marginBottom:22, flexWrap:'wrap' }}>
