@@ -448,16 +448,7 @@ export default function ErlebnisseProjektePage() {
     <DashboardLayout title="Erlebnisse & Projekte">
       <div style={{ padding:'24px 28px', maxWidth:1400, margin:'0 auto' }}>
 
-        <div style={{ marginBottom:24 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
-            <span style={{ fontSize:22 }}>🌿</span>
-            <h1 style={{ margin:0, fontSize:20, fontWeight:700, color:'var(--text-primary)' }}>Erlebnisse &amp; Projekte</h1>
-            <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'var(--accent-dim)', color:'var(--accent)', fontWeight:600 }}>
-              {all.length.toLocaleString('de-DE')} gesamt
-            </span>
-          </div>
 
-        </div>
 
         <div style={{ display:'flex', gap:10, marginBottom:22, flexWrap:'wrap' }}>
           <Kachel label="Erlebnisse"  value={all.filter(e=>e._source==='experiences').length} color="var(--accent)" />
