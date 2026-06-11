@@ -482,7 +482,7 @@ export async function POST(req: NextRequest) {
 
     case 'clear_sensitive_work': {
       // Setzt sensitivity_status='cleared' → detectSensitive() ignoriert diesen Eintrag künftig
-      await sbUpdate('works', userId, {
+      await sbPatch('works', userId, {
         sensitivity_status:  'cleared',
         sensitivity_reason:  null,
       });
@@ -490,7 +490,7 @@ export async function POST(req: NextRequest) {
     }
 
     case 'clear_sensitive_experience': {
-      await sbUpdate('experiences', userId, {
+      await sbPatch('experiences', userId, {
         sensitivity_status:  'cleared',
         sensitivity_reason:  null,
       });
@@ -499,7 +499,7 @@ export async function POST(req: NextRequest) {
 
     case 'clear_sensitive_project': {
       // Projekte werden in der experiences-Tabelle gespeichert (selber Weg)
-      await sbUpdate('experiences', userId, {
+      await sbPatch('experiences', userId, {
         sensitivity_status:  'cleared',
         sensitivity_reason:  null,
       });
