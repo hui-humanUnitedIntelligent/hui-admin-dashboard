@@ -223,7 +223,14 @@ export default function ErlebnisseProjektePage() {
     setActionLoading(e.id);
     const ok = await entryAction(e._source==='experiences'?'approve_experience':'approve_project', e.id);
     setActionLoading(null);
-    if (ok) { showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success'); refetchAll(); }
+    if (ok) {
+      // Optimistic update: Status sofort in UI aktualisieren ohne auf refetch zu warten
+      setSelected(prev => prev?.id === e.id
+        ? { ...prev, status: 'published', approval_status: 'approved' }
+        : prev);
+      showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success');
+      refetchAll();
+    }
     else     showToast('Fehler beim Freigeben', 'error');
   };
 
@@ -234,7 +241,11 @@ export default function ErlebnisseProjektePage() {
     setRejectLoading(true);
     const ok = await entryAction(rejectTarget._source==='experiences'?'reject_experience':'reject_project', rejectTarget.id, {reason});
     setRejectLoading(false);
-    if (ok) { showToast(`❌ Abgelehnt: ${rejectTarget.title||'Eintrag'}`, 'info'); setRejectTarget(null); setRejectReason(''); refetchAll(); }
+    if (ok) {
+      setSelected(prev => prev?.id === rejectTarget.id
+        ? { ...prev, status: 'rejected', approval_status: 'rejected', rejection_reason: rejectReason }
+        : prev);
+      showToast(`❌ Abgelehnt: ${rejectTarget.title||'Eintrag'}`, 'info'); setRejectTarget(null); setRejectReason(''); refetchAll(); }
     else showToast('Fehler beim Ablehnen','error');
   };
 
