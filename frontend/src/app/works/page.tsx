@@ -598,7 +598,7 @@ export default function WorksPage() {
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                               {isBusy ? '…' : '✅ Freigeben'}
                             </button>
-                            <button title="Hard-Delete: Werk endgültig löschen" disabled={isBusy} onClick={() => setDeleteConfirm(w)}
+                            <button title="Werk endgültig löschen (Hard-Delete)" disabled={isBusy} onClick={() => handleHardDelete(w)}
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700, marginLeft:4 }}>
                               {isBusy ? '…' : '🗑 Löschen'}
                             </button>
