@@ -1,7 +1,7 @@
 // frontend/src/app/experiences/page.tsx
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -89,13 +89,58 @@ const EXP_SENSITIVE_KEYWORDS: { kw: string; cat: string }[] = [
   { kw:'scam',        cat:'🚨 Illegal' }, { kw:'hack',        cat:'🚨 Illegal' },
   { kw:'geldwäsche',  cat:'🚨 Illegal' }, { kw:'money launder', cat:'🚨 Illegal' },
 ];
+// ── DB-Keywords Loader (shared mit works) ─────────────────────────────
+interface DbKwEntry { kw?: string; keyword?: string; cat?: string; category?: string; severity?: number; }
+let _expDbKeywords: DbKwEntry[] = [];
+let _expDbLoaded = false;
+function expCatLabel(cat: string): string {
+  const map: Record<string,string> = {
+    sexual_text:'🔞 Sexuell', sexual_image:'🔞 Sexuell (Bild)',
+    violence_text:'⚠️ Gewalt', violence_image:'⚠️ Gewalt (Bild)',
+    racism_hate:'🚫 Hassrede', extremism:'🚫 Extremismus',
+    discrimination:'🚫 Diskriminierung', self_harm:'🆘 Selbstverletzung',
+    drugs:'💊 Drogen', illegal_activity:'🚨 Illegal',
+    dangerous_behavior:'⚡ Gefährlich', emojis:'🚨 Symbol', toxic_slang:'🚫 Toxisch',
+  };
+  return map[cat] || `⚠️ ${cat}`;
+}
+async function loadExpDbKeywords(): Promise<void> {
+  if (_expDbLoaded) return;
+  try {
+    const res = await fetch('/api/sensitive-keywords', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json() as { keyword: string; category: string; severity: number }[];
+      _expDbKeywords = data.map(d => ({ kw: d.keyword, keyword: d.keyword, cat: expCatLabel(d.category), category: d.category, severity: d.severity }));
+      _expDbLoaded = true;
+    }
+  } catch { /* graceful fallback */ }
+}
+
 function detectSensitiveExp(e: HuiEntry): { flagged: boolean; reasons: string[] } {
+  // Admin-gesetzter Status hat Vorrang
+  const eRec = e as Record<string,unknown>;
+  if (eRec.sensitivity_status === 'flagged' && eRec.sensitivity_reason) {
+    return { flagged: true, reasons: [String(eRec.sensitivity_reason)] };
+  }
+  if (eRec.sensitivity_status === 'cleared') {
+    return { flagged: false, reasons: [] };
+  }
+
   const reasons: string[] = [];
-  const text = [e.title||'', e.description||'', str(e.category), str((e as Record<string,unknown>).location_text||'')].join(' ').toLowerCase();
+  const text = [e.title||'', e.description||'', str(e.category), str(eRec.location_text||'')].join(' ').toLowerCase();
   const seen = new Set<string>();
+
+  // Hardcoded Fallback-Liste
   for (const { kw, cat } of EXP_SENSITIVE_KEYWORDS) {
     if (text.includes(kw) && !seen.has(cat)) { seen.add(cat); reasons.push(`${cat}: "${kw}"`); }
   }
+  // DB-Keywords (wenn geladen)
+  for (const d of _expDbKeywords) {
+    const kw = (d.kw || d.keyword || '').toLowerCase();
+    const cat = d.cat || expCatLabel(d.category || '');
+    if (kw && text.includes(kw) && !seen.has(cat)) { seen.add(cat); reasons.push(`${cat}: "${kw}"`); }
+  }
+
   if (!e.title || String(e.title).trim().length < 2) reasons.push('⚠️ Fehlender Titel');
   return { flagged: reasons.length > 0, reasons };
 }
