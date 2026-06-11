@@ -6,7 +6,7 @@ const SUPABASE_URL         = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // ── Felder inkl. approval_status ─────────────────────────────────────────
-const SELECT_FIELDS = 'id,user_id,title,category,description,price,status,approval_status,rejection_reason,is_update,cover_url,images,location_text,format,duration,created_at,updated_at,last_submitted_at';
+const SELECT_FIELDS = 'id,user_id,title,category,description,price,status,approval_status,rejection_reason,is_update,admin_comment,cover_url,images,location_text,format,duration,date,time_start,time_end,experience_type,max_participants,created_at,updated_at,last_submitted_at';
 
 interface RawEntry {
   id:                 string;
@@ -26,6 +26,13 @@ interface RawEntry {
   created_at:         string;
   updated_at?:        string | null;
   last_submitted_at?: string | null;
+  is_update?:         boolean | null;
+  admin_comment?:     string | null;
+  date?:              string | null;
+  time_start?:        string | null;
+  time_end?:          string | null;
+  experience_type?:   string | null;
+  max_participants?:  number | null;
   _source?:           string;
 }
 
