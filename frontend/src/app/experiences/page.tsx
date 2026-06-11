@@ -597,6 +597,16 @@ export default function ErlebnisseProjektePage() {
                             </>}
                             {isRejected(entry)&&<button onClick={()=>handleApprove(entry)} title="Trotzdem freigeben"
                               style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--accent)', background:'var(--accent-dim)', color:'var(--accent)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>✅</button>}
+                            {/* Sensitiv-Flag-Entfernen Button — nur wenn flagged */}
+                            {tab==='sensitive' && detectSensitiveExp(entry).flagged && (
+                              <button
+                                disabled={actionLoading===entry.id}
+                                onClick={e=>{e.stopPropagation(); handleClearSensitive(entry);}}
+                                title="Sensitiv-Flag entfernen"
+                                style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #22C55E', background:'rgba(34,197,94,0.1)', color:'#22C55E', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)', fontWeight:600 }}>
+                                {actionLoading===entry.id?'…':'✅ Klar'}
+                              </button>
+                            )}
                             <button onClick={()=>setDeleteTarget(entry)} title="Löschen"
                               style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>🗑</button>
                           </div>
