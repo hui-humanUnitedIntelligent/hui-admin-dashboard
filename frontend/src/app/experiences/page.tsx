@@ -47,7 +47,59 @@ const isApproved  = (e: HuiEntry) => { const ns = normStatus(e); return ns === '
 const isRejected  = (e: HuiEntry) => normStatus(e) === 'rejected';
 const isDraft     = (e: HuiEntry) => normStatus(e) === 'draft';
 const isDeleted   = (e: HuiEntry) => normStatus(e) === 'deleted';
-const isSensitive = (e: HuiEntry) => !e.title || String(e.title).trim().length < 2;
+// ── Sensitive-Erkennung (identisch zu works) ────────────────────────────
+const EXP_SENSITIVE_KEYWORDS: { kw: string; cat: string }[] = [
+  // Sexuelle Inhalte
+  { kw:'porno',       cat:'🔞 Sexuell' }, { kw:'porn',        cat:'🔞 Sexuell' },
+  { kw:'sex',         cat:'🔞 Sexuell' }, { kw:'blowjob',     cat:'🔞 Sexuell' },
+  { kw:'anal',        cat:'🔞 Sexuell' }, { kw:'oral',        cat:'🔞 Sexuell' },
+  { kw:'nackt',       cat:'🔞 Sexuell' }, { kw:'nude',        cat:'🔞 Sexuell' },
+  { kw:'nudes',       cat:'🔞 Sexuell' }, { kw:'penis',       cat:'🔞 Sexuell' },
+  { kw:'vagina',      cat:'🔞 Sexuell' }, { kw:'tits',        cat:'🔞 Sexuell' },
+  { kw:'dick',        cat:'🔞 Sexuell' }, { kw:'pussy',       cat:'🔞 Sexuell' },
+  { kw:'bdsm',        cat:'🔞 Sexuell' }, { kw:'fetisch',     cat:'🔞 Sexuell' },
+  { kw:'escort',      cat:'🔞 Sexuell' }, { kw:'prostituierte', cat:'🔞 Sexuell' },
+  { kw:'erotik',      cat:'🔞 Sexuell' }, { kw:'18+',         cat:'🔞 Sexuell' },
+  { kw:'adult',       cat:'🔞 Sexuell' }, { kw:'xxx',         cat:'🔞 Sexuell' },
+  { kw:'cum',         cat:'🔞 Sexuell' }, { kw:'sperma',      cat:'🔞 Sexuell' },
+  // Gewalt
+  { kw:'töten',       cat:'⚠️ Gewalt'  }, { kw:'ermorden',    cat:'⚠️ Gewalt'  },
+  { kw:'umbringen',   cat:'⚠️ Gewalt'  }, { kw:'schlagen',    cat:'⚠️ Gewalt'  },
+  { kw:'verletzen',   cat:'⚠️ Gewalt'  }, { kw:'prügeln',     cat:'⚠️ Gewalt'  },
+  { kw:'blutbad',     cat:'⚠️ Gewalt'  }, { kw:'folter',      cat:'⚠️ Gewalt'  },
+  { kw:'vergewaltigung', cat:'⚠️ Gewalt' }, { kw:'waffe',     cat:'⚠️ Gewalt'  },
+  { kw:'pistole',     cat:'⚠️ Gewalt'  }, { kw:'gewehr',      cat:'⚠️ Gewalt'  },
+  { kw:'messer',      cat:'⚠️ Gewalt'  }, { kw:'gun',         cat:'⚠️ Gewalt'  },
+  { kw:'terror',      cat:'⚠️ Gewalt'  },
+  // Rassismus / Extremismus
+  { kw:'nazi',        cat:'🚫 Extremismus' }, { kw:'hitler',  cat:'🚫 Extremismus' },
+  { kw:'jihad',       cat:'🚫 Extremismus' }, { kw:'isis',    cat:'🚫 Extremismus' },
+  { kw:'taliban',     cat:'🚫 Extremismus' }, { kw:'ausländer raus', cat:'🚫 Hassrede' },
+  { kw:'antisemit',   cat:'🚫 Hassrede' },
+  // Drogen
+  { kw:'kokain',      cat:'💊 Drogen'  }, { kw:'heroin',      cat:'💊 Drogen'  },
+  { kw:'meth',        cat:'💊 Drogen'  }, { kw:'crystal',     cat:'💊 Drogen'  },
+  { kw:'droge',       cat:'💊 Drogen'  }, { kw:'drug',        cat:'💊 Drogen'  },
+  { kw:'cannabis',    cat:'💊 Drogen'  },
+  // Selbstverletzung
+  { kw:'suizid',      cat:'🆘 Selbstverletzung' }, { kw:'selbstmord', cat:'🆘 Selbstverletzung' },
+  { kw:'ritzen',      cat:'🆘 Selbstverletzung' },
+  // Illegal
+  { kw:'betrug',      cat:'🚨 Illegal' }, { kw:'fraud',       cat:'🚨 Illegal' },
+  { kw:'scam',        cat:'🚨 Illegal' }, { kw:'hack',        cat:'🚨 Illegal' },
+  { kw:'geldwäsche',  cat:'🚨 Illegal' }, { kw:'money launder', cat:'🚨 Illegal' },
+];
+function detectSensitiveExp(e: HuiEntry): { flagged: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  const text = [e.title||'', e.description||'', str(e.category), str((e as Record<string,unknown>).location_text||'')].join(' ').toLowerCase();
+  const seen = new Set<string>();
+  for (const { kw, cat } of EXP_SENSITIVE_KEYWORDS) {
+    if (text.includes(kw) && !seen.has(cat)) { seen.add(cat); reasons.push(`${cat}: "${kw}"`); }
+  }
+  if (!e.title || String(e.title).trim().length < 2) reasons.push('⚠️ Fehlender Titel');
+  return { flagged: reasons.length > 0, reasons };
+}
+const isSensitive = (e: HuiEntry) => detectSensitiveExp(e).flagged;
 
 // ── Diff-Hilfsfunktionen ──────────────────────────────────────────────────
 function parseSnapshot(entry: HuiEntry): Record<string, unknown> | null {
@@ -326,7 +378,7 @@ export default function ErlebnisseProjektePage() {
     rejected:  all.filter(e=>isRejected(e)).length,
     draft:     all.filter(e=>isDraft(e)).length,
     deleted:   all.filter(e=>isDeleted(e)).length,
-    sensitive: all.filter(e=>isSensitive(e)).length,
+    sensitive: all.filter(e=>!isDeleted(e) && detectSensitiveExp(e).flagged).length,
   }), [all]);
 
   const rows = useMemo(() => {
@@ -337,7 +389,7 @@ export default function ErlebnisseProjektePage() {
     else if (tab==='rejected')  base = visible.filter(e=>isRejected(e));
     else if (tab==='draft')     base = visible.filter(e=>isDraft(e));
     else if (tab==='deleted')   base = visible.filter(e=>isDeleted(e));
-    else if (tab==='sensitive') base = visible.filter(e=>isSensitive(e));
+    else if (tab==='sensitive') base = visible.filter(e=>!isDeleted(e) && detectSensitiveExp(e).flagged);
     else                        base = visible.filter(e=>isApproved(e));
     if (!search.trim()) return base;
     const q = search.toLowerCase();
@@ -388,7 +440,7 @@ export default function ErlebnisseProjektePage() {
     pending:   {bg:'rgba(245,158,11,0.08)',  border:'#F59E0B',    color:'#F59E0B',    text:'⏳ Diese Erlebnisse & Projekte warten auf Freigabe.'},
     rejected:  {bg:'rgba(255,107,107,0.06)', border:'var(--red)', color:'var(--red)', text:'❌ Abgelehnte Einträge. Nutzer können sie überarbeiten.'},
     deleted:   {bg:'rgba(255,107,107,0.06)', border:'var(--red)', color:'var(--red)', text:'🗑 Gelöschte Einträge.'},
-    sensitive: {bg:'rgba(247,183,49,0.08)',  border:'var(--gold)',color:'var(--gold)',text:'⚠️ Einträge ohne Titel oder Pflichtfelder.'},
+    sensitive: {bg:'rgba(247,183,49,0.08)',  border:'var(--gold)',color:'var(--gold)',text:'⚠️ Einträge mit verdächtigen Keywords oder fehlenden Pflichtfeldern. Prüfe jeden Eintrag.'},
   };
   const banner = BANNERS[tab];
 
@@ -449,9 +501,10 @@ export default function ErlebnisseProjektePage() {
                     : rows.map(entry=>(
                       <tr key={entry.id}
                         onClick={()=>{setSelected(entry);setShowDetail(true);}}
-                        style={{ borderBottom:'1px solid var(--border)', cursor:'pointer', transition:'background 0.12s' }}
+                        style={{ borderBottom:'1px solid var(--border)', cursor:'pointer', transition:'background 0.12s',
+                          background: detectSensitiveExp(entry).flagged ? 'rgba(255,107,107,0.02)' : undefined }}
                         onMouseEnter={e=>(e.currentTarget as HTMLTableRowElement).style.background='var(--bg-tertiary)'}
-                        onMouseLeave={e=>(e.currentTarget as HTMLTableRowElement).style.background=''}
+                        onMouseLeave={e=>(e.currentTarget as HTMLTableRowElement).style.background=detectSensitiveExp(entry).flagged?'rgba(255,107,107,0.02)':''}
                       >
                         <td style={{ padding:'10px 12px', maxWidth:200 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
@@ -459,6 +512,7 @@ export default function ErlebnisseProjektePage() {
                               {entry.title||<span style={{ color:'var(--text-muted)', fontStyle:'italic' }}>Kein Titel</span>}
                             </span>
                             {isUpdated(entry)&&<span style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:'rgba(245,158,11,0.15)', color:'#F59E0B', fontWeight:700 }}>↻ UPD</span>}
+                            {detectSensitiveExp(entry).flagged&&<span title={detectSensitiveExp(entry).reasons.join('\n')} style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:'rgba(255,107,107,0.12)', color:'var(--red)', fontWeight:700, cursor:'help' }}>⚠️</span>}
                           </div>
                         </td>
                         <td style={{ padding:'10px 12px' }}><SourceBadge source={entry._source||'experiences'}/></td>
@@ -540,6 +594,16 @@ export default function ErlebnisseProjektePage() {
                       <span style={{ color:'var(--text-muted)' }}>Ablehnungsgrund: </span>{str(selected.rejection_reason)}
                     </div>
                   )}
+                </div>
+              )}
+              {/* Sensitive alert */}
+              {detectSensitiveExp(selected).flagged && (
+                <div style={{ marginBottom:14, padding:'10px 14px', background:'rgba(255,107,107,0.07)', border:'1px solid var(--red)', borderRadius:8 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--red)', marginBottom:6 }}>⚠️ Sensitiver Inhalt erkannt</div>
+                  {detectSensitiveExp(selected).reasons.map((r, i) => (
+                    <div key={i} style={{ fontSize:11, color:'var(--red)', marginTop:2, opacity:0.9 }}>{r}</div>
+                  ))}
+                  <div style={{ fontSize:10, color:'var(--red)', opacity:0.65, marginTop:6 }}>Admin entscheidet — kein automatisches Löschen.</div>
                 </div>
               )}
               <CoverImages entry={selected}/>
