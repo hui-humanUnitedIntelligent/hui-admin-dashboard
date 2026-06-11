@@ -45,15 +45,12 @@ export function useProfiles(opts: UseProfilesOptions = {}) {
   const fetchProfiles = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      // ── Alle Profile laden, client-seitig filtern (RLS-Bypass via Service Key) ──
-      const params: Record<string, string> = {};
-      if (is_wirker !== undefined) params['is_wirker'] = `eq.${is_wirker}`;
-
-      const allRows = await sbQuery<HuiProfile>('profiles', params, {
-        select: PROFILE_SELECT,
-        order: 'created_at.desc',
-        limit: 1000,
-      });
+      // ── Profile über /api/profiles (server-seitig, Service Key) laden ──
+      const apiRes = await globalThis.fetch('/api/profiles');
+      const apiData = apiRes.ok ? await apiRes.json() : { profiles: [] };
+      const allRows: HuiProfile[] = (apiData.profiles || []).filter(
+        (p: HuiProfile) => is_wirker === undefined || p.is_wirker === is_wirker
+      );
 
       // Status-Filter
       let filtered = allRows;
