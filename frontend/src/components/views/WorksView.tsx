@@ -1169,6 +1169,15 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
         </div>
       )}
     </DashboardLayout>
+
+    {/* ── ImageLightbox (einzige Komponente für Superadmin + Employee) ── */}
+    {lightboxImages.length > 0 && (
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        onClose={closeLightbox}
+      />
+    )}
   );
 }
 // deploy-trigger: 2026-06-09
