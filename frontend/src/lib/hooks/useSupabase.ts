@@ -307,7 +307,7 @@ const PROFILE_SELECT = [
   'follower_count,followers_count,trust_score,is_guardian',
   'last_seen,last_seen_at,created_at,updated_at,skills,focus_type',
   'email,phone,full_name,is_talent,talent_since,talent_activated_at',
-  'member_since,blocked,blocked_at,blocked_by,is_blocked,is_deleted,username_lower',
+  'member_since,blocked,blocked_at,blocked_by',
 ].join(',');
 
 export function useProfiles(opts: {
