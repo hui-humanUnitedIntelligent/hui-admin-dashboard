@@ -808,10 +808,8 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:600 }}>
                               {isBusy ? '…' : '✅ Auflösen'}
                             </button>
-                            {isSuperadmin && (
-                            <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
-                              style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>🗑</button>
-                            )}
+                            {isSuperadmin && <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
+                              style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>🗑</button>}
                           </>
                         )}
 
@@ -852,16 +850,12 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                               <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
                                 style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:12 }}>✓</button>
                             )}
-                            {w.status === 'published' && (
-                              {isSuperadmin && (
+                            {w.status === 'published' && isSuperadmin && (
                               <button title="Melden" disabled={isBusy} onClick={() => handleFlag(w)}
                                 style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--gold)', background:'var(--gold-dim)', color:'var(--gold)', cursor:'pointer', fontSize:12 }}>⚑</button>
-                              )}
                             )}
-                            {isSuperadmin && (
-                            <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
-                              style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>🗑</button>
-                            )}
+                            {isSuperadmin && <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
+                              style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>🗑</button>}
                           </>
                         )}
                       </div>
