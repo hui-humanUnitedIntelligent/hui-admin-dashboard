@@ -216,11 +216,12 @@ export async function POST(req: NextRequest) {
         visibility:        'public',
         published_at:      new Date().toISOString(),
         last_submitted_at: null,
+        is_update:         false,
       });
       // Nutzer benachrichtigen: Werk freigegeben
       try {
         // Werk-Daten holen für Nutzerprofil
-        const wRes = await fetch(`${SUPABASE_URL}/rest/v1/works?select=user_id,title&id=eq.${userId}&limit=1`, {
+        const wRes = await fetch(`${SUPABASE_URL}/rest/v1/works?select=user_id,title,is_update&id=eq.${userId}&limit=1`, {
           headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
         });
         if (wRes.ok) {
@@ -232,8 +233,10 @@ export async function POST(req: NextRequest) {
               body: JSON.stringify({
                 user_id:     werk.user_id,
                 type:        'work_approved',
-                title:       '✅ Dein Werk wurde freigegeben!',
-                body:        `„${werk.title || 'Dein Werk'}" ist jetzt öffentlich sichtbar und im Feed live.`,
+                title:       werk.is_update ? '✅ Deine Änderung wurde freigegeben!' : '✅ Dein Werk wurde veröffentlicht!',
+                body:        werk.is_update
+                  ? `Deine Änderung an „${werk.title || 'deinem Werk'}" wurde genehmigt und ist jetzt live.`
+                  : `„${werk.title || 'Dein Werk'}" ist jetzt öffentlich sichtbar und im Feed live.`,
                 entity_id:   userId,
                 entity_type: 'work',
                 is_read:     false,
@@ -258,7 +261,7 @@ export async function POST(req: NextRequest) {
       });
       // Nutzer benachrichtigen: Werk abgelehnt
       try {
-        const wRes = await fetch(`${SUPABASE_URL}/rest/v1/works?select=user_id,title&id=eq.${userId}&limit=1`, {
+        const wRes = await fetch(`${SUPABASE_URL}/rest/v1/works?select=user_id,title,is_update&id=eq.${userId}&limit=1`, {
           headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
         });
         if (wRes.ok) {
