@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
           headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
         });
         if (wRes.ok) {
-          const [werk] = await wRes.json() as { user_id: string; title: string }[];
+          const [werk] = await wRes.json() as { user_id: string; title: string; is_update?: boolean }[];
           if (werk?.user_id) {
             await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
               method: 'POST',
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
           headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
         });
         if (wRes.ok) {
-          const [werk] = await wRes.json() as { user_id: string; title: string }[];
+          const [werk] = await wRes.json() as { user_id: string; title: string; is_update?: boolean }[];
           if (werk?.user_id) {
             await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
               method: 'POST',
