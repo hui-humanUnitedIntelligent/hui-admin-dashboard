@@ -1,7 +1,7 @@
 // frontend/src/app/experiences/page.tsx
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -64,7 +64,7 @@ function valStr(v: unknown): string {
 function isDiffVal(a: unknown, b: unknown): boolean { return valStr(a) !== valStr(b); }
 
 function DiffFieldExp({ label, newVal, oldVal }: { label: string; newVal: unknown; oldVal?: unknown }) {
-  const [hov, setHov] = React.useState(false);
+  const [hov, setHov] = useState(false);
   const changed = oldVal !== undefined && isDiffVal(newVal, oldVal);
   const nStr = valStr(newVal); const oStr = valStr(oldVal);
   return (
