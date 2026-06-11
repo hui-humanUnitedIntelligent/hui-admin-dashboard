@@ -48,6 +48,78 @@ const isDraft     = (e: HuiEntry) => normStatus(e) === 'draft';
 const isDeleted   = (e: HuiEntry) => normStatus(e) === 'deleted';
 const isSensitive = (e: HuiEntry) => !e.title || String(e.title).trim().length < 2;
 
+// ── Diff-Hilfsfunktionen ──────────────────────────────────────────────────
+function parseSnapshot(entry: HuiEntry): Record<string, unknown> | null {
+  const raw = entry.admin_comment;
+  if (typeof raw !== 'string' || !raw.startsWith('__snapshot__:')) return null;
+  try { return JSON.parse(raw.slice('__snapshot__:'.length)); }
+  catch { return null; }
+}
+function valStr(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (Array.isArray(v)) return (v as unknown[]).join(', ') || '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+function isDiffVal(a: unknown, b: unknown): boolean { return valStr(a) !== valStr(b); }
+
+function DiffFieldExp({ label, newVal, oldVal }: { label: string; newVal: unknown; oldVal?: unknown }) {
+  const [hov, setHov] = React.useState(false);
+  const changed = oldVal !== undefined && isDiffVal(newVal, oldVal);
+  const nStr = valStr(newVal); const oStr = valStr(oldVal);
+  return (
+    <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{ padding:'7px 10px', background:changed?'#FFF7D1':'var(--bg-tertiary)', borderRadius:6,
+        borderLeft:changed?'4px solid #FF8A00':'4px solid transparent', position:'relative',
+        cursor:changed?'help':'default' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:4 }}>
+        <div style={{ fontSize:10, color:changed?'#B45309':'var(--text-muted)', textTransform:'uppercase',
+          letterSpacing:'0.5px', marginBottom:2, fontWeight:changed?700:400 }}>{label}</div>
+        {changed&&<span style={{ fontSize:9, fontWeight:700, color:'#FF8A00', background:'rgba(255,138,0,0.12)',
+          padding:'1px 6px', borderRadius:10, flexShrink:0, whiteSpace:'nowrap' }}>Geändert</span>}
+      </div>
+      <div style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500, wordBreak:'break-all' }}>{nStr}</div>
+      {changed&&hov&&(
+        <div style={{ position:'absolute', bottom:'110%', left:0, zIndex:9999, background:'#1A1A18', color:'#fff',
+          borderRadius:8, padding:'8px 12px', fontSize:11, minWidth:180, maxWidth:280,
+          boxShadow:'0 4px 16px rgba(0,0,0,0.3)', pointerEvents:'none' }}>
+          <div style={{ marginBottom:3, opacity:0.65, fontSize:10, textTransform:'uppercase' }}>ALT</div>
+          <div style={{ color:'#FCA5A5', wordBreak:'break-word', marginBottom:5 }}>{oStr||'—'}</div>
+          <div style={{ marginBottom:3, opacity:0.65, fontSize:10, textTransform:'uppercase' }}>NEU</div>
+          <div style={{ color:'#86EFAC', wordBreak:'break-word' }}>{nStr}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MediaDiffBlockExp({ entry, snap }: { entry: HuiEntry; snap: Record<string,unknown>|null }) {
+  if (!snap) return null;
+  const toUrls = (arr: unknown): string[] => ((arr as unknown[])||[]).map((i:unknown)=>
+    typeof i==='object'&&i!==null?(i as Record<string,string>).url||'':String(i)).filter(Boolean);
+  const newImgs = toUrls(entry.images); const oldImgs = toUrls(snap.images);
+  const nc = (entry.cover_url as string)||newImgs[0]||'';
+  const oc = (snap.cover_url as string)||oldImgs[0]||'';
+  if (nc===oc && JSON.stringify(newImgs)===JSON.stringify(oldImgs)) return null;
+  return (
+    <div style={{ padding:'10px 14px', background:'#FFF7D1', borderLeft:'4px solid #FF8A00', borderRadius:6, marginBottom:4 }}>
+      <div style={{ fontSize:10, color:'#B45309', fontWeight:700, textTransform:'uppercase', marginBottom:8 }}>
+        Medien geändert <span style={{ fontSize:9, background:'rgba(255,138,0,0.12)', color:'#FF8A00', padding:'1px 6px', borderRadius:10, marginLeft:4 }}>Geändert</span>
+      </div>
+      <div style={{ display:'flex', gap:16 }}>
+        {oldImgs.length>0&&<div><div style={{ fontSize:10, color:'#B45309', marginBottom:4, opacity:0.8 }}>ALT</div>
+          <div style={{ display:'flex', gap:4 }}>{oldImgs.slice(0,3).map((url,i)=>(
+            <div key={i} style={{ width:60,height:60,borderRadius:6,overflow:'hidden',background:'#e5e5e5',opacity:0.7,border:'1px solid #d1d5db' }}>
+              <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/></div>))}</div></div>}
+        {newImgs.length>0&&<div><div style={{ fontSize:10, color:'#FF8A00', marginBottom:4, fontWeight:700 }}>NEU</div>
+          <div style={{ display:'flex', gap:4 }}>{newImgs.slice(0,3).map((url,i)=>(
+            <div key={i} style={{ width:60,height:60,borderRadius:6,overflow:'hidden',background:'#FEF3C7',border:'2px solid #FF8A00' }}>
+              <img src={url} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }}/></div>))}</div></div>}
+      </div>
+    </div>
+  );
+}
+
 async function entryAction(action: string, id: string, data: Record<string, unknown> = {}): Promise<boolean> {
   try {
     const res = await fetch('/api/admin', {
@@ -418,29 +490,35 @@ export default function ErlebnisseProjektePage() {
                 </div>
               )}
               <CoverImages entry={selected}/>
+              {(()=>{ const snap = parseSnapshot(selected); const hasDiff = !!snap && isUpdated(selected); return (<>
+              {hasDiff&&<MediaDiffBlockExp entry={selected} snap={snap}/>}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                {([
-                  ['Typ',            selected._source==='experiences'?'Erlebnis':'Projekt'],
-                  ['Status (DB)',     str(selected.status)],
-                  ['Freigabe-Status', normStatus(selected)],
-                  ['Kategorie',       str(selected.category)],
-                  ['Preis',           selected.price?`€${Number(selected.price).toLocaleString('de-DE')}`:'—'],
-                  ['Erstellt',        timeAgo(selected.created_at)],
-                  ['Eingereicht',     timeAgo(str(selected.last_submitted_at))],
-                  ['User-ID',         str(selected.user_id).slice(0,18)+'…'],
-                ] as [string,string][]).map(([k,v])=>(
-                  <div key={k} style={{ padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
-                    <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:2 }}>{k}</div>
-                    <div style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500, wordBreak:'break-all' }}>{v}</div>
-                  </div>
-                ))}
+                <DiffFieldExp label="Typ"            newVal={selected._source==='experiences'?'Erlebnis':'Projekt'} />
+                <DiffFieldExp label="Status (DB)"    newVal={str(selected.status)} />
+                <DiffFieldExp label="Freigabe-Status" newVal={normStatus(selected)} />
+                <DiffFieldExp label="Kategorie"      newVal={str(selected.category)}     oldVal={hasDiff?snap!.category:undefined} />
+                <DiffFieldExp label="Preis"          newVal={selected.price?`€${Number(selected.price).toLocaleString('de-DE')}`:'—'} oldVal={hasDiff?(snap!.price!=null?`€${Number(snap!.price).toLocaleString('de-DE')}`:'—'):undefined} />
+                <DiffFieldExp label="Erstellt"       newVal={timeAgo(selected.created_at)} />
+                <DiffFieldExp label="Eingereicht"    newVal={timeAgo(str(selected.last_submitted_at))} />
+                <DiffFieldExp label="User-ID"        newVal={str(selected.user_id).slice(0,18)+'…'} />
               </div>
               {bool(selected.description)&&(
-                <div style={{ padding:'7px 10px', background:'var(--bg-tertiary)', borderRadius:6 }}>
-                  <div style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:4 }}>Beschreibung</div>
-                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6 }}>{str(selected.description)}</div>
-                </div>
+                <DiffFieldExp label="Beschreibung" newVal={str(selected.description)} oldVal={hasDiff?snap!.description:undefined} />
               )}
+              {bool(selected.title)&&hasDiff&&isDiffVal(selected.title,snap!.title)&&(
+                <DiffFieldExp label="Titel" newVal={str(selected.title)} oldVal={hasDiff?snap!.title:undefined} />
+              )}
+              {bool((selected as Record<string,unknown>).location_text)&&(
+                <DiffFieldExp label="Standort" newVal={str((selected as Record<string,unknown>).location_text)} oldVal={hasDiff?snap!.location_text:undefined} />
+              )}
+              {bool((selected as Record<string,unknown>).date)&&(
+                <DiffFieldExp label="Datum" newVal={str((selected as Record<string,unknown>).date)} oldVal={hasDiff?snap!.date:undefined} />
+              )}
+              {bool((selected as Record<string,unknown>).time_start)&&(
+                <DiffFieldExp label="Zeit" newVal={`${str((selected as Record<string,unknown>).time_start)} – ${str((selected as Record<string,unknown>).time_end)}`}
+                  oldVal={hasDiff?`${str(snap!.time_start)} – ${str(snap!.time_end)}`:undefined} />
+              )}
+              </>);})()}
             </div>
           )}
         </Modal>
