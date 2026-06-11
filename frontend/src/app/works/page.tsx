@@ -591,12 +591,16 @@ export default function WorksPage() {
                           </>
                         )}
 
-                        {/* REJECTED tab: Wieder freigeben */}
+                        {/* REJECTED tab: Wieder freigeben + Löschen */}
                         {(tab as string) === 'rejected' && (
                           <>
                             <button title="Doch freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                               {isBusy ? '…' : '✅ Freigeben'}
+                            </button>
+                            <button title="Hard-Delete: Werk endgültig löschen" disabled={isBusy} onClick={() => setDeleteConfirm(w)}
+                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700, marginLeft:4 }}>
+                              {isBusy ? '…' : '🗑 Löschen'}
                             </button>
                           </>
                         )}
