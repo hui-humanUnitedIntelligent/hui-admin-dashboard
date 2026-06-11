@@ -138,6 +138,12 @@ export interface HuiWork {
   published_at: string | null;
   created_at: string;
   updated_at: string | null;
+  // Sensitive Content Moderation (2026-06-11)
+  sensitivity_status?: string | null;
+  sensitivity_reason?: string | null;
+  admin_comment?:      string | null;
+  last_submitted_at?:  string | null;
+  is_update?:          boolean | null;
 }
 
 export interface HuiImpactProject {
@@ -190,9 +196,11 @@ export interface HuiEntry {
   updated_at?:       string | null;
   last_submitted_at?: string | null;
   _source:           'experiences' | 'projects';
-  admin_comment?:    string | null;
-  is_update?:        boolean | null;
-  [key: string]:     unknown;
+  admin_comment?:      string | null;
+  is_update?:          boolean | null;
+  sensitivity_status?: string | null;
+  sensitivity_reason?: string | null;
+  [key: string]:       unknown;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
