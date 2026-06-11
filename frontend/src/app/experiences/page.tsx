@@ -401,7 +401,7 @@ function CoverImages({ entry }: { entry: HuiEntry }) {
   );
 }
 
-export default function ErlebnisseProjektePage({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
+export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab,           setTab]          = useState<TabKey>('all');
   const isSuperadmin = role === 'superadmin';
   const [search,        setSearch]       = useState('');
@@ -787,4 +787,9 @@ export default function ErlebnisseProjektePage({ role = 'superadmin' }: { role?:
       </div>
     </DashboardLayout>
   );
+}
+
+// Default-Export für Superadmin-Route (/experiences)
+export default function ErlebnisseProjektePage() {
+  return <ErlebnisseProjekteView role="superadmin" />;
 }
