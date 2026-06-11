@@ -466,6 +466,7 @@ export default function ErlebnisseProjektePage() {
           <Kachel label="Eingereicht" value={counts.pending}    color="#F59E0B"           />
           <Kachel label="Abgelehnt"   value={counts.rejected}   color="var(--red)"        />
           <Kachel label="Gelöscht"    value={counts.deleted}    color="var(--text-muted)" />
+          {counts.sensitive > 0 && <Kachel label="⚠️ Sensitiv" value={counts.sensitive} color="var(--red)" />}
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, flexWrap:'wrap' }}>
@@ -474,6 +475,16 @@ export default function ErlebnisseProjektePage() {
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Titel, Kategorie, Beschreibung …"
               style={{ width:'100%', padding:'8px 10px 8px 32px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-secondary)', color:'var(--text-primary)', fontSize:12, fontFamily:'var(--font-body)', outline:'none', boxSizing:'border-box' }}/>
           </div>
+          {counts.pending > 0 && (
+            <button onClick={() => setTab('pending')} style={{ fontSize:11, background:'rgba(245,158,11,0.12)', color:'#F59E0B', padding:'4px 10px', borderRadius:20, border:'1px solid #F59E0B', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-body)' }}>
+              ⏳ {counts.pending} eingereicht
+            </button>
+          )}
+          {counts.sensitive > 0 && (
+            <button onClick={() => setTab('sensitive')} style={{ fontSize:11, background:'rgba(255,107,107,0.1)', color:'var(--red)', padding:'4px 10px', borderRadius:20, border:'1px solid var(--red)', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-body)' }}>
+              ⚠️ {counts.sensitive} sensitiv
+            </button>
+          )}
           <button onClick={refetchAll} style={{ padding:'8px 14px', borderRadius:8, background:'var(--bg-secondary)', border:'1px solid var(--border)', color:'var(--text-secondary)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-body)' }}>↻ Aktualisieren</button>
         </div>
 
