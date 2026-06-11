@@ -362,9 +362,9 @@ export default function ErlebnisseProjektePage() {
           footer={selected?(
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               <Button variant="ghost" onClick={()=>setShowDetail(false)}>Schließen</Button>
-              {isPending(selected)&&<Button variant="primary" onClick={()=>{handleApprove(selected);setShowDetail(false);}}>✅ Freigeben</Button>}
+              {isPending(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Freigeben</Button>}
               {isPending(selected)&&<Button variant="danger"  onClick={()=>{setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}>❌ Ablehnen</Button>}
-              {isRejected(selected)&&<Button variant="primary" onClick={()=>{handleApprove(selected);setShowDetail(false);}}>✅ Trotzdem freigeben</Button>}
+              {isRejected(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Trotzdem freigeben</Button>}
               {!isDeleted(selected)&&<Button variant="danger" onClick={()=>{setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
             </div>
           ):undefined}
