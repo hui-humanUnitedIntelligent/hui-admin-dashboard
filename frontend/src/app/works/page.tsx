@@ -794,10 +794,10 @@ export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin'
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:600 }}>
                               {isBusy ? '…' : '♻️ Restore'}
                             </button>
-                            <button title="Endgültig löschen" disabled={isBusy} onClick={() => handleHardDelete(w)}
+                            {isSuperadmin && <button title="Endgültig löschen" disabled={isBusy} onClick={() => handleHardDelete(w)}
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                               {isBusy ? '…' : '🗑 Löschen'}
-                            </button>
+                            </button>}
                           </>
                         )}
 
@@ -808,8 +808,10 @@ export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin'
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:600 }}>
                               {isBusy ? '…' : '✅ Auflösen'}
                             </button>
+                            {isSuperadmin && (
                             <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
                               style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>🗑</button>
+                            )}
                           </>
                         )}
 
@@ -834,10 +836,12 @@ export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin'
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:11, fontWeight:700 }}>
                               {isBusy ? '…' : '✅ Freigeben'}
                             </button>
+                            {isSuperadmin && (
                             <button title="Werk endgültig löschen (Hard-Delete)" disabled={isBusy} onClick={() => handleHardDelete(w)}
                               style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700, marginLeft:4 }}>
                               {isBusy ? '…' : '🗑 Löschen'}
                             </button>
+                            )}
                           </>
                         )}
 
@@ -849,11 +853,15 @@ export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin'
                                 style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:12 }}>✓</button>
                             )}
                             {w.status === 'published' && (
+                              {isSuperadmin && (
                               <button title="Melden" disabled={isBusy} onClick={() => handleFlag(w)}
                                 style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--gold)', background:'var(--gold-dim)', color:'var(--gold)', cursor:'pointer', fontSize:12 }}>⚑</button>
+                              )}
                             )}
+                            {isSuperadmin && (
                             <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
                               style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:12 }}>🗑</button>
+                            )}
                           </>
                         )}
                       </div>
