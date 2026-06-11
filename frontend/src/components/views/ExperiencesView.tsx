@@ -524,6 +524,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   const banner = BANNERS[tab];
 
   return (
+    <>
     <DashboardLayout title="Erlebnisse & Projekte">
       <div style={{ padding:'24px 28px', maxWidth:1400, margin:'0 auto' }}>
 
@@ -810,5 +811,6 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
         onClose={closeLightbox}
       />
     )}
+    </>
   );
 }
