@@ -401,8 +401,9 @@ function CoverImages({ entry }: { entry: HuiEntry }) {
   );
 }
 
-export default function ErlebnisseProjektePage() {
+export default function ErlebnisseProjektePage({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab,           setTab]          = useState<TabKey>('all');
+  const isSuperadmin = role === 'superadmin';
   const [search,        setSearch]       = useState('');
   const [selected,      setSelected]     = useState<HuiEntry|null>(null);
   const [showDetail,    setShowDetail]   = useState(false);
@@ -607,8 +608,10 @@ export default function ErlebnisseProjektePage() {
                                 {actionLoading===entry.id?'…':'✅ Klar'}
                               </button>
                             )}
+                            {isSuperadmin && (
                             <button onClick={()=>setDeleteTarget(entry)} title="Löschen"
                               style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>🗑</button>
+                            )}
                           </div>
                         </td>
                       </tr>
