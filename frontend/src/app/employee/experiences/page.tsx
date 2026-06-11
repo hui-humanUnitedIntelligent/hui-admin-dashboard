@@ -1,12 +1,13 @@
 // frontend/src/app/employee/experiences/page.tsx
 // ─────────────────────────────────────────────────────────────────────────────
-// ARCHITEKTUR-REGEL: Diese Datei ist ein reiner Wrapper.
-// Alle Logik, Daten und UI kommen aus ../../experiences/page.tsx (Superadmin-Komponente).
-// KEINE eigene Logik. KEINE eigenen Tabellen. KEINE eigene Datenquelle.
-// Änderungen bitte NUR in frontend/src/app/experiences/page.tsx vornehmen.
+// ARCHITEKTUR-REGEL: Dieser Page ist ein reiner Wrapper.
+// Alle Logik, Daten und UI kommen aus @/app/experiences/page (ErlebnisseProjekteView).
+// KEINE eigene Logik. KEINE eigene Datenquelle. KEINE Duplikation.
+// Änderungen NUR in frontend/src/app/experiences/page.tsx vornehmen — gilt automatisch für beide Rollen.
 // ─────────────────────────────────────────────────────────────────────────────
-import ErlebnisseProjektePage from '../../experiences/page';
+'use client';
+import { ErlebnisseProjekteView } from '@/app/experiences/page';
 
 export default function EmployeeExperiencesPage() {
-  return <ErlebnisseProjektePage role="employee" />;
+  return <ErlebnisseProjekteView role="employee" />;
 }
