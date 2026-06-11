@@ -26,19 +26,62 @@ interface EditForm {
 }
 
 // ── Sensitive detector ────────────────────────────────────────────────────
-const SENSITIVE_KEYWORDS = [
-  'nackt','nude','sex','porn','erotik','18+','adult','xxx','escort',
-  'waffe','weapon','gun','messer','knife','droge','drug','kokain','heroin',
-  'cannabis','geld waschen','money launder','hack','betrug','fraud',
-  'fake','gefälscht','illegal','verboten','stolen','gestohlen',
+const SENSITIVE_KEYWORDS: { kw: string; cat: string }[] = [
+  // Sexuelle Inhalte
+  { kw:'porno',       cat:'🔞 Sexuell' }, { kw:'porn',        cat:'🔞 Sexuell' },
+  { kw:'sex',         cat:'🔞 Sexuell' }, { kw:'blowjob',     cat:'🔞 Sexuell' },
+  { kw:'anal',        cat:'🔞 Sexuell' }, { kw:'oral',        cat:'🔞 Sexuell' },
+  { kw:'nackt',       cat:'🔞 Sexuell' }, { kw:'nude',        cat:'🔞 Sexuell' },
+  { kw:'nudes',       cat:'🔞 Sexuell' }, { kw:'penis',       cat:'🔞 Sexuell' },
+  { kw:'vagina',      cat:'🔞 Sexuell' }, { kw:'tits',        cat:'🔞 Sexuell' },
+  { kw:'dick',        cat:'🔞 Sexuell' }, { kw:'pussy',       cat:'🔞 Sexuell' },
+  { kw:'bdsm',        cat:'🔞 Sexuell' }, { kw:'fetisch',     cat:'🔞 Sexuell' },
+  { kw:'escort',      cat:'🔞 Sexuell' }, { kw:'prostituierte', cat:'🔞 Sexuell' },
+  { kw:'erotik',      cat:'🔞 Sexuell' }, { kw:'18+',         cat:'🔞 Sexuell' },
+  { kw:'adult',       cat:'🔞 Sexuell' }, { kw:'xxx',         cat:'🔞 Sexuell' },
+  { kw:'cum',         cat:'🔞 Sexuell' }, { kw:'sperma',      cat:'🔞 Sexuell' },
+  // Gewalt
+  { kw:'töten',       cat:'⚠️ Gewalt'  }, { kw:'ermorden',    cat:'⚠️ Gewalt'  },
+  { kw:'umbringen',   cat:'⚠️ Gewalt'  }, { kw:'schlagen',    cat:'⚠️ Gewalt'  },
+  { kw:'verletzen',   cat:'⚠️ Gewalt'  }, { kw:'prügeln',     cat:'⚠️ Gewalt'  },
+  { kw:'blutbad',     cat:'⚠️ Gewalt'  }, { kw:'folter',      cat:'⚠️ Gewalt'  },
+  { kw:'vergewaltigung', cat:'⚠️ Gewalt' }, { kw:'waffe',     cat:'⚠️ Gewalt'  },
+  { kw:'weapon',      cat:'⚠️ Gewalt'  }, { kw:'pistole',     cat:'⚠️ Gewalt'  },
+  { kw:'gewehr',      cat:'⚠️ Gewalt'  }, { kw:'messer',      cat:'⚠️ Gewalt'  },
+  { kw:'knife',       cat:'⚠️ Gewalt'  }, { kw:'gun',         cat:'⚠️ Gewalt'  },
+  { kw:'terror',      cat:'⚠️ Gewalt'  },
+  // Rassismus / Extremismus
+  { kw:'nazi',        cat:'🚫 Extremismus' }, { kw:'hitler',  cat:'🚫 Extremismus' },
+  { kw:' ss ',        cat:'🚫 Extremismus' }, { kw:'jihad',   cat:'🚫 Extremismus' },
+  { kw:'isis',        cat:'🚫 Extremismus' }, { kw:'taliban', cat:'🚫 Extremismus' },
+  { kw:'ausländer raus', cat:'🚫 Hassrede' }, { kw:'antisemit', cat:'🚫 Hassrede' },
+  // Drogen
+  { kw:'kokain',      cat:'💊 Drogen'  }, { kw:'heroin',      cat:'💊 Drogen'  },
+  { kw:'meth',        cat:'💊 Drogen'  }, { kw:'crystal',     cat:'💊 Drogen'  },
+  { kw:'droge',       cat:'💊 Drogen'  }, { kw:'drug',        cat:'💊 Drogen'  },
+  { kw:'cannabis',    cat:'💊 Drogen'  },
+  // Selbstverletzung
+  { kw:'suizid',      cat:'🆘 Selbstverletzung' }, { kw:'selbstmord', cat:'🆘 Selbstverletzung' },
+  { kw:'ritzen',      cat:'🆘 Selbstverletzung' },
+  // Illegal
+  { kw:'geld waschen',cat:'🚨 Illegal' }, { kw:'money launder', cat:'🚨 Illegal' },
+  { kw:'hack',        cat:'🚨 Illegal' }, { kw:'betrug',      cat:'🚨 Illegal' },
+  { kw:'fraud',       cat:'🚨 Illegal' }, { kw:'scam',        cat:'🚨 Illegal' },
+  { kw:'geldwäsche',  cat:'🚨 Illegal' }, { kw:'stolen',      cat:'🚨 Illegal' },
+  { kw:'gestohlen',   cat:'🚨 Illegal' },
 ];
 const HIGH_PRICE_THRESHOLD = 5000;
 
 function detectSensitive(w: WorkWithMeta): { flagged: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const text = [w.title||'', w.description||'', w.caption||'', ((w.tags as string[])||[]).join(' '), w.category||''].join(' ').toLowerCase();
-  const hit = SENSITIVE_KEYWORDS.find((kw) => text.includes(kw));
-  if (hit) reasons.push(`🚨 Keyword: "${hit}"`);
+  const seen = new Set<string>();
+  for (const { kw, cat } of SENSITIVE_KEYWORDS) {
+    if (text.includes(kw) && !seen.has(cat)) {
+      seen.add(cat);
+      reasons.push(`${cat}: "${kw}"`);
+    }
+  }
   const price = (w.price as number) || 0;
   if (price > HIGH_PRICE_THRESHOLD) reasons.push(`💰 Hoher Preis: €${price.toLocaleString('de-DE')}`);
   if (!w.title || String(w.title).trim().length < 2) reasons.push('⚠️ Fehlender Titel');
