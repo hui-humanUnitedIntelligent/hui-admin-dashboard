@@ -223,7 +223,13 @@ export default function EmployeeErlebnisseProjektePage() {
     setActionLoading(e.id);
     const ok = await entryAction(e._source==='experiences'?'approve_experience':'approve_project', e.id);
     setActionLoading(null);
-    if (ok) { showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success'); refetchAll(); }
+    if (ok) {
+      setSelected(prev => prev?.id === e.id
+        ? { ...prev, status: 'published', approval_status: 'approved' }
+        : prev);
+      showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success');
+      refetchAll();
+    }
     else     showToast('Fehler beim Freigeben', 'error');
   };
 
@@ -362,9 +368,9 @@ export default function EmployeeErlebnisseProjektePage() {
           footer={selected?(
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               <Button variant="ghost" onClick={()=>setShowDetail(false)}>Schließen</Button>
-              {isPending(selected)&&<Button variant="primary" onClick={()=>{handleApprove(selected);setShowDetail(false);}}>✅ Freigeben</Button>}
+              {isPending(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Freigeben</Button>}
               {isPending(selected)&&<Button variant="danger"  onClick={()=>{setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}>❌ Ablehnen</Button>}
-              {isRejected(selected)&&<Button variant="primary" onClick={()=>{handleApprove(selected);setShowDetail(false);}}>✅ Trotzdem freigeben</Button>}
+              {isRejected(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Trotzdem freigeben</Button>}
               {!isDeleted(selected)&&<Button variant="danger" onClick={()=>{setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
             </div>
           ):undefined}
