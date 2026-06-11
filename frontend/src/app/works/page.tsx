@@ -386,7 +386,7 @@ function TabBar({ tab, setTab, counts }: {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
+export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab, setTab]               = useState<TabKey>('all');
   // DB-Keywords lazy laden
   useEffect(() => { loadDbKeywords(); }, []);
@@ -1163,3 +1163,8 @@ export default function WorksPage({ role = 'superadmin' }: { role?: 'superadmin'
   );
 }
 // deploy-trigger: 2026-06-09
+
+// Default-Export für den Superadmin-Route (/works)
+export default function WorksPage() {
+  return <WorksView role="superadmin" />;
+}
