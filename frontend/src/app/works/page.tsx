@@ -386,7 +386,7 @@ function TabBar({ tab, setTab, counts }: {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
+function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab, setTab]               = useState<TabKey>('all');
   // DB-Keywords lazy laden
   useEffect(() => { loadDbKeywords(); }, []);
