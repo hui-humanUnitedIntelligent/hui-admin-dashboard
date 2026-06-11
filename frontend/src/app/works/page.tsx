@@ -835,10 +835,10 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                               {isBusy ? '…' : '✅ Freigeben'}
                             </button>
                             {isSuperadmin && (
-                            <button title="Werk endgültig löschen (Hard-Delete)" disabled={isBusy} onClick={() => handleHardDelete(w)}
-                              style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700, marginLeft:4 }}>
-                              {isBusy ? '…' : '🗑 Löschen'}
-                            </button>
+                              <button title="Werk endgültig löschen (Hard-Delete)" disabled={isBusy} onClick={() => handleHardDelete(w)}
+                                style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', cursor:'pointer', fontSize:11, fontWeight:700, marginLeft:4 }}>
+                                {isBusy ? '…' : '🗑 Löschen'}
+                              </button>
                             )}
                           </>
                         )}
