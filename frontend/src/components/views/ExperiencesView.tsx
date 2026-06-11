@@ -3,6 +3,7 @@
 // Superadmin (/experiences) und Employee (/employee/experiences) nutzen exakt dieselbe Komponente.
 // Änderungen hier gelten automatisch für BEIDE Rollen.
 'use client';
+import { ImageLightbox, ClickableImage } from '@/components/ui/ImageLightbox';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -397,7 +398,13 @@ function CoverImages({ entry }: { entry: HuiEntry }) {
     <div style={{ display:'flex', gap:6, overflowX:'auto', paddingBottom:4 }}>
       {all.slice(0,5).map((url,i) => (
         <div key={i} style={{ flexShrink:0, width:i===0?180:80, height:i===0?120:80, borderRadius:8, overflow:'hidden', background:'var(--bg-tertiary)', border:`${i===0?2:1}px solid ${i===0?'var(--accent)':'var(--border)'}` }}>
-          <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}/>
+          <ClickableImage
+            src={url} alt=""
+            style={{ width:'100%', height:'100%', objectFit:'cover' }}
+            containerStyle={{ width:'100%', height:'100%' }}
+            onOpenLightbox={() => openLightbox(all, i)}
+            onError={e=>{(e.currentTarget as HTMLImageElement).style.display='none';}}
+          />
         </div>
       ))}
     </div>
@@ -407,6 +414,11 @@ function CoverImages({ entry }: { entry: HuiEntry }) {
 export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'superadmin' | 'employee' }) {
   const [tab,           setTab]          = useState<TabKey>('all');
   const isSuperadmin = role === 'superadmin';
+  // ── Lightbox State (einzige Instanz für Superadmin + Employee) ─────────────
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex,  setLightboxIndex]  = useState(0);
+  const openLightbox = (images: string[], index = 0) => { setLightboxImages(images); setLightboxIndex(index); };
+  const closeLightbox = () => setLightboxImages([]);
   const [search,        setSearch]       = useState('');
   const [selected,      setSelected]     = useState<HuiEntry|null>(null);
   const [showDetail,    setShowDetail]   = useState(false);
@@ -789,5 +801,14 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
 
       </div>
     </DashboardLayout>
+
+    {/* ── ImageLightbox (einzige Komponente für Superadmin + Employee) ── */}
+    {lightboxImages.length > 0 && (
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        onClose={closeLightbox}
+      />
+    )}
   );
 }
