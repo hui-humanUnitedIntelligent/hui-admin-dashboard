@@ -60,7 +60,8 @@ const NAV_GROUPS: NavGroup[] = [
     items_de: [
       { href: '/works',        label: 'Werke & Content',  icon: '🖼️' },
       { href: '/experiences',  label: 'Erlebnisse & Projekte', icon: '🌿' },
-      { href: '/impact-projekte', label: 'Impact Projekte',  icon: '💚', superadminOnly: true },
+      { href: '/impact-projekte', label: 'Impact Projekte',      icon: '💚', superadminOnly: true },
+      { href: '/score-failures',  label: 'Vordef. Ablehnungsgründe', icon: '🔍', superadminOnly: true },
       { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
     ],
     items_en: [
