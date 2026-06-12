@@ -312,7 +312,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {currentUser?.email ?? 'Admin'}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500 }}>Administrator</div>
+            <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500 }}>🛡️ Superadmin DB</div>
           </div>
         </div>
         {/* ── Switch to Super Admin — nur für superadmin sichtbar ── */}
