@@ -92,12 +92,33 @@ async function sendResonanzNotification(
   userId: string,
   type: string,
   title: string,
-  message: string,
-  metadata?: Record<string, unknown>,
+  body: string,
+  projectId?: string,
+  projectName?: string,
+  rejectionReason?: string,
 ): Promise<void> {
   try {
-    const adminKey = SUPABASE_SERVICE;
-    await fetch(`${SUPABASE_URL}/rest/v1/notification_events`, {
+    const adminKey = SUPABASE_SERVICE || SUPABASE_ANON;
+    // Verwendet die bestehende notifications-Tabelle (Resonanzzentrum der be-hui App)
+    const payload: Record<string, unknown> = {
+      user_id:     userId,
+      type,
+      title,
+      body,
+      entity_id:   projectId   || null,
+      entity_type: 'impact_project',
+      action_url:  '/impact',   // Link zum Impact-Pool in der App
+      is_read:     false,
+      read:        false,
+      created_at:  new Date().toISOString(),
+      metadata: {
+        project_id:       projectId    || null,
+        project_name:     projectName  || null,
+        rejection_reason: rejectionReason || null,
+      },
+    };
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
       method: 'POST',
       headers: {
         apikey:         adminKey,
@@ -105,18 +126,17 @@ async function sendResonanzNotification(
         'Content-Type': 'application/json',
         Prefer:         'return=minimal',
       },
-      body: JSON.stringify({
-        user_id:    userId,
-        type,
-        title,
-        message,
-        metadata:   metadata || {},
-        is_read:    false,
-        created_at: new Date().toISOString(),
-      }),
+      body: JSON.stringify(payload),
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn('Resonanzzentrum notification failed:', errText);
+    } else {
+      console.log('[HUI_IMPACT] Resonanzzentrum notification sent ✓', { type, userId: userId.slice(0,8)+'…' });
+    }
   } catch (e) {
-    console.warn('Resonanzzentrum notification failed:', e);
+    console.warn('Resonanzzentrum notification exception:', e);
   }
 }
 
@@ -431,9 +451,10 @@ export default function ImpactApplicationsView() {
       await sendResonanzNotification(
         app.user_id,
         'impact_project_approved',
-        '🎉 Dein Herzensprojekt wurde angenommen!',
+        '💚 Dein Herzensprojekt wurde angenommen!',
         `Dein Projekt „${app.project_name}" wurde angenommen. Ein Admin wird dich persönlich kontaktieren (E-Mail, Telefon oder persönlich).`,
-        { project_id: id, project_name: app.project_name }
+        id,
+        app.project_name,
       );
       showToast('Projekt freigegeben ✅', 'success');
       setApps(prev => prev.map(a => a.id === id ? { ...a, status: 'approved' } : a));
@@ -453,7 +474,9 @@ export default function ImpactApplicationsView() {
         'impact_project_rejected',
         '📋 Dein Herzensprojekt wurde abgelehnt',
         `Dein Projekt „${app.project_name}" wurde abgelehnt. Grund: ${reason}`,
-        { project_id: id, project_name: app.project_name, rejection_reason: reason }
+        id,
+        app.project_name,
+        reason,
       );
       showToast('Projekt abgelehnt', 'error');
       setApps(prev => prev.map(a => a.id === id ? { ...a, status: 'rejected', rejection_reason: reason } : a));
