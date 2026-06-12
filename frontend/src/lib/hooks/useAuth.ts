@@ -33,11 +33,35 @@ export function useAuth() {
       if (hasSupabase()) {
         const supaRes = await supabaseAdminLogin(email, password);
         if (supaRes?.access_token) {
+          const userId = supaRes.user?.id;
+
+          // Echte Rolle aus profiles-Tabelle lesen (nicht aus auth.users — dort steht nur "authenticated")
+          let profileRole = 'admin';
+          if (userId) {
+            try {
+              const profileRes = await fetch(
+                `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role&limit=1`,
+                {
+                  headers: {
+                    apikey:        (process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''),
+                    Authorization: `Bearer ${(process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '')}`,
+                  },
+                }
+              );
+              const profileData = await profileRes.json();
+              if (Array.isArray(profileData) && profileData.length > 0 && profileData[0].role) {
+                profileRole = profileData[0].role;
+              }
+            } catch {
+              // Fallback: behalte 'admin'
+            }
+          }
+
           const user: AdminUser = {
-            id: supaRes.user?.id || 0,
+            id: userId || 0,
             name: supaRes.user?.user_metadata?.full_name || supaRes.user?.email || 'Admin',
             email: supaRes.user?.email || email,
-            role: supaRes.user?.role || 'admin',
+            role: profileRole,
           };
           storeAuth(supaRes.access_token, user);
           return true;
