@@ -757,18 +757,18 @@ export default function ImpactApplicationsView() {
   const handleDelete = async (id: string) => {
     const app = apps.find(a => a.id === id);
     if (!app) return;
-    if (!window.confirm(`Projekt „${app.project_name}" wirklich endgültig löschen?`)) return;
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
-      );
-      const { error } = await sb
-        .from('impact_applications')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      // Hard-Delete via REST API mit Service-Role-Key
+      const url = `${SUPABASE_URL}/rest/v1/impact_applications?id=eq.${id}`;
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'apikey':        SUPABASE_SERVICE || SUPABASE_ANON,
+          'Authorization': `Bearer ${SUPABASE_SERVICE || SUPABASE_ANON}`,
+          'Content-Type':  'application/json',
+        },
+      });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
       // Nutzer benachrichtigen
       try {
         await sendResonanzNotification(
