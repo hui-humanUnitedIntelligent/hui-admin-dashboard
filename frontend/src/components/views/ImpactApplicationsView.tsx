@@ -505,8 +505,8 @@ function DetailModal({
               </div>
             )}
 
-            {/* Löschen-Button für bewilligte Projekte */}
-            {app.status === 'approved' && !deleteMode && (
+            {/* Löschen-Button für bewilligte + abgelehnte Projekte */}
+            {(app.status === 'approved' || app.status === 'rejected') && !deleteMode && (
               <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setDeleteMode(true)}
