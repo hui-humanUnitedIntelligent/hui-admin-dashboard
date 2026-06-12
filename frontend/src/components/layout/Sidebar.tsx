@@ -128,7 +128,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     const open: Record<string, boolean> = {};
     for (const g of NAV_GROUPS) {
       const items = lang === 'en' ? g.items_en : g.items_de;
-      const hasActive = items.some(i => pathname === i.href || pathname.startsWith(i.href));
+      const hasActive = items.some(i =>
+        pathname === i.href || (
+          pathname.startsWith(i.href) &&
+          (pathname.length === i.href.length || pathname[i.href.length] === '/')
+        )
+      );
       open[g.id] = hasActive;
     }
     return open;
@@ -141,7 +146,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   };
 
   const isActive = (href: string) =>
-    pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+    pathname === href || (
+      href !== '/dashboard' &&
+      pathname.startsWith(href) &&
+      // Sicherstellen dass kein falscher Prefix-Match passiert (/impact ≠ /impact-projekte)
+      (pathname.length === href.length || pathname[href.length] === '/')
+    );
 
   const sidebarContent = (
     <aside style={{
