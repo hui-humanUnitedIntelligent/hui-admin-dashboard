@@ -509,7 +509,7 @@ export default function ImpactApplicationsView() {
         app.user_id,
         'impact_project_rejected',
         '📋 Dein Herzensprojekt wurde abgelehnt',
-        `Dein Projekt „${app.project_name}" wurde abgelehnt. Grund: ${reason}`,
+        `Dein Projekt „${app.project_name}" wurde abgelehnt. Tippe, um den Ablehnungsgrund zu sehen.`,
         id,
         app.project_name,
         reason,
