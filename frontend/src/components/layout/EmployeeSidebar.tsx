@@ -234,7 +234,7 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
             <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {currentUser?.name || 'Mitarbeiter'}
             </div>
-            <div style={{ fontSize: 10, color: '#74C0FC' }}>Employee</div>
+            <div style={{ fontSize: 10, color: '#74C0FC' }}>👤 Employee DB</div>
           </div>
           <button
             onClick={logout}
