@@ -452,7 +452,7 @@ export default function ImpactApplicationsView() {
         app.user_id,
         'impact_project_approved',
         '💚 Dein Herzensprojekt wurde angenommen!',
-        `Dein Projekt „${app.project_name}" wurde angenommen. Ein Admin wird dich persönlich kontaktieren (E-Mail, Telefon oder persönlich).`,
+        `Glückwunsch! 🎉 Dein Projekt „${app.project_name}" wurde angenommen. Ein Admin wird sich innerhalb von 14 Tagen persönlich bei dir melden (per E-Mail, Telefon oder persönlich).`,
         id,
         app.project_name,
       );
