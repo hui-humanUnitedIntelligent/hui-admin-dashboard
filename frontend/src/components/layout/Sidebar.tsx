@@ -13,6 +13,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: string;
+  superadminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -59,11 +60,13 @@ const NAV_GROUPS: NavGroup[] = [
     items_de: [
       { href: '/works',        label: 'Werke & Content',  icon: '🖼️' },
       { href: '/experiences',  label: 'Erlebnisse & Projekte', icon: '🌿' },
+      { href: '/impact-projekte', label: 'Impact Projekte',  icon: '💚', superadminOnly: true },
       { href: '/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
     ],
     items_en: [
       { href: '/works',        label: 'Works & Content',  icon: '🖼️' },
       { href: '/experiences',  label: 'Experiences & Projects', icon: '🌿' },
+      { href: '/impact-projekte', label: 'Impact Projects', icon: '💚', superadminOnly: true },
       { href: '/memberships',  label: 'Memberships',      icon: '🏅' },
     ],
   },
@@ -256,6 +259,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                   {items.map(item => {
                     // Reviews: nur für Admins (alle Admin-Rollen)
                     if (item.href === '/reviews' && !currentUser) return null;
+                    // superadminOnly: nur für Superadmin sichtbar
+                    if (item.superadminOnly) {
+                      const role = (currentUser?.role as string) || '';
+                      const isSuperAdmin = role === 'superadmin' || role === 'super_admin';
+                      if (!isSuperAdmin) return null;
+                    }
                     const active = isActive(item.href);
                     return (
                       <Link
