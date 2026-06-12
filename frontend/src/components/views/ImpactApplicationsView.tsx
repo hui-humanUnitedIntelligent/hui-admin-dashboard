@@ -339,10 +339,44 @@ function DetailModal({
             {rejectMode && (
               <div style={{ marginTop: 20, padding: 16, background: '#ef444411', borderRadius: 12, border: '1px solid #ef444433' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#ef4444', marginBottom: 10 }}>Ablehnungsgrund (Pflichtfeld)</div>
+
+                {/* Vordefinierte Ablehnungsgründe */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Schnellauswahl:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {[
+                      { label: '📝 Beschreibung zu vage', text: 'Die Projektbeschreibung ist zu allgemein gehalten. Bitte beschreibe konkret: Wer profitiert? Was wird umgesetzt? Welche Wirkung entsteht?' },
+                      { label: '🎯 Kein HUI-Bezug', text: 'Das Projekt passt leider nicht zu den HUI-Kategorien (Bildung, Umwelt, Gemeinschaft, Gesundheit, Kultur). Bitte prüfe, ob du dein Projekt stärker auf einen dieser Bereiche ausrichten kannst.' },
+                      { label: '💰 Förderbetrag unrealistisch', text: 'Der angegebene Förderbetrag steht nicht im Verhältnis zum beschriebenen Projektumfang. Bitte überarbeite die Mittelverwendung nachvollziehbar.' },
+                      { label: '👥 Zielgruppe unklar', text: 'Die Zielgruppe des Projekts ist nicht klar definiert. Bitte präzisiere, wen du mit deinem Projekt erreichen und unterstützen möchtest.' },
+                      { label: '🔄 Zu ähnlich zu bestehendem Projekt', text: 'Ein sehr ähnliches Projekt ist bereits auf der HUI-Plattform aktiv. Um Doppelförderung zu vermeiden, empfehlen wir eine Kooperation oder eine stärkere Differenzierung.' },
+                      { label: '📊 Wirkung nicht messbar', text: 'Die beschriebene Wirkung des Projekts ist schwer messbar oder nachvollziehbar. Bitte ergänze konkrete Erfolgskriterien oder Meilensteine.' },
+                      { label: '⚠️ Unvollständige Angaben', text: 'Deine Einreichung enthält unvollständige Pflichtangaben. Bitte fülle alle Felder vollständig aus und reiche das Projekt erneut ein.' },
+                      { label: '🚫 Persönlicher Nutzen', text: 'Das eingereichte Projekt scheint überwiegend dem persönlichen Nutzen zu dienen. HUI fördert ausschließlich Projekte mit gemeinwohlorientierter Wirkung.' },
+                    ].map(({ label, text }) => (
+                      <button
+                        key={label}
+                        onClick={() => setReason(prev => prev ? prev + ' ' + text : text)}
+                        style={{
+                          padding: '5px 10px', borderRadius: 99, fontSize: 11.5, cursor: 'pointer',
+                          border: reason.includes(text.slice(0,20)) ? '1.5px solid #ef4444' : '1px solid var(--border)',
+                          background: reason.includes(text.slice(0,20)) ? '#ef444418' : 'var(--bg-secondary)',
+                          color: reason.includes(text.slice(0,20)) ? '#ef4444' : 'var(--text-secondary)',
+                          fontWeight: 500, transition: 'all 0.15s',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <textarea
                   value={reason}
                   onChange={e => setReason(e.target.value)}
-                  placeholder="Bitte den Grund für die Ablehnung eingeben — wird dem Nutzer angezeigt…"
+                  placeholder="Oder eigenen Ablehnungsgrund eingeben / obige Auswahl anpassen…"
                   rows={4}
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 9,
