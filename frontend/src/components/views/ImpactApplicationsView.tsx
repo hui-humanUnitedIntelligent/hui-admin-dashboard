@@ -754,6 +754,42 @@ export default function ImpactApplicationsView() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    const app = apps.find(a => a.id === id);
+    if (!app) return;
+    if (!window.confirm(`Projekt „${app.project_name}" wirklich endgültig löschen?`)) return;
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+      );
+      const { error } = await sb
+        .from('impact_applications')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      // Nutzer benachrichtigen
+      try {
+        await sendResonanzNotification(
+          app.user_id,
+          'impact_project_deleted',
+          '🗑️ Dein Herzensprojekt wurde entfernt',
+          `Dein Projekt „${app.project_name}" wurde vom HUI-Team entfernt. Bei Fragen wende dich bitte an den Support.`,
+          id,
+          app.project_name,
+          'Administrativ entfernt',
+        );
+      } catch { /* Notification-Fehler nicht kritisch */ }
+      showToast('Projekt gelöscht', 'error');
+      setApps(prev => prev.filter(a => a.id !== id));
+      setSelected(null);
+    } catch (e) {
+      showToast('Fehler beim Löschen', 'error');
+      console.error(e);
+    }
+  };
+
   const TABS: { key: TabKey; label: string; color?: string }[] = [
     { key: 'all',      label: `Alle (${counts.all})` },
     { key: 'pending',  label: `⏳ Prüfung (${counts.pending})`,  color: '#f97316' },
@@ -866,6 +902,7 @@ export default function ImpactApplicationsView() {
           onClose={() => setSelected(null)}
           onApprove={handleApprove}
           onReject={handleReject}
+          onDelete={handleDelete}
         />
       )}
     </DashboardLayout>
