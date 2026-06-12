@@ -259,12 +259,8 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                   {items.map(item => {
                     // Reviews: nur für Admins (alle Admin-Rollen)
                     if (item.href === '/reviews' && !currentUser) return null;
-                    // superadminOnly: nur für Superadmin sichtbar
-                    if (item.superadminOnly) {
-                      const role = (currentUser?.role as string) || '';
-                      const isSuperAdmin = role === 'superadmin' || role === 'super_admin';
-                      if (!isSuperAdmin) return null;
-                    }
+                    // superadminOnly: im Superadmin-Dashboard immer sichtbar
+                    // (Wer hier eingeloggt ist, hat Admin-Zugang — Employees nutzen EmployeeSidebar)
                     const active = isActive(item.href);
                     return (
                       <Link
