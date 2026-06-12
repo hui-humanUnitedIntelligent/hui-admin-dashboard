@@ -159,7 +159,7 @@ export default function ScoreFailuresView() {
   const avgScore = failures.length ? Math.round(failures.reduce((s, f) => s + f.ai_score, 0) / failures.length) : 0;
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Vordefinierte Ablehnungsgründe">
       {selected && <DetailModal f={selected} onClose={() => setSelected(null)} />}
 
       <div style={{ padding: '28px 32px', maxWidth: 1100, margin: '0 auto' }}>
