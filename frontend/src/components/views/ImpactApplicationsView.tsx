@@ -183,15 +183,18 @@ function DetailModal({
   onClose,
   onApprove,
   onReject,
+  onDelete,
 }: {
   app: ImpactApplication;
   onClose: () => void;
   onApprove: (id: string) => Promise<void>;
   onReject: (id: string, reason: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
-  const [rejectMode, setRejectMode] = useState(false);
-  const [reason, setReason]         = useState('');
-  const [saving, setSaving]         = useState(false);
+  const [rejectMode,  setRejectMode]  = useState(false);
+  const [deleteMode,  setDeleteMode]  = useState(false);
+  const [reason, setReason]           = useState('');
+  const [saving, setSaving]           = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   // ── Medien-Klassifikation ──────────────────────────────────────
@@ -225,6 +228,13 @@ function DetailModal({
     if (!reason.trim()) { showToast('Bitte Ablehnungsgrund eingeben', 'error'); return; }
     setSaving(true);
     await onReject(app.id, reason.trim());
+    setSaving(false);
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    setSaving(true);
+    await onDelete(app.id);
     setSaving(false);
     onClose();
   };
@@ -469,7 +479,7 @@ function DetailModal({
             </div>
 
             {/* Aktionen */}
-            {app.status === 'pending' && !rejectMode && (
+            {app.status === 'pending' && !rejectMode && !deleteMode && (
               <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
                 <button
                   onClick={handleApprove}
@@ -492,6 +502,70 @@ function DetailModal({
                 >
                   ❌ Ablehnen
                 </button>
+              </div>
+            )}
+
+            {/* Löschen-Button für bewilligte Projekte */}
+            {app.status === 'approved' && !deleteMode && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setDeleteMode(true)}
+                  style={{
+                    padding: '10px 24px', borderRadius: 10,
+                    border: '1px solid #ef4444', cursor: 'pointer',
+                    background: 'transparent', color: '#ef4444',
+                    fontWeight: 600, fontSize: 14,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  🗑️ Bewilligung widerrufen & löschen
+                </button>
+              </div>
+            )}
+
+            {/* Löschen-Bestätigung */}
+            {deleteMode && (
+              <div style={{
+                marginTop: 20, padding: 16,
+                background: '#ef444411',
+                borderRadius: 12,
+                border: '1px solid #ef444433',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ef4444', marginBottom: 8 }}>
+                  ⚠️ Projekt wirklich löschen?
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
+                  Das Projekt <strong style={{ color: 'var(--text-primary)' }}>„{app.project_name}"</strong> wird
+                  dauerhaft aus der Datenbank entfernt. Der Nutzer wird per Benachrichtigung informiert.
+                  Diese Aktion kann nicht rückgängig gemacht werden.
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={handleDelete}
+                    disabled={saving}
+                    style={{
+                      padding: '10px 20px', borderRadius: 10, border: 'none',
+                      background: '#ef4444', color: '#fff',
+                      fontWeight: 700, fontSize: 14,
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      opacity: saving ? 0.7 : 1,
+                    }}
+                  >
+                    {saving ? '…' : '🗑️ Ja, endgültig löschen'}
+                  </button>
+                  <button
+                    onClick={() => setDeleteMode(false)}
+                    disabled={saving}
+                    style={{
+                      padding: '10px 20px', borderRadius: 10,
+                      border: '1px solid var(--border)', background: 'transparent',
+                      color: 'var(--text-muted)', fontWeight: 600, fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Abbrechen
+                  </button>
+                </div>
               </div>
             )}
 
