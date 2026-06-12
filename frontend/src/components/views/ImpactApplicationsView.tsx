@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
-import { sbQuery, SUPABASE_URL, SUPABASE_SERVICE } from '@/lib/api';
+import { sbQuery, SUPABASE_URL, SUPABASE_SERVICE, SUPABASE_ANON } from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ImpactApplication {
