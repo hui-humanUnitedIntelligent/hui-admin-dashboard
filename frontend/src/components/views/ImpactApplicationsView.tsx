@@ -114,7 +114,9 @@ async function sendResonanzNotification(
       metadata: {
         project_id:       projectId    || null,
         project_name:     projectName  || null,
+        entry_title:      projectName  || null,
         rejection_reason: rejectionReason || null,
+        reason:           rejectionReason || null,
       },
     };
 
