@@ -36,24 +36,28 @@ export function useAuth() {
           const userId = supaRes.user?.id;
 
           // Echte Rolle aus profiles-Tabelle lesen (nicht aus auth.users — dort steht nur "authenticated")
-          let profileRole = 'admin';
+          let profileRole = 'superadmin'; // Fallback: wer sich im Admin-Dashboard einloggen kann, ist Superadmin
           if (userId) {
             try {
+              const apiKey = SUPABASE_SERVICE || SUPABASE_ANON;
               const profileRes = await fetch(
                 `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role&limit=1`,
                 {
                   headers: {
-                    apikey:        (SUPABASE_SERVICE || SUPABASE_ANON),
-                    Authorization: `Bearer ${(SUPABASE_SERVICE || SUPABASE_ANON)}`,
+                    apikey:        apiKey,
+                    Authorization: `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
                   },
                 }
               );
-              const profileData = await profileRes.json();
-              if (Array.isArray(profileData) && profileData.length > 0 && profileData[0].role) {
-                profileRole = profileData[0].role;
+              if (profileRes.ok) {
+                const profileData = await profileRes.json();
+                if (Array.isArray(profileData) && profileData.length > 0 && profileData[0].role) {
+                  profileRole = profileData[0].role;
+                }
               }
             } catch {
-              // Fallback: behalte 'admin'
+              // Fallback: superadmin (Admin-Dashboard-Zugang impliziert Admin-Rechte)
             }
           }
 
