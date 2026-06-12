@@ -194,9 +194,25 @@ function DetailModal({
   const [saving, setSaving]         = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
-  const images: string[] = [];
-  if (app.cover_url) images.push(app.cover_url);
-  if (Array.isArray(app.media_urls)) images.push(...app.media_urls.filter(Boolean));
+  // ── Medien-Klassifikation ──────────────────────────────────────
+  const isImage = (url: string) => /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?|$)/i.test(url);
+  const isVideo = (url: string) => /\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/i.test(url);
+  const isPdf   = (url: string) => /\.pdf(\?|$)/i.test(url);
+  const getFileLabel = (url: string) => {
+    const parts = url.split('/');
+    const name  = decodeURIComponent(parts[parts.length - 1].split('?')[0]);
+    return name.length > 40 ? name.slice(0, 37) + '…' : name;
+  };
+
+  // Titelbild separat, dann restliche Medien typisiert
+  const coverUrl: string | null = app.cover_url || null;
+  const allMedia: string[] = Array.isArray(app.media_urls)
+    ? app.media_urls.filter(Boolean)
+    : [];
+  const mediaImages  = allMedia.filter(isImage);
+  const mediaVideos  = allMedia.filter(isVideo);
+  const mediaPdfs    = allMedia.filter(isPdf);
+  const mediaOthers  = allMedia.filter(u => !isImage(u) && !isVideo(u) && !isPdf(u));
 
   const handleApprove = async () => {
     setSaving(true);
@@ -262,21 +278,163 @@ function DetailModal({
           {/* Body */}
           <div style={{ padding: '20px 24px' }}>
 
-            {/* Bildergalerie */}
-            {images.length > 0 && (
+            {/* ── Titelbild ── */}
+            {coverUrl && (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Bilder</div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {images.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Bild ${i + 1}`}
-                      onClick={() => setLightboxImg(url)}
-                      style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 10, cursor: 'zoom-in', border: '1px solid var(--border)' }}
-                    />
-                  ))}
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                  📸 Titelbild
                 </div>
+                <img
+                  src={coverUrl}
+                  alt="Titelbild"
+                  onClick={() => setLightboxImg(coverUrl)}
+                  style={{
+                    width: '100%', maxHeight: 220, objectFit: 'cover',
+                    borderRadius: 12, cursor: 'zoom-in',
+                    border: '1px solid var(--border)',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* ── Zusatzmaterial ── */}
+            {(mediaImages.length > 0 || mediaVideos.length > 0 || mediaPdfs.length > 0 || mediaOthers.length > 0) && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+                  📎 Zusatzmaterial ({allMedia.length} Datei{allMedia.length !== 1 ? 'en' : ''})
+                </div>
+
+                {/* Bilder */}
+                {mediaImages.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>🖼️ Bilder ({mediaImages.length})</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {mediaImages.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Bild ${i + 1}`}
+                          onClick={() => setLightboxImg(url)}
+                          style={{
+                            width: 110, height: 80, objectFit: 'cover',
+                            borderRadius: 8, cursor: 'zoom-in',
+                            border: '1px solid var(--border)',
+                            transition: 'transform 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Videos */}
+                {mediaVideos.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>🎬 Videos ({mediaVideos.length})</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {mediaVideos.map((url, i) => (
+                        <div key={i} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                          <video
+                            controls
+                            preload="metadata"
+                            style={{ width: '100%', maxHeight: 240, display: 'block', background: '#000' }}
+                          >
+                            <source src={url} />
+                            Dein Browser unterstützt keine Video-Wiedergabe.
+                          </video>
+                          <div style={{
+                            padding: '6px 10px', fontSize: 11, color: 'var(--text-muted)',
+                            background: 'var(--bg-primary)', display: 'flex', alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {getFileLabel(url)}
+                            </span>
+                            <a href={url} target="_blank" rel="noreferrer"
+                              style={{ marginLeft: 8, color: 'var(--accent)', fontSize: 11, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                              ↗ Öffnen
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* PDFs */}
+                {mediaPdfs.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>📄 PDF-Dokumente ({mediaPdfs.length})</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {mediaPdfs.map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 14px',
+                            background: 'var(--bg-primary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            textDecoration: 'none',
+                            color: 'var(--text-primary)',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent)11')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-primary)')}
+                        >
+                          <span style={{ fontSize: 22 }}>📄</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {getFileLabel(url)}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>PDF · Klicken zum Öffnen</div>
+                          </div>
+                          <span style={{ fontSize: 16, color: 'var(--accent)', flexShrink: 0 }}>↗</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sonstige Dateien */}
+                {mediaOthers.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>📎 Weitere Dateien ({mediaOthers.length})</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {mediaOthers.map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 14px',
+                            background: 'var(--bg-primary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            textDecoration: 'none',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          <span style={{ fontSize: 22 }}>📎</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {getFileLabel(url)}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Datei · Klicken zum Herunterladen</div>
+                          </div>
+                          <span style={{ fontSize: 16, color: 'var(--accent)', flexShrink: 0 }}>↗</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
