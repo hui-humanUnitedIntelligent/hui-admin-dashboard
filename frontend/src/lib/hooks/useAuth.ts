@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import api, { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL } from '../api';
+import api, { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL, SUPABASE_SERVICE, SUPABASE_ANON } from '../api';
 
 export interface AdminUser {
   id: string | number;
@@ -43,8 +43,8 @@ export function useAuth() {
                 `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role&limit=1`,
                 {
                   headers: {
-                    apikey:        (process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''),
-                    Authorization: `Bearer ${(process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '')}`,
+                    apikey:        (SUPABASE_SERVICE || SUPABASE_ANON),
+                    Authorization: `Bearer ${(SUPABASE_SERVICE || SUPABASE_ANON)}`,
                   },
                 }
               );
