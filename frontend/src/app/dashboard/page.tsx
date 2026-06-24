@@ -34,29 +34,6 @@ const cardStyle: React.CSSProperties = {
   padding: 16,
 };
 
-// ── Refresh Button ────────────────────────────────────────────────────────
-function RefreshBtn({ onClick, loading }: { onClick: () => void; loading: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '6px 12px',
-        background: 'var(--bg-tertiary)',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        fontSize: 11.5, color: 'var(--text-secondary)',
-        cursor: loading ? 'not-allowed' : 'pointer',
-        transition: 'all 0.15s',
-        fontFamily: 'var(--font-body)',
-      }}
-    >
-      <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>↻</span>
-      {loading ? 'Lade…' : 'Refresh'}
-    </button>
-  );
-}
 
 export default function DashboardPage() {
   const kpis     = useKPIs();
