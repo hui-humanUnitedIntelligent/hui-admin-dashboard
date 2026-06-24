@@ -252,10 +252,13 @@ export default function ImpactPage() {
 
       {/* ── KPI Row ─────────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }} className="grid-4">
-        <KPICard label="Impact Pool (Monat)"  value={loading ? '—' : fmtEurK(monthNetto)}   delta="Netto"    deltaPositive icon="↓" accentColor="#4ECDC4" accentDim="rgba(78,205,196,0.12)" />
-        <KPICard label="Firma-Einnahmen/Monat" value={loading ? '—' : fmtEurK(monthFirma)} delta="15 % der 15 %" deltaPositive icon="🏢" accentColor="#F7B731" accentDim="rgba(247,183,49,0.12)" />
-        <KPICard label="Projekte aktiv"        value={projLoading ? '—' : String(activeProj)}  delta="aktiv"    deltaPositive icon="✅" accentColor="#51CF66" accentDim="rgba(81,207,102,0.12)" />
-        <KPICard label="Bereits ausgeschüttet" value={projLoading ? '—' : fmtEurK(distributed)} delta="an Projekte" deltaPositive icon="🎯" accentColor="#74C0FC" accentDim="rgba(116,192,252,0.12)" />
+        <KPICard label="Impact Pool (Monat)"  value={loading ? '—' : fmtEurK(monthNetto)}   delta="Netto"    deltaPositive icon="↓" variant="teal" />
+        <KPICard label="Firma-Einnahmen/Monat" value={loading ? '—' : fmtEurK(monthFirma)} delta="15 % der 15 %" deltaPositive icon="🏢"
+          variant="teal" />
+        <KPICard label="Projekte aktiv"        value={projLoading ? '—' : String(activeProj)}  delta="aktiv"    deltaPositive icon="✅"
+          variant="gold" />
+        <KPICard label="Bereits ausgeschüttet" value={projLoading ? '—' : fmtEurK(distributed)} delta="an Projekte" deltaPositive icon="🎯"
+          variant="green" />
       </div>
 
       {/* ── Charts Row ──────────────────────────────────────────────────────── */}
