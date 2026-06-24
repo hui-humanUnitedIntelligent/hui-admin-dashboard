@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import RefreshBtn from '@/components/dashboard/RefreshBtn';
 import KPICard from '@/components/ui/KPICard';
 import { statusToBadge } from '@/components/ui/Badge';
 import { useKPIs, usePayments, useProfiles, useGrowthChart } from '@/lib/hooks/useSupabase';
@@ -192,8 +193,7 @@ export default function DashboardPage() {
           delta={kpis.loading ? '' : `${kpis.activeWirker} Wirker`}
           deltaPositive
           icon="👥"
-          accentColor="#4ECDC4"
-          accentDim="rgba(78,205,196,0.12)"
+          variant="teal"
         />
         <KPICard
           label="Umsatz (Monat)"
@@ -201,8 +201,7 @@ export default function DashboardPage() {
           delta={kpis.loading ? '' : `${kpis.totalPayments} Zahlungen`}
           deltaPositive
           icon="€"
-          accentColor="#F7B731"
-          accentDim="rgba(247,183,49,0.12)"
+          variant="gold"
         />
         <KPICard
           label="Netto Impact Pool"
@@ -210,8 +209,7 @@ export default function DashboardPage() {
           delta="85 % der 15 %"
           deltaPositive
           icon="🌱"
-          accentColor="#4ECDC4"
-          accentDim="rgba(78,205,196,0.12)"
+          variant="green"
         />
         <KPICard
           label="Firmenanteil"
@@ -219,8 +217,7 @@ export default function DashboardPage() {
           delta="15 % der 15 %"
           deltaPositive
           icon="🏢"
-          accentColor="#F7B731"
-          accentDim="rgba(247,183,49,0.12)"
+          variant="blue"
         />
         <KPICard
           label="Aktive Mitglieder"
@@ -228,8 +225,7 @@ export default function DashboardPage() {
           delta={kpis.loading ? '' : `${kpis.activeBookings} Buchungen aktiv`}
           deltaPositive
           icon="🏅"
-          accentColor="#B197FC"
-          accentDim="rgba(177,151,252,0.12)"
+          variant="purple"
         />
         <KPICard
           label="Ambassadors aktiv"
@@ -237,8 +233,8 @@ export default function DashboardPage() {
           delta={ambStats.pending_applications > 0 ? `${ambStats.pending_applications} Antrag${ambStats.pending_applications > 1 ? 'e' : ''} offen` : 'Keine offenen Anträge'}
           deltaPositive={false}
           icon="🤝"
-          accentColor="var(--accent)"
-          accentDim="rgba(78,205,196,0.12)"
+
+          variant="teal"
         />
         <KPICard
           label="Offene Amb.-Anträge"
@@ -246,8 +242,7 @@ export default function DashboardPage() {
           delta={`${ambStats.total_referrals} Referrals gesamt`}
           deltaPositive
           icon="📋"
-          accentColor="#FFD700"
-          accentDim="rgba(255,215,0,0.12)"
+          variant="red"
         />
       </div>
 
