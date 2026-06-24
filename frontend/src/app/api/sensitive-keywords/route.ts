@@ -1,57 +1,48 @@
 // frontend/src/app/api/sensitive-keywords/route.ts
-// Lädt Keywords aus Supabase sensitive_keywords Tabelle
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, serverError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
-const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-export interface SensitiveKeyword {
-  id:       string;
-  category: string;
-  keyword:  string;
-  language: string;
-  severity: 1 | 2 | 3;
-}
-
-// Einfaches In-Memory-Cache für die Laufzeit (kein Dauerstate nötig)
-let _cache: SensitiveKeyword[] | null = null;
-let _cacheTime = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 Minuten
-
-export async function GET() {
-  if (!SERVICE_KEY) return NextResponse.json({ error: 'Not configured' }, { status: 500 });
-
-  // Cache nutzen wenn frisch genug
-  if (_cache && Date.now() - _cacheTime < CACHE_TTL) {
-    return NextResponse.json(_cache);
-  }
+export async function GET(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
 
   try {
-    const url = new URL(`${SUPABASE_URL}/rest/v1/sensitive_keywords`);
-    url.searchParams.set('select', 'id,category,keyword,language,severity');
-    url.searchParams.set('order', 'severity.desc,category.asc');
-    url.searchParams.set('limit', '500');
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from('sensitive_keywords')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        apikey:        SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
+    if (error) throw error;
+    return ok(data ?? []);
+  } catch (err) {
+    return serverError(err, 'sensitive-keywords GET');
+  }
+}
 
-    if (!res.ok) {
-      console.error('[api/sensitive-keywords] Supabase error:', res.status);
-      return NextResponse.json([], { status: 200 }); // Graceful fallback
+export async function POST(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { keyword } = body as { keyword?: string };
+    if (!keyword?.trim()) {
+      return (await import('@/app/lib/api-response')).validationError({ keyword: 'Pflichtfeld' });
     }
 
-    const data = await res.json() as SensitiveKeyword[];
-    _cache = data;
-    _cacheTime = Date.now();
-    return NextResponse.json(data);
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from('sensitive_keywords')
+      .insert({ keyword: keyword.trim() })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return (await import('@/app/lib/api-response')).created(data);
   } catch (err) {
-    console.error('[api/sensitive-keywords] fetch error:', err);
-    return NextResponse.json([], { status: 200 });
+    return serverError(err, 'sensitive-keywords POST');
   }
 }
