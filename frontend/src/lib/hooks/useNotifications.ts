@@ -28,6 +28,23 @@ export interface UseNotificationsOptions {
   realtime?:        boolean;
 }
 
+
+// ── Session-Token-Helper ──────────────────────────────────────────────────────
+function getSessionToken(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = JSON.parse(localStorage.getItem(key) || '{}');
+        return val?.access_token || '';
+      }
+    }
+  } catch { /* ignore */ }
+  return '';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function useNotifications(opts: UseNotificationsOptions = {}) {
   const { userId, type, unreadOnly, limit = 100, refreshInterval = 0, realtime = true } = opts;
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -99,7 +116,7 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     try {
       const res = await fetch(`/api/notifications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSessionToken()}` },
         body: JSON.stringify({ notification: { user_id: targetUserId, type, title, body, metadata, is_read: false } }),
       });
       if (res.ok) fetchNotifications();
