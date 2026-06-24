@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import api, { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL, SUPABASE_ANON } from '../api';
+import { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL, SUPABASE_ANON } from '../api';
 
 export interface AdminUser {
   id: string | number;
@@ -35,17 +35,16 @@ export function useAuth() {
         if (supaRes?.access_token) {
           const userId = supaRes.user?.id;
 
-          // Echte Rolle aus profiles-Tabelle lesen (nicht aus auth.users — dort steht nur "authenticated")
-          let profileRole = 'superadmin'; // Fallback: wer sich im Admin-Dashboard einloggen kann, ist Superadmin
+          // Echte Rolle aus profiles-Tabelle lesen
+          let profileRole = 'superadmin';
           if (userId) {
             try {
-              const apiKey = SUPABASE_ANON;
               const profileRes = await fetch(
                 `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role&limit=1`,
                 {
                   headers: {
-                    apikey:        apiKey,
-                    Authorization: `Bearer ${apiKey}`,
+                    apikey:         SUPABASE_ANON,
+                    Authorization:  `Bearer ${SUPABASE_ANON}`,
                     'Content-Type': 'application/json',
                   },
                 }
@@ -62,27 +61,18 @@ export function useAuth() {
           }
 
           const user: AdminUser = {
-            id: userId || 0,
-            name: supaRes.user?.user_metadata?.full_name || supaRes.user?.email || 'Admin',
+            id:    userId || 0,
+            name:  supaRes.user?.user_metadata?.full_name || supaRes.user?.email || 'Admin',
             email: supaRes.user?.email || email,
-            role: profileRole,
+            role:  profileRole,
           };
           storeAuth(supaRes.access_token, user);
           return true;
         }
       }
 
-      // 2. Try legacy backend
-      if (process.env.NEXT_PUBLIC_API_URL) {
-        const { data } = await api.post('/auth/login', { email, password });
-        if (data?.token) {
-          storeAuth(data.token, data.admin);
-          return true;
-        }
-      }
-
-      // 3. Demo mode (only if no live backends configured)
-      if (!hasSupabase() && !process.env.NEXT_PUBLIC_API_URL) {
+      // 2. Demo mode (only if no live backend configured)
+      if (!hasSupabase()) {
         if (email === 'admin@hui-platform.io' && password === 'admin123') {
           storeAuth('demo-token-' + Date.now(), DEMO_ADMIN);
           return true;
@@ -101,14 +91,8 @@ export function useAuth() {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      if (process.env.NEXT_PUBLIC_API_URL) {
-        await api.post('/auth/logout').catch(() => {});
-      }
-    } finally {
-      clearAuth();
-      window.location.href = '/login';
-    }
+    clearAuth();
+    window.location.href = '/login';
   }, []);
 
   const currentUser = getStoredUser() as AdminUser | null;
