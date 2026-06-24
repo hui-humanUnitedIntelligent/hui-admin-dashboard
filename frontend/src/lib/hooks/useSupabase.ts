@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { sbQuery, sbCount, sbUpdate, sbDelete } from '../api';
+import { getSessionToken } from '@/lib/session';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES — unverändert, alle re-exportiert
@@ -324,7 +325,10 @@ export function useProfiles(opts: {
     setLoading(true);
     try {
       // ── Profile über /api/profiles laden (server-seitiger Service Key, kein RLS) ──
-      const apiRes = await globalThis.fetch('/api/profiles');
+      const token = getSessionToken();
+      const apiRes = await globalThis.fetch('/api/profiles', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const apiData = apiRes.ok ? await apiRes.json() : { profiles: [] };
       const rows: HuiProfile[] = apiData.profiles || [];
 
