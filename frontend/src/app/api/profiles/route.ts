@@ -1,53 +1,37 @@
 // frontend/src/app/api/profiles/route.ts
-// Server-side profiles query — Service Key server-seitig (nie im Browser)
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
-
-const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Nur Felder die wirklich in der DB existieren
-const SELECT = [
-  'id,display_name,username,avatar_url,bio,tagline,role,membership_type',
-  'is_wirker,is_member,membership_active,has_talent_profile,talent',
-  'location,location_label,is_available,availability,impact_eur',
-  'follower_count,followers_count,trust_score,is_guardian',
-  'last_seen,last_seen_at,created_at,updated_at,skills,focus_type',
-  'email,phone,full_name,is_talent,talent_since,talent_activated_at',
-  'member_since,blocked,blocked_at,blocked_by',
-].join(',');
+import { ok, serverError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    console.error('[/api/profiles] Missing config — URL:', !!SUPABASE_URL, 'KEY:', !!SERVICE_KEY);
-    return NextResponse.json({ profiles: [], error: 'Supabase not configured' }, { status: 500 });
-  }
-
-  const url = `${SUPABASE_URL}/rest/v1/profiles?select=${encodeURIComponent(SELECT)}&order=created_at.desc&limit=1000`;
-
   try {
-    const res = await fetch(url, {
-      headers: {
-        apikey:        SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
+    const supabase = getServiceClient();
+    const { searchParams } = new URL(req.url);
+    const limit  = parseInt(searchParams.get('limit')  || '1000', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const search = searchParams.get('search') || '';
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[/api/profiles] Supabase error:', res.status, err);
-      return NextResponse.json({ profiles: [], error: err }, { status: 500 });
+    let query = supabase
+      .from('profiles')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (search) {
+      query = query.or(
+        `display_name.ilike.%${search}%,username.ilike.%${search}%,email.ilike.%${search}%,id.eq.${search}`
+      );
     }
 
-    const profiles = await res.json();
-    return NextResponse.json({ profiles: Array.isArray(profiles) ? profiles : [] });
-  } catch (e) {
-    console.error('[/api/profiles] Exception:', e);
-    return NextResponse.json({ profiles: [], error: String(e) }, { status: 500 });
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    return ok({ profiles: data ?? [], total: count ?? 0 });
+  } catch (err) {
+    return serverError(err, 'profiles GET');
   }
 }
