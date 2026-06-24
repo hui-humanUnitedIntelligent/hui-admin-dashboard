@@ -1,26 +1,21 @@
+// frontend/src/components/ui/Badge.tsx
 'use client';
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'neutral';
+import { BadgeVariant, badgeVariantStyles } from './system';
+
+export type { BadgeVariant };
 
 interface BadgeProps {
-  variant: BadgeVariant;
-  children: React.ReactNode;
-  dot?: boolean;
+  variant:    BadgeVariant;
+  children:   React.ReactNode;
+  dot?:       boolean;
 }
 
-const VARIANT_STYLES: Record<BadgeVariant, { bg: string; color: string }> = {
-  success: { bg: 'var(--green-dim)',   color: 'var(--green)'  },
-  warning: { bg: 'var(--gold-dim)',    color: 'var(--gold)'   },
-  danger:  { bg: 'var(--red-dim)',     color: 'var(--red)'    },
-  info:    { bg: 'var(--blue-dim)',    color: 'var(--blue)'   },
-  purple:  { bg: 'var(--purple-dim)', color: 'var(--purple)' },
-  neutral: { bg: 'rgba(77,86,104,0.2)', color: 'var(--text-secondary)' },
-};
-
 export default function Badge({ variant, children, dot }: BadgeProps) {
-  const style = VARIANT_STYLES[variant];
+  const style = badgeVariantStyles[variant];
   return (
     <span
+      role="status"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -32,13 +27,14 @@ export default function Badge({ variant, children, dot }: BadgeProps) {
         background: style.bg,
         color: style.color,
         whiteSpace: 'nowrap',
+        fontFamily: 'var(--font-body)',
       }}
     >
       {dot && (
         <span
+          aria-hidden="true"
           style={{
-            width: 5,
-            height: 5,
+            width: 5, height: 5,
             borderRadius: '50%',
             background: style.color,
             display: 'inline-block',
@@ -51,23 +47,17 @@ export default function Badge({ variant, children, dot }: BadgeProps) {
   );
 }
 
-export function statusToBadge(status: string): React.ReactElement {
+/** Status → Badge: Labels jetzt i18n-fähig via optionalem `lang`-Parameter */
+export function statusToBadge(status: string, lang: string = 'de'): React.ReactElement {
+  const l = (de: string, en: string) => lang === 'en' ? en : de;
   switch (status) {
-    case 'active':
-      return <Badge variant="success" dot>Aktiv</Badge>;
-    case 'suspended':
-      return <Badge variant="danger" dot>Gesperrt</Badge>;
-    case 'completed':
-      return <Badge variant="success">Abgeschlossen</Badge>;
-    case 'pending':
-      return <Badge variant="warning">Ausstehend</Badge>;
-    case 'failed':
-      return <Badge variant="danger">Fehlgeschlagen</Badge>;
-    case 'Talent':
-      return <Badge variant="purple">Talent</Badge>;
-    case 'Moderator':
-      return <Badge variant="info">Moderator</Badge>;
-    default:
-      return <Badge variant="neutral">{status}</Badge>;
+    case 'active':    return <Badge variant="success" dot>{l('Aktiv','Active')}</Badge>;
+    case 'suspended': return <Badge variant="danger"  dot>{l('Gesperrt','Blocked')}</Badge>;
+    case 'completed': return <Badge variant="success">{l('Abgeschlossen','Completed')}</Badge>;
+    case 'pending':   return <Badge variant="warning">{l('Ausstehend','Pending')}</Badge>;
+    case 'failed':    return <Badge variant="danger">{l('Fehlgeschlagen','Failed')}</Badge>;
+    case 'Talent':    return <Badge variant="purple">Talent</Badge>;
+    case 'Moderator': return <Badge variant="info">Moderator</Badge>;
+    default:          return <Badge variant="neutral">{status}</Badge>;
   }
 }
