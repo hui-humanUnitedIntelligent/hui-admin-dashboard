@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import api, { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL, SUPABASE_SERVICE, SUPABASE_ANON } from '../api';
+import api, { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL, SUPABASE_ANON } from '../api';
 
 export interface AdminUser {
   id: string | number;
@@ -39,7 +39,7 @@ export function useAuth() {
           let profileRole = 'superadmin'; // Fallback: wer sich im Admin-Dashboard einloggen kann, ist Superadmin
           if (userId) {
             try {
-              const apiKey = SUPABASE_SERVICE || SUPABASE_ANON;
+              const apiKey = SUPABASE_ANON;
               const profileRes = await fetch(
                 `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=role&limit=1`,
                 {
