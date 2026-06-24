@@ -60,7 +60,6 @@ npm run dev
 ## 🔐 Auth
 
 Login mit dem **Supabase-Account** der HUI-App.  
-Oder mit dem Legacy-Backend (falls `NEXT_PUBLIC_API_URL` gesetzt).
 
 ---
 
@@ -84,7 +83,7 @@ frontend/src/
 │   ├── layout/             # Sidebar, Header, DashboardLayout
 │   └── ui/                 # Badge, Button, KPICard, Modal, Toast
 └── lib/
-    ├── api.ts              # Supabase REST + legacy axios client
+    ├── api.ts              # Supabase REST Layer (sbQuery, sbCount, sbUpdate, sbDelete)
     └── hooks/
         ├── useSupabase.ts  # All live data hooks
         └── useAuth.ts      # Authentication
