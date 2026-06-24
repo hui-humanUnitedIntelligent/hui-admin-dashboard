@@ -5,6 +5,8 @@
 // And replies in notification_events. Self-contained, no new table needed.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, fail, serverError } from '@/app/lib/api-response';
 
 const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -20,7 +22,9 @@ const H = {
 // metadata-like fields: title=subject, body=message, text=category|status|priority as JSON
 
 export async function GET(req: NextRequest) {
-  if (!KEY) return NextResponse.json({ error: 'No key' }, { status: 500 });
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+  try {
   const { searchParams } = new URL(req.url);
   const status   = searchParams.get('status');   // open|closed|all
   const ticketId = searchParams.get('id');
@@ -52,7 +56,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!KEY) return NextResponse.json({ error: 'No key' }, { status: 500 });
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+  try {
   const { action, ticketId, userId, subject, message, category, priority, reply, adminId } = await req.json();
 
   if (action === 'create') {
@@ -132,5 +138,5 @@ export async function POST(req: NextRequest) {
     return res.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'Delete failed' }, { status: 500 });
   }
 
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  return fail('Unknown action');
 }
