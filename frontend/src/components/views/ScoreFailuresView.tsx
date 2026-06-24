@@ -44,8 +44,8 @@ async function fetchFailures(): Promise<ScoreFailure[]> {
 
 async function deleteFailure(id: string): Promise<void> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/impact_score_failures?id=eq.${id}`,
-    { method: 'DELETE', headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
+    `/api/score-failures/${id}`,
+    { method: 'DELETE' }
   );
   if (!res.ok) throw new Error(await res.text());
 }
