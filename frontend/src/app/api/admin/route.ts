@@ -3,6 +3,8 @@
 // Uses SUPABASE_SERVICE_ROLE_KEY (server-only, never exposed to client)
 
 import { NextRequest, NextResponse } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, fail, serverError } from '@/app/lib/api-response';
 
 const SUPABASE_URL          = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -90,20 +92,23 @@ async function logActivity(userId: string, action: string, meta: Record<string, 
 }
 
 export async function POST(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
   if (!SUPABASE_SERVICE_KEY) {
-    return NextResponse.json({ error: 'Service key not configured' }, { status: 500 });
+    return fail('Service key not configured', 500);
   }
 
   let body: { action: Action; userId: string; data?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return fail('Invalid JSON');
   }
 
   const { action, userId, data = {} } = body;
   if (!action || !userId) {
-    return NextResponse.json({ error: 'Missing action or userId' }, { status: 400 });
+    return fail('Missing action or userId');
   }
 
   let result: { ok: boolean; status: number; body: unknown };
@@ -486,7 +491,7 @@ export async function POST(req: NextRequest) {
         sensitivity_status:  'cleared',
         sensitivity_reason:  null,
       });
-      return NextResponse.json({ ok: true });
+      return ok({ success: true });
     }
 
     case 'clear_sensitive_experience': {
@@ -494,7 +499,7 @@ export async function POST(req: NextRequest) {
         sensitivity_status:  'cleared',
         sensitivity_reason:  null,
       });
-      return NextResponse.json({ ok: true });
+      return ok({ success: true });
     }
 
     case 'clear_sensitive_project': {
@@ -503,7 +508,7 @@ export async function POST(req: NextRequest) {
         sensitivity_status:  'cleared',
         sensitivity_reason:  null,
       });
-      return NextResponse.json({ ok: true });
+      return ok({ success: true });
     }
 
     case 'delete_experience':
@@ -517,12 +522,12 @@ export async function POST(req: NextRequest) {
       break;
 
     default:
-      return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+      return fail('Unknown action');
   }
 
   if (result.ok) {
     await logActivity(userId, action, data);
-    return NextResponse.json({ success: true, data: result.body });
+    return ok({ success: true, data: result.body });
   } else {
     return NextResponse.json(
       { error: 'Supabase error', details: result.body, status: result.status },
@@ -533,6 +538,9 @@ export async function POST(req: NextRequest) {
 
 // ── GET handler — simple table read for dashboard widgets ─────────────────
 export async function GET(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
   const { searchParams } = new URL(req.url);
   const table  = searchParams.get('table')  || '';
   const select = searchParams.get('select') || '*';
@@ -540,7 +548,7 @@ export async function GET(req: NextRequest) {
 
   const ALLOWED_TABLES = ['works','profiles','payments','impact_projects','bookings','wirker_profiles','wirker','activity_logs','notifications','invitations','orders'];
   if (!table || !ALLOWED_TABLES.includes(table)) {
-    return NextResponse.json({ error: 'Invalid table' }, { status: 400 });
+    return fail('Invalid table');
   }
 
   const url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}&limit=${limit}`;
