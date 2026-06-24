@@ -97,15 +97,10 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     metadata: Record<string, unknown> = {}
   ): Promise<boolean> => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notifications`, {
+      const res = await fetch(`/api/notifications`, {
         method: 'POST',
-        headers: {
-          apikey:          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-          Authorization:   `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
-          'Content-Type':  'application/json',
-          Prefer:          'return=minimal',
-        },
-        body: JSON.stringify({ user_id: targetUserId, type, title, body, metadata, is_read: false }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notification: { user_id: targetUserId, type, title, body, metadata, is_read: false } }),
       });
       if (res.ok) fetchNotifications();
       return res.ok;
