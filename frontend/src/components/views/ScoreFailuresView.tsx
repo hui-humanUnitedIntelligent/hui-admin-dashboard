@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
-import { SUPABASE_URL } from '@/lib/api';
+import { SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
 
 interface ScoreFailure {
   id: string;
