@@ -15,10 +15,38 @@ function headers() {
 }
 
 // DELETE: Notification löschen
+// ── Auth-Guard ────────────────────────────────────────────────────────────────
+async function requireAuth(req: import('next/server').NextRequest): Promise<{ user: { id: string; email?: string } | null; error?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return { user: null, error: 'Unauthorized' };
+
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL  || '';
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey:        supabaseAnon,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) return { user: null, error: 'Unauthorized' };
+
+  const data = await res.json().catch(() => null);
+  if (!data?.id) return { user: null, error: 'Unauthorized' };
+
+  return { user: { id: data.id, email: data.email } };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { user, error: authError } = await requireAuth(req);
+  if (!user) return NextResponse.json({ error: authError || \'Unauthorized\' }, { status: 401 });
+
   if (!SERVICE_KEY) {
     return NextResponse.json({ error: 'Service key missing' }, { status: 500 });
   }
