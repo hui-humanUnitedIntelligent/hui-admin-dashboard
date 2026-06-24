@@ -12,6 +12,7 @@ import { showToast } from '@/components/ui/Toast';
 import { sbQuery, SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
 import { getSessionToken } from '@/lib/session';
 
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ImpactApplication {
   id: string;
@@ -47,11 +48,6 @@ interface ImpactApplication {
 
 type TabKey = 'all' | 'pending' | 'approved' | 'rejected';
 
-// ── Supabase direkt ansprechen ────────────────────────────────────────────────
-
-  if (typeof window === 'undefined') return '';
-  return '';
-}
 
 async function fetchApplications(): Promise<ImpactApplication[]> {
   return sbQuery<ImpactApplication>('impact_applications', {}, {
