@@ -4,6 +4,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import Modal from '@/components/ui/Modal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { getStoredUser } from '@/lib/api';
 
@@ -119,94 +122,67 @@ export default function ReviewsPage() {
     <DashboardLayout title="Review-Verwaltung">
 
       {/* ── Detail Modal ─────────────────────────────────────────────────── */}
+      {/* ── Detail Modal ──────────────────────────────────────────────────── */}
       {detailReview && (
-        <div
-          onClick={() => setDetailReview(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(10,12,18,0.85)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background:'#1A1D27', border:'1px solid rgba(255,255,255,0.1)', borderRadius:20, padding:'36px 40px', maxWidth:520, width:'100%', boxShadow:'0 32px 80px rgba(0,0,0,0.7)', position:'relative' }}
-          >
-            {/* Schliessen */}
-            <button
-              onClick={() => setDetailReview(null)}
-              style={{ position:'absolute', top:16, right:18, background:'rgba(255,255,255,0.07)', border:'none', borderRadius:8, color:'#94A3B8', cursor:'pointer', fontSize:18, width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-body)' }}
-            >✕</button>
-
-            {/* Avatar + Name */}
-            <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:24 }}>
-              <div style={{ width:52, height:52, borderRadius:'50%', background:avatarColor(detailReview.id), display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:700, color:'#0F1117', flexShrink:0 }}>
-                {(detailReview.name||'?').charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style={{ fontSize:18, fontWeight:700, color:'#F1F5F9', marginBottom:6 }}>{detailReview.name}</div>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <StarDisplay stars={detailReview.stars} size={18} />
-                  <span style={{ fontSize:12, color:'#64748B' }}>{detailReview.date}</span>
-                </div>
-              </div>
-              <span style={{ marginLeft:'auto', fontSize:10, fontWeight:700, padding:'4px 12px', borderRadius:20,
-                ...(tab === 'pending'
-                  ? { background:'rgba(251,191,36,0.12)', color:'#FBBF24', border:'1px solid rgba(251,191,36,0.3)' }
-                  : { background:'rgba(30,216,200,0.1)', color:'#1ED8C8', border:'1px solid rgba(30,216,200,0.3)' })
-              }}>
-                {tab === 'pending' ? '⏳ Ausstehend' : '✅ Live'}
-              </span>
-            </div>
-
-            {/* Nachricht */}
-            <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'20px 22px', marginBottom:28 }}>
-              <p style={{ color:'#CBD5E1', fontSize:15, lineHeight:1.75, margin:0, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-                „{detailReview.message}"
-              </p>
-            </div>
-
-            {/* Meta */}
-            <div style={{ display:'flex', gap:6, fontSize:11, color:'#475569', marginBottom:28, flexWrap:'wrap' }}>
-              <span>ID: <code style={{ color:'#64748B', fontSize:10 }}>{detailReview.id}</code></span>
-              {detailReview.submitted_at && <span>· Eingereicht: {new Date(detailReview.submitted_at).toLocaleString('de-DE')}</span>}
-              {detailReview.approvedAt   && <span>· Veröffentlicht: {new Date(detailReview.approvedAt).toLocaleString('de-DE')}</span>}
-            </div>
-
-            {/* Aktionen */}
-            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+        <Modal
+          open={!!detailReview}
+          onClose={() => setDetailReview(null)}
+          title={`Review — ${detailReview.name}`}
+          width={520}
+          footer={
+            <>
               {tab === 'pending' && (
-                <button
-                  onClick={() => { setDetailReview(null); handlePublish(detailReview.id); }}
-                  style={{ padding:'10px 22px', borderRadius:9, border:'none', background:'#1ED8C8', color:'#0F1117', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'var(--font-body)' }}
-                >✅ Veröffentlichen</button>
+                <Button variant="primary" onClick={() => { setDetailReview(null); handlePublish(detailReview.id); }}>
+                  ✅ Veröffentlichen
+                </Button>
               )}
-              <button
+              <Button
+                variant="danger"
                 onClick={() => { setDetailReview(null); tab === 'published' ? setConfirmId(detailReview.id) : handleReject(detailReview.id); }}
-                style={{ padding:'10px 22px', borderRadius:9, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', color:'#EF4444', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'var(--font-body)' }}
-              >🗑️ {tab === 'published' ? 'Löschen' : 'Ablehnen'}</button>
-              <button
-                onClick={() => setDetailReview(null)}
-                style={{ padding:'10px 22px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', color:'#94A3B8', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'var(--font-body)' }}
-              >Schließen</button>
+              >
+                🗑️ {tab === 'published' ? 'Löschen' : 'Ablehnen'}
+              </Button>
+              <Button variant="ghost" onClick={() => setDetailReview(null)}>Schließen</Button>
+            </>
+          }
+        >
+          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
+            <div style={{ width:44, height:44, borderRadius:'50%', background:avatarColor(detailReview.id), display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:'#0F1117', flexShrink:0 }}>
+              {(detailReview.name||'?').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize:15, fontWeight:700, color:'var(--text-primary)', marginBottom:3 }}>{detailReview.name}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <StarDisplay stars={detailReview.stars} size={15} />
+                <span style={{ fontSize:11, color:'var(--text-muted)' }}>{detailReview.date}</span>
+              </div>
             </div>
           </div>
-        </div>
+          <div style={{ background:'var(--bg-tertiary)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px', marginBottom:14 }}>
+            <p style={{ color:'var(--text-secondary)', fontSize:13.5, lineHeight:1.7, margin:0, whiteSpace:'pre-wrap' }}>
+              „{detailReview.message}"
+            </p>
+          </div>
+          <div style={{ fontSize:11, color:'var(--text-muted)' }}>
+            ID: <code style={{ fontSize:10 }}>{detailReview.id}</code>
+            {detailReview.submitted_at && <span style={{ marginLeft:8 }}>· {new Date(detailReview.submitted_at).toLocaleString('de-DE')}</span>}
+          </div>
+        </Modal>
       )}
 
       {/* ── Confirm Modal ────────────────────────────────────────────────── */}
-      {confirmId && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(10,12,18,0.88)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ background:'#1A1D27', border:'1px solid rgba(255,255,255,0.12)', borderRadius:18, padding:'36px 40px', maxWidth:420, width:'90%', textAlign:'center', boxShadow:'0 32px 80px rgba(0,0,0,0.7)' }}>
-            <div style={{ fontSize:40, marginBottom:16 }}>🗑️</div>
-            <h3 style={{ color:'#F1F5F9', fontSize:18, fontWeight:700, margin:'0 0 10px' }}>Review löschen?</h3>
-            <p style={{ color:'#94A3B8', fontSize:14, lineHeight:1.65, margin:'0 0 30px' }}>
-              Dieser Review wird sofort und dauerhaft von<br />
-              <strong style={{ color:'#F1F5F9' }}>be-hui.com</strong> entfernt.
-            </p>
-            <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
-              <button onClick={() => setConfirmId(null)} style={{ padding:'11px 26px', borderRadius:10, background:'#2A2F3F', border:'1px solid rgba(255,255,255,0.1)', color:'#CBD5E1', cursor:'pointer', fontSize:14, fontWeight:600, fontFamily:'var(--font-body)' }}>Abbrechen</button>
-              <button onClick={() => handleDelete(confirmId)} style={{ padding:'11px 26px', borderRadius:10, background:'#EF4444', border:'none', color:'#fff', cursor:'pointer', fontSize:14, fontWeight:700, fontFamily:'var(--font-body)', boxShadow:'0 4px 16px rgba(239,68,68,0.45)' }}>Ja, löschen</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Confirm Modal ─────────────────────────────────────────────────── */}
+      <ConfirmModal
+        open={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        onConfirm={() => { if (confirmId) handleDelete(confirmId); }}
+        title="Review löschen?"
+        message="Dieser Review wird sofort und dauerhaft von be-hui.com entfernt."
+        confirmLabel="Ja, löschen"
+        cancelLabel="Abbrechen"
+        confirmVariant="danger"
+      />
+
 
       {/* ── Stats ── */}
       <div style={{ display:'flex', gap:12, marginBottom:28, flexWrap:'wrap' }}>
