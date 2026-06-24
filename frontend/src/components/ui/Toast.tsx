@@ -1,94 +1,116 @@
+// frontend/src/components/ui/Toast.tsx
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { zIndex } from './system';
 
-interface Toast {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface ToastProps {
+  message:    string;
+  type?:      ToastType;
+  duration?:  number;
+  onClose?:   () => void;
 }
 
-let toastId = 0;
-let globalShowToast: ((msg: string, type?: Toast['type']) => void) | null = null;
+const TOAST_STYLES: Record<ToastType, { border: string; icon: string }> = {
+  success: { border: 'var(--green)',  icon: '✓' },
+  error:   { border: 'var(--red)',    icon: '✕' },
+  warning: { border: 'var(--gold)',   icon: '⚠' },
+  info:    { border: 'var(--blue)',   icon: 'ℹ' },
+};
 
-export function showToast(message: string, type: Toast['type'] = 'success') {
-  if (globalShowToast) globalShowToast(message, type);
-}
-
-export default function ToastContainer() {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = useCallback(
-    (message: string, type: Toast['type'] = 'success') => {
-      const id = ++toastId;
-      setToasts((prev) => [...prev, { id, message, type }]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 3000);
-    },
-    []
-  );
+export default function Toast({
+  message,
+  type = 'success',
+  duration = 3500,
+  onClose,
+}: ToastProps) {
+  const [visible, setVisible] = useState(true);
+  const style = TOAST_STYLES[type];
 
   useEffect(() => {
-    globalShowToast = addToast;
-    return () => { globalShowToast = null; };
-  }, [addToast]);
-
-  const TYPE_ICONS = { success: '✓', error: '✕', info: 'ℹ' };
-  const TYPE_COLORS = {
-    success: 'var(--accent)',
-    error: 'var(--red)',
-    info: 'var(--blue)',
-  };
+    const timer = setTimeout(() => {
+      setVisible(false);
+      setTimeout(() => onClose?.(), 300);
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
       style={{
-        position: 'fixed',
-        bottom: 20,
-        right: 20,
-        zIndex: 200,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        pointerEvents: 'none',
+        position: 'fixed', bottom: 24, right: 24,
+        zIndex: zIndex.toast,
+        padding: '10px 16px',
+        background: 'var(--bg-secondary)',
+        border: `1px solid ${style.border}`,
+        borderRadius: 10,
+        boxShadow: 'var(--shadow-lg)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        minWidth: 220, maxWidth: 360,
+        transition: 'all 0.3s ease',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(8px)',
+        pointerEvents: visible ? 'auto' : 'none',
       }}
     >
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          style={{
-            background: 'var(--bg-tertiary)',
-            border: '1px solid var(--border-hover)',
-            borderRadius: 12,
-            padding: '10px 16px',
-            fontSize: 12,
-            color: 'var(--text-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            animation: 'toastIn 0.2s ease',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-          }}
-        >
-          <span
-            style={{
-              color: TYPE_COLORS[toast.type],
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            {TYPE_ICONS[toast.type]}
-          </span>
-          {toast.message}
-        </div>
+      <span style={{ fontSize: 16, color: style.border, flexShrink: 0 }} aria-hidden="true">
+        {style.icon}
+      </span>
+      <span style={{ fontSize: 13, color: 'var(--text-primary)', flex: 1, lineHeight: 1.4 }}>
+        {message}
+      </span>
+      <button
+        onClick={() => { setVisible(false); setTimeout(() => onClose?.(), 300); }}
+        aria-label="Benachrichtigung schließen"
+        style={{
+          background: 'none', border: 'none',
+          color: 'var(--text-muted)', cursor: 'pointer',
+          fontSize: 13, padding: 2, lineHeight: 1,
+          flexShrink: 0,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+/** Toast-Manager: mehrere Toasts verwalten */
+export interface ToastMessage {
+  id:      string;
+  message: string;
+  type:    ToastType;
+}
+
+interface ToastContainerProps {
+  toasts:   ToastMessage[];
+  onRemove: (id: string) => void;
+}
+
+export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
+  return (
+    <div
+      aria-label="Benachrichtigungen"
+      style={{
+        position: 'fixed', bottom: 24, right: 24,
+        zIndex: zIndex.toast,
+        display: 'flex', flexDirection: 'column', gap: 8,
+        alignItems: 'flex-end',
+      }}
+    >
+      {toasts.map(t => (
+        <Toast
+          key={t.id}
+          message={t.message}
+          type={t.type}
+          onClose={() => onRemove(t.id)}
+        />
       ))}
-      <style>{`
-        @keyframes toastIn {
-          from { opacity: 0; transform: translateX(20px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
     </div>
   );
 }
