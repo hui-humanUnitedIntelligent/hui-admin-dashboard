@@ -5,6 +5,8 @@
 // POST { action: 'delete'|'approve'|'reject', id }
 
 import { NextRequest, NextResponse } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, fail, notFound } from '@/app/lib/api-response';
 
 const GH_TOKEN  = process.env.GH_TOKEN || '';
 const GH_REPO   = 'hui-humanUnitedIntelligent/be-HUI-Website';
@@ -46,6 +48,9 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
   const type = req.nextUrl.searchParams.get('type');
 
   if (type === 'published') {
@@ -67,10 +72,13 @@ export async function GET(req: NextRequest) {
     return cors(NextResponse.json(data));
   }
 
-  return cors(NextResponse.json({ error: 'Missing type' }, { status: 400 }));
+  return cors(fail('Missing type'));
 }
 
 export async function POST(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
   if (!GH_TOKEN) {
     return cors(NextResponse.json({
       error: 'GH_TOKEN fehlt in Vercel ENV. Bitte unter Settings → Environment Variables setzen.'
@@ -78,16 +86,16 @@ export async function POST(req: NextRequest) {
   }
 
   const { action, id } = await req.json();
-  if (!id) return cors(NextResponse.json({ error: 'Missing id' }, { status: 400 }));
+  if (!id) return cors(fail('Missing id'));
 
   // ── LÖSCHEN (veröffentlicht) ────────────────────────────────────────────
   if (action === 'delete') {
     const { data, sha } = await ghGetFile('data/reviews.json');
     const arr = data as Record<string,unknown>[];
     const filtered = arr.filter(r => r.id !== id);
-    if (filtered.length === arr.length) return cors(NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 }));
+    if (filtered.length === arr.length) return cors(notFound('Review'));
     await ghPutFile('data/reviews.json', filtered, sha, `review: delete ${id}`);
-    return cors(NextResponse.json({ success: true }));
+    return cors(ok({ success: true }));
   }
 
   // ── VERÖFFENTLICHEN (pending → published) ───────────────────────────────
@@ -95,7 +103,7 @@ export async function POST(req: NextRequest) {
     const { data: pending, sha: pendingSha } = await ghGetFile('data/pending_reviews.json');
     const pArr = pending as Record<string,unknown>[];
     const review = pArr.find(r => r.id === id);
-    if (!review) return cors(NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 }));
+    if (!review) return cors(notFound('Review'));
 
     await ghPutFile('data/pending_reviews.json', pArr.filter(r => r.id !== id), pendingSha, `review: approve ${id}`);
 
@@ -105,7 +113,7 @@ export async function POST(req: NextRequest) {
       { id: review.id, name: review.name, stars: review.stars, message: review.message, date: review.date, approvedAt: new Date().toISOString() }
     ];
     await ghPutFile('data/reviews.json', newPub, pubSha, `review: publish by ${review.name}`);
-    return cors(NextResponse.json({ success: true, name: review.name }));
+    return cors(ok({ success: true, name: review.name }));
   }
 
   // ── ABLEHNEN (pending löschen) ──────────────────────────────────────────
@@ -113,10 +121,10 @@ export async function POST(req: NextRequest) {
     const { data, sha } = await ghGetFile('data/pending_reviews.json');
     const arr = data as Record<string,unknown>[];
     const filtered = arr.filter(r => r.id !== id);
-    if (filtered.length === arr.length) return cors(NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 }));
+    if (filtered.length === arr.length) return cors(notFound('Review'));
     await ghPutFile('data/pending_reviews.json', filtered, sha, `review: reject ${id}`);
-    return cors(NextResponse.json({ success: true }));
+    return cors(ok({ success: true }));
   }
 
-  return cors(NextResponse.json({ error: 'Unbekannte Aktion' }, { status: 400 }));
+  return cors(fail('Unbekannte Aktion'));
 }
