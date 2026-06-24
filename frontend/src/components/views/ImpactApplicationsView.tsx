@@ -47,6 +47,24 @@ interface ImpactApplication {
 type TabKey = 'all' | 'pending' | 'approved' | 'rejected';
 
 // ── Supabase direkt ansprechen ────────────────────────────────────────────────
+
+// ── Session-Token-Helper ──────────────────────────────────────────────────────
+function getSessionToken(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    // Supabase speichert die Session unter 'sb-<project-ref>-auth-token'
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = JSON.parse(localStorage.getItem(key) || '{}');
+        return val?.access_token || '';
+      }
+    }
+  } catch { /* ignore */ }
+  return '';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function fetchApplications(): Promise<ImpactApplication[]> {
   return sbQuery<ImpactApplication>('impact_applications', {}, {
     select: '*',
@@ -76,7 +94,7 @@ async function updateStatus(
     `/api/impact-applications/${id}`,
     {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSessionToken()}` },
       body: JSON.stringify(body),
     }
   );
@@ -117,7 +135,7 @@ async function sendResonanzNotification(
 
     const res = await fetch(`/api/notifications`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSessionToken()}` },
       body: JSON.stringify({ notification: payload }),
     });
 
@@ -751,6 +769,7 @@ export default function ImpactApplicationsView() {
       // Hard-Delete via Server-Route (service role key server-only)
       const res = await fetch(`/api/impact-applications/${id}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${getSessionToken()}` },
       });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
       // Nutzer benachrichtigen
