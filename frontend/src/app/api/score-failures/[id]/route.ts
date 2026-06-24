@@ -15,7 +15,7 @@ function headers() {
 
 // PATCH: Felder eines Score-Failures aktualisieren
 // ── Auth-Guard ────────────────────────────────────────────────────────────────
-async function requireAuth(req: import('next/server').NextRequest): Promise<{ user: { id: string; email?: string } | null; error?: string }> {
+async function requireAuth(req: NextRequest): Promise<{ user: { id: string; email?: string } | null; error?: string }> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return { user: null, error: 'Unauthorized' };
 
@@ -44,7 +44,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   const { user, error: authError } = await requireAuth(req);
-  if (!user) return NextResponse.json({ error: authError || \'Unauthorized\' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 });
 
   if (!SERVICE_KEY) {
     return NextResponse.json({ error: 'Service key missing' }, { status: 500 });
@@ -71,7 +71,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const { user, error: authError } = await requireAuth(req);
-  if (!user) return NextResponse.json({ error: authError || \'Unauthorized\' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 });
 
   if (!SERVICE_KEY) {
     return NextResponse.json({ error: 'Service key missing' }, { status: 500 });
