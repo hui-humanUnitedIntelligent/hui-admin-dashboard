@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
-import { sbQuery, SUPABASE_URL, SUPABASE_SERVICE, SUPABASE_ANON } from '@/lib/api';
+import { sbQuery, SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ImpactApplication {
@@ -61,7 +61,7 @@ async function updateStatus(
   rejection_reason?: string,
   admin_comment?: string,
 ): Promise<void> {
-  const adminKey = SUPABASE_SERVICE;
+  const adminKey = SUPABASE_ANON;
   const body: Record<string, unknown> = {
     status,
     reviewed_at: new Date().toISOString(),
@@ -98,7 +98,7 @@ async function sendResonanzNotification(
   rejectionReason?: string,
 ): Promise<void> {
   try {
-    const adminKey = SUPABASE_SERVICE || SUPABASE_ANON;
+    const adminKey = SUPABASE_ANON;
     // Verwendet die bestehende notifications-Tabelle (Resonanzzentrum der be-hui App)
     const payload: Record<string, unknown> = {
       user_id:     userId,
@@ -763,8 +763,8 @@ export default function ImpactApplicationsView() {
       const res = await fetch(url, {
         method: 'DELETE',
         headers: {
-          'apikey':        SUPABASE_SERVICE || SUPABASE_ANON,
-          'Authorization': `Bearer ${SUPABASE_SERVICE || SUPABASE_ANON}`,
+          'apikey':        SUPABASE_ANON,
+          'Authorization': `Bearer ${SUPABASE_ANON}`,
           'Content-Type':  'application/json',
         },
       });
