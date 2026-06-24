@@ -5,14 +5,15 @@ import Modal from './Modal';
 import Button from './Button';
 
 interface ConfirmModalProps {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  confirmVariant?: 'primary' | 'danger' | 'ghost';
-  loading?: boolean;
+  open:           boolean;
+  onClose:        () => void;
+  onConfirm:      () => void;
+  title:          string;
+  message:        string;
+  confirmLabel?:  string;
+  cancelLabel?:   string;
+  confirmVariant?: 'primary' | 'danger' | 'ghost' | 'warning';
+  loading?:       boolean;
 }
 
 export default function ConfirmModal({
@@ -21,9 +22,10 @@ export default function ConfirmModal({
   onConfirm,
   title,
   message,
-  confirmLabel = 'Bestätigen',
+  confirmLabel  = 'OK',
+  cancelLabel   = 'Abbrechen',
   confirmVariant = 'danger',
-  loading = false,
+  loading        = false,
 }: ConfirmModalProps) {
   return (
     <Modal
@@ -31,13 +33,19 @@ export default function ConfirmModal({
       onClose={onClose}
       title={title}
       width={380}
+      disableOutsideClick={loading}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={loading}>
-            Abbrechen
+            {cancelLabel}
           </Button>
-          <Button variant={confirmVariant} onClick={onConfirm} disabled={loading}>
-            {loading ? 'Wird ausgeführt…' : confirmLabel}
+          <Button
+            variant={confirmVariant}
+            onClick={onConfirm}
+            disabled={loading}
+            loading={loading}
+          >
+            {confirmLabel}
           </Button>
         </>
       }
