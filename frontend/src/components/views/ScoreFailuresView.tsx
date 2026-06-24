@@ -33,6 +33,24 @@ const GRUND_LABELS: Record<string, { label: string; emoji: string; color: string
   kein_hui_bezug:{ label: 'Kein HUI-Bezug',    emoji: '🎯',  color: '#6b7280' },
 };
 
+
+// ── Session-Token-Helper ──────────────────────────────────────────────────────
+function getSessionToken(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    // Supabase speichert die Session unter 'sb-<project-ref>-auth-token'
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = JSON.parse(localStorage.getItem(key) || '{}');
+        return val?.access_token || '';
+      }
+    }
+  } catch { /* ignore */ }
+  return '';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function fetchFailures(): Promise<ScoreFailure[]> {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/impact_score_failures?select=*&order=created_at.desc&limit=500`,
