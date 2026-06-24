@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { sbQuery, sbCount, sbUpdate } from '../api';
 import type { HuiProfile } from './useSupabase';
+import { getSessionToken } from '@/lib/session';
 
 export type { HuiProfile };
 
@@ -46,7 +47,10 @@ export function useProfiles(opts: UseProfilesOptions = {}) {
     setLoading(true); setError(null);
     try {
       // ── Profile über /api/profiles (server-seitig, Service Key) laden ──
-      const apiRes = await globalThis.fetch('/api/profiles');
+      const token = getSessionToken();
+      const apiRes = await globalThis.fetch('/api/profiles', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const apiData = apiRes.ok ? await apiRes.json() : { profiles: [] };
       const allRows: HuiProfile[] = (apiData.profiles || []).filter(
         (p: HuiProfile) => is_wirker === undefined || p.is_wirker === is_wirker
