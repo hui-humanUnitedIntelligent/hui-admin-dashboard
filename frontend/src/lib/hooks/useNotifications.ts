@@ -7,6 +7,7 @@ import { supabase } from '../supabase';
 import { sbQuery, sbCount, sbUpdate } from '../api';
 import { getSessionToken } from '@/lib/session';
 
+
 export interface AdminNotification {
   id:          string;
   user_id:     string;
@@ -30,9 +31,6 @@ export interface UseNotificationsOptions {
 }
 
 
-  if (typeof window === 'undefined') return '';
-  return '';
-}
 
 export function useNotifications(opts: UseNotificationsOptions = {}) {
   const { userId, type, unreadOnly, limit = 100, refreshInterval = 0, realtime = true } = opts;
