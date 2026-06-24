@@ -73,15 +73,10 @@ async function updateStatus(
   if (admin_comment) body.admin_comment = admin_comment;
 
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/impact_applications?id=eq.${id}`,
+    `/api/impact-applications/${id}`,
     {
       method: 'PATCH',
-      headers: {
-        apikey:        adminKey,
-        Authorization: `Bearer ${adminKey}`,
-        'Content-Type': 'application/json',
-        Prefer:        'return=minimal',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }
   );
@@ -120,15 +115,10 @@ async function sendResonanzNotification(
       },
     };
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+    const res = await fetch(`/api/notifications`, {
       method: 'POST',
-      headers: {
-        apikey:         adminKey,
-        Authorization:  `Bearer ${adminKey}`,
-        'Content-Type': 'application/json',
-        Prefer:         'return=minimal',
-      },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notification: payload }),
     });
 
     if (!res.ok) {
@@ -758,15 +748,9 @@ export default function ImpactApplicationsView() {
     const app = apps.find(a => a.id === id);
     if (!app) return;
     try {
-      // Hard-Delete via REST API mit Service-Role-Key
-      const url = `${SUPABASE_URL}/rest/v1/impact_applications?id=eq.${id}`;
-      const res = await fetch(url, {
+      // Hard-Delete via Server-Route (service role key server-only)
+      const res = await fetch(`/api/impact-applications/${id}`, {
         method: 'DELETE',
-        headers: {
-          'apikey':        SUPABASE_ANON,
-          'Authorization': `Bearer ${SUPABASE_ANON}`,
-          'Content-Type':  'application/json',
-        },
       });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
       // Nutzer benachrichtigen
