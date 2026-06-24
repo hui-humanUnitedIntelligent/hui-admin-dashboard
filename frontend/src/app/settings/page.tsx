@@ -93,7 +93,7 @@ export default function SettingsPage() {
 
         {/* ── Appearance ── */}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, fontWeight: 600 }}>
-          {lang === 'de' ? 'Erscheinungsbild' : 'Appearance'}
+          {t('settings.theme.desc')}
         </div>
         <div style={section}>
           {/* Theme */}
@@ -131,14 +131,14 @@ export default function SettingsPage() {
 
         {/* ── Data ── */}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, marginTop: 24, fontWeight: 600 }}>
-          {lang === 'de' ? 'Daten & Performance' : 'Data & Performance'}
+          {t('settings.perf.title')}
         </div>
         <div style={section}>
           {/* Refresh Rate */}
           <div style={row}>
             <div>
               <div style={label}>{t('settings.refresh')}</div>
-              <div style={desc}>{lang === 'de' ? 'Wie oft werden Live-Daten aktualisiert' : 'How often live data is refreshed'}</div>
+              <div style={desc}>{t('settings.refresh.desc')}</div>
             </div>
             <select
               style={{ ...selectStyle, minWidth: 100 }}
@@ -155,7 +155,7 @@ export default function SettingsPage() {
           <div style={rowLast}>
             <div>
               <div style={label}>{t('settings.pagesize')}</div>
-              <div style={desc}>{lang === 'de' ? 'Anzahl der Einträge in Tabellen' : 'Number of entries shown in tables'}</div>
+              <div style={desc}>{t('settings.pagesize.desc')}</div>
             </div>
             <select
               style={{ ...selectStyle, minWidth: 100 }}
@@ -171,34 +171,34 @@ export default function SettingsPage() {
 
         {/* ── Connection Info ── */}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, marginTop: 24, fontWeight: 600 }}>
-          {lang === 'de' ? 'Verbindung' : 'Connection'}
+          {t('settings.connection')}
         </div>
         <div style={section}>
           <div style={row}>
             <div>
-              <div style={label}>Supabase</div>
+              <div style={label}>{t('settings.supabaseUrl')}</div>
               <div style={{ ...desc, fontFamily: 'var(--font-mono)', fontSize: 10 }}>
                 {process.env.NEXT_PUBLIC_SUPABASE_URL || 'gxztrhvhcxhmunhhkfjd.supabase.co'}
               </div>
             </div>
             <span style={{ fontSize: 11, color: 'var(--green)', background: 'var(--green-dim)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--green-dim)' }}>
-              ● {lang === 'de' ? 'Verbunden' : 'Connected'}
+              ● {t('settings.connected')}
             </span>
           </div>
           <div style={rowLast}>
             <div>
-              <div style={label}>Service Role</div>
-              <div style={desc}>{lang === 'de' ? 'Server-seitige Admin-Schreibrechte' : 'Server-side admin write access'}</div>
+              <div style={label}>{t('settings.serviceRole')}</div>
+              <div style={desc}>{t('settings.serviceRole.desc')}</div>
             </div>
             <span style={{ fontSize: 11, color: 'var(--green)', background: 'var(--green-dim)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--green-dim)' }}>
-              ● {lang === 'de' ? 'Aktiv' : 'Active'}
+              ● {t('common.active')}
             </span>
           </div>
         </div>
 
         {/* ── Preview ── */}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, marginTop: 24, fontWeight: 600 }}>
-          {lang === 'de' ? 'Vorschau' : 'Preview'}
+          {t('settings.preview')}
         </div>
         <div style={{
           ...section,
