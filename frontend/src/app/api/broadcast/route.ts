@@ -1,233 +1,139 @@
 // frontend/src/app/api/broadcast/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
-const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+type Profile = { id: string; role: string; is_wirker: boolean; is_member: boolean };
 
-const H = {
-  apikey: KEY,
-  Authorization: `Bearer ${KEY}`,
-  'Content-Type': 'application/json',
-};
-
-async function sbFetch(path: string, opts: RequestInit = {}) {
-  const res = await fetch(`${SUPA}/rest/v1/${path}`, {
-    headers: H,
-    ...opts,
-  });
-  const body = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, body };
-}
-
-// GET — stats + list past broadcasts
 export async function GET(req: NextRequest) {
-  if (!KEY) return NextResponse.json({ error: 'No service key' }, { status: 500 });
-  const { searchParams } = new URL(req.url);
-  const action = searchParams.get('action') || 'list';
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
 
-  if (action === 'stats') {
-    const [profilesRes, broadcastsRes] = await Promise.all([
-      fetch(`${SUPA}/rest/v1/profiles?select=id,role,is_wirker,is_member&limit=2000`, { headers: H }),
-      fetch(`${SUPA}/rest/v1/notifications?type=eq.admin_broadcast&select=metadata&limit=2000`, { headers: H }),
-    ]);
-    const profiles   = await profilesRes.json().catch(() => []);
-    const broadcasts = await broadcastsRes.json().catch(() => []);
-    const p = Array.isArray(profiles) ? profiles : [];
+  try {
+    const sb     = getServiceClient();
+    const action = new URL(req.url).searchParams.get('action') || 'list';
 
-    // Count unique broadcast IDs
-    const broadcastIds = new Set<string>();
-    for (const n of (Array.isArray(broadcasts) ? broadcasts : [])) {
-      const bid = (n.metadata as Record<string,unknown>)?.broadcast_id as string;
-      if (bid) broadcastIds.add(bid);
+    if (action === 'stats') {
+      const [{ data: profiles }, { data: broadcasts }] = await Promise.all([
+        sb.from('profiles').select('id,role,is_wirker,is_member').limit(2000),
+        sb.from('notifications').select('metadata').eq('type', 'admin_broadcast').limit(2000),
+      ]);
+      const p = (profiles ?? []) as Profile[];
+      const broadcastIds = new Set<string>(
+        (broadcasts ?? []).map(n => (n.metadata as Record<string,unknown>)?.broadcast_id as string).filter(Boolean)
+      );
+      return ok({
+        totalUsers:      p.length,
+        wirker:          p.filter(x => x.is_wirker).length,
+        members:         p.filter(x => x.is_member).length,
+        admins:          p.filter(x => ['admin','superadmin'].includes(x.role)).length,
+        totalBroadcasts: broadcastIds.size,
+      });
     }
 
-    return NextResponse.json({
-      total_users:       p.length,
-      wirker:            p.filter((x: Record<string,unknown>) => x.is_wirker).length,
-      members:           p.filter((x: Record<string,unknown>) => x.is_member).length,
-      admins:            p.filter((x: Record<string,unknown>) => ['admin','superadmin'].includes(x.role as string)).length,
-      total_broadcasts:  broadcastIds.size,
-    });
-  }
+    if (action === 'list') {
+      const { data, error } = await sb
+        .from('notifications')
+        .select('id,title,body,created_at,metadata')
+        .eq('type', 'admin_broadcast')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
 
-  if (action === 'list') {
-    const res = await fetch(
-      `${SUPA}/rest/v1/notifications?type=eq.admin_broadcast&order=created_at.desc&limit=500&select=id,title,body,created_at,metadata`,
-      { headers: H }
-    );
-    const data = await res.json().catch(() => []);
-
-    // De-duplicate by broadcast_id — one entry per broadcast
-    const seen = new Set<string>();
-    const broadcasts: unknown[] = [];
-    for (const n of (Array.isArray(data) ? data : [])) {
-      const bid = (n.metadata as Record<string,unknown>)?.broadcast_id as string;
-      if (bid && !seen.has(bid)) {
-        seen.add(bid);
+      const seen = new Set<string>();
+      const broadcasts: unknown[] = [];
+      for (const n of (data ?? [])) {
         const meta = n.metadata as Record<string,unknown>;
-        broadcasts.push({
-          id:           bid,
-          title:        n.title,
-          body:         n.body,
-          created_at:   n.created_at,
-          target_group: meta?.target_group || 'all',
-          sent_count:   meta?.sent_count   || 0,
-        });
+        const bid  = meta?.broadcast_id as string;
+        if (bid && !seen.has(bid)) {
+          seen.add(bid);
+          broadcasts.push({
+            id:          bid,
+            title:       n.title,
+            body:        n.body,
+            createdAt:   n.created_at,
+            targetGroup: meta?.target_group || 'all',
+            sentCount:   meta?.sent_count   || 0,
+          });
+        }
       }
+      return ok(broadcasts);
     }
-    return NextResponse.json(broadcasts);
-  }
 
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+    return fail(`Unbekannte Aktion: ${action}`);
+  } catch (err) { return serverError(err, 'broadcast GET'); }
 }
 
-// POST — send broadcast
 export async function POST(req: NextRequest) {
-  if (!KEY) return NextResponse.json({ error: 'No service key' }, { status: 500 });
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
 
-  const { title, body, target_group, sender_id } = await req.json();
-  if (!title?.trim() || !body?.trim()) {
-    return NextResponse.json({ error: 'Titel und Nachricht erforderlich' }, { status: 400 });
-  }
-
-  // 1. Get target profiles
-  const profilesRes = await fetch(
-    `${SUPA}/rest/v1/profiles?select=id,role,is_wirker,is_member&limit=5000`,
-    { headers: H }
-  );
-  const allProfiles: Record<string,unknown>[] = await profilesRes.json().catch(() => []);
-
-  let targets = allProfiles;
-  if (target_group === 'wirker')    targets = allProfiles.filter(p => p.is_wirker);
-  if (target_group === 'members')   targets = allProfiles.filter(p => p.is_member);
-  if (target_group === 'admins')    targets = allProfiles.filter(p => ['admin','superadmin'].includes(p.role as string));
-  if (target_group === 'basisuser') targets = allProfiles.filter(p => !p.is_wirker && !p.is_member);
-
-  if (targets.length === 0) {
-    return NextResponse.json({ error: 'Keine Nutzer in dieser Zielgruppe' }, { status: 400 });
-  }
-
-  const broadcastId = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  // 2. Insert notifications in batches of 200
-  const batchSize = 200;
-  let sent = 0;
-
-  for (let i = 0; i < targets.length; i += batchSize) {
-    const batch = targets.slice(i, i + batchSize);
-    const rows = batch.map(u => ({
-      user_id:   u.id,
-      type:      'admin_broadcast',
-      title:     title.trim(),
-      body:      body.trim(),
-      read:      false,       // used by HUI app
-      is_read:   false,       // compatibility
-      created_at: now,
-      metadata: {
-        broadcast_id: broadcastId,
-        target_group: target_group || 'all',
-        sent_count:   targets.length,
-        sender_id:    sender_id || null,
-      },
-    }));
-
-    const res = await fetch(`${SUPA}/rest/v1/notifications`, {
-      method:  'POST',
-      headers: { ...H, Prefer: 'return=minimal' },
-      body:    JSON.stringify(rows),
-    });
-    if (res.ok) sent += batch.length;
-    else {
-      const err = await res.json().catch(() => null);
-      console.error('[Broadcast] batch insert failed:', err);
-    }
-  }
-
-  // 3. Log to notification_events (audit)
   try {
-    await fetch(`${SUPA}/rest/v1/notification_events`, {
-      method:  'POST',
-      headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        type:           'admin_broadcast_sent',
-        actor_id:       sender_id || null,
-        target_user_id: null,
-        metadata: {
-          broadcast_id: broadcastId,
-          title,
-          target_group: target_group || 'all',
-          sent_count:   sent,
-        },
-        created_at: now,
-      }),
-    });
-  } catch (_) { /* non-critical */ }
+    const body = await req.json().catch(() => ({}));
+    const { title, body: msgBody, targetGroup, senderId } = body as {
+      title?: string; body?: string; targetGroup?: string; senderId?: string;
+    };
 
-  return NextResponse.json({
-    ok:           true,
-    broadcast_id: broadcastId,
-    sent_count:   sent,
-    target_group: target_group || 'all',
-  });
+    if (!title?.trim())   return validationError({ title:   'Pflichtfeld' });
+    if (!msgBody?.trim()) return validationError({ body:    'Pflichtfeld' });
+
+    const sb = getServiceClient();
+    const { data: profiles } = await sb.from('profiles').select('id,role,is_wirker,is_member').limit(5000);
+    let targets = (profiles ?? []) as Profile[];
+    if (targetGroup === 'wirker')    targets = targets.filter(p => p.is_wirker);
+    if (targetGroup === 'members')   targets = targets.filter(p => p.is_member);
+    if (targetGroup === 'admins')    targets = targets.filter(p => ['admin','superadmin'].includes(p.role));
+    if (targetGroup === 'basisuser') targets = targets.filter(p => !p.is_wirker && !p.is_member);
+
+    if (!targets.length) return fail('Keine Nutzer in dieser Zielgruppe');
+
+    const broadcastId = crypto.randomUUID();
+    const now         = new Date().toISOString();
+    let sent          = 0;
+    const batchSize   = 200;
+
+    for (let i = 0; i < targets.length; i += batchSize) {
+      const rows = targets.slice(i, i + batchSize).map(u => ({
+        user_id: u.id, type: 'admin_broadcast',
+        title: title.trim(), message: msgBody.trim(),
+        read: false, is_read: false, created_at: now,
+        metadata: { broadcastId, targetGroup: targetGroup ?? 'all', sentCount: targets.length, senderId: senderId ?? null },
+      }));
+      const { error } = await sb.from('notifications').insert(rows);
+      if (!error) sent += rows.length;
+    }
+
+    return ok({ broadcastId, sentCount: sent, targetGroup: targetGroup ?? 'all' });
+  } catch (err) { return serverError(err, 'broadcast POST'); }
 }
 
-// DELETE — remove all notifications for a broadcast_id
 export async function DELETE(req: NextRequest) {
-  if (!KEY) return NextResponse.json({ error: 'No service key' }, { status: 500 });
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
 
-  const { searchParams } = new URL(req.url);
-  const broadcastId = searchParams.get('broadcast_id');
-  if (!broadcastId) return NextResponse.json({ error: 'broadcast_id required' }, { status: 400 });
-
-  // Delete all notifications with this broadcast_id in metadata
-  // Supabase REST: filter by metadata->broadcast_id
-  const res = await fetch(
-    `${SUPA}/rest/v1/notifications?type=eq.admin_broadcast`,
-    {
-      method: 'GET',
-      headers: H,
-    }
-  );
-  const all: Record<string, unknown>[] = await res.json().catch(() => []);
-
-  // Filter matching broadcast_id client-side (metadata is JSONB, filter via eq works too)
-  const matching = all.filter(n => {
-    const meta = n.metadata as Record<string, unknown>;
-    return meta?.broadcast_id === broadcastId;
-  });
-
-  if (matching.length === 0) {
-    return NextResponse.json({ ok: true, deleted_count: 0 });
-  }
-
-  // Delete by IDs in batches
-  const ids = matching.map(n => n.id as string);
-  const batchSize = 200;
-  let deleted = 0;
-
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const batch = ids.slice(i, i + batchSize);
-    const idsParam = `(${batch.join(',')})`;
-    const delRes = await fetch(
-      `${SUPA}/rest/v1/notifications?id=in.${idsParam}`,
-      { method: 'DELETE', headers: H }
-    );
-    if (delRes.ok || delRes.status === 204) deleted += batch.length;
-  }
-
-  // Log to notification_events
   try {
-    await fetch(`${SUPA}/rest/v1/notification_events`, {
-      method: 'POST',
-      headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        type: 'admin_broadcast_deleted',
-        metadata: { broadcast_id: broadcastId, deleted_count: deleted },
-        created_at: new Date().toISOString(),
-      }),
-    });
-  } catch (_) {}
+    const broadcastId = new URL(req.url).searchParams.get('broadcastId');
+    if (!broadcastId) return validationError({ broadcastId: 'Pflichtfeld' });
 
-  return NextResponse.json({ ok: true, deleted_count: deleted });
+    const sb = getServiceClient();
+    const { data, error: fetchErr } = await sb
+      .from('notifications').select('id,metadata').eq('type', 'admin_broadcast');
+    if (fetchErr) throw fetchErr;
+
+    const ids = (data ?? [])
+      .filter(n => (n.metadata as Record<string,unknown>)?.broadcastId === broadcastId
+               ||  (n.metadata as Record<string,unknown>)?.broadcast_id === broadcastId)
+      .map(n => n.id as string);
+
+    if (!ids.length) return ok({ deletedCount: 0 });
+
+    const batchSize = 200;
+    let deleted = 0;
+    for (let i = 0; i < ids.length; i += batchSize) {
+      const { error } = await sb.from('notifications').delete().in('id', ids.slice(i, i + batchSize));
+      if (!error) deleted += Math.min(batchSize, ids.length - i);
+    }
+    return ok({ deletedCount: deleted });
+  } catch (err) { return serverError(err, 'broadcast DELETE'); }
 }
