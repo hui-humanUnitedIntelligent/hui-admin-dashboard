@@ -36,7 +36,7 @@ const GRUND_LABELS: Record<string, { label: string; emoji: string; color: string
 async function fetchFailures(): Promise<ScoreFailure[]> {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/impact_score_failures?select=*&order=created_at.desc&limit=500`,
-    { headers: { apikey: Authorization: `Bearer ${SUPABASE_ANON}` } }
+    { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
   );
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -45,7 +45,7 @@ async function fetchFailures(): Promise<ScoreFailure[]> {
 async function deleteFailure(id: string): Promise<void> {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/impact_score_failures?id=eq.${id}`,
-    { method: 'DELETE', headers: { apikey: Authorization: `Bearer ${SUPABASE_ANON}` } }
+    { method: 'DELETE', headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
   );
   if (!res.ok) throw new Error(await res.text());
 }
