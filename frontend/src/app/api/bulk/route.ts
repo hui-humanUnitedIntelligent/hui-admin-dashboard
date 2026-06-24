@@ -1,114 +1,94 @@
 // frontend/src/app/api/bulk/route.ts
-// Bulk-Aktionen auf mehreren User-IDs gleichzeitig
-
-import { NextRequest, NextResponse } from 'next/server';
-
-const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' };
-
-async function patchUser(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`${SUPA}/rest/v1/profiles?id=eq.${id}`, {
-    method: 'PATCH', headers: H, body: JSON.stringify({ ...data, updated_at: new Date().toISOString() }),
-  });
-  return res.ok;
-}
-
-async function logActivity(action: string, targetIds: string[], meta: Record<string, unknown>) {
-  try {
-    await fetch(`${SUPA}/rest/v1/notification_events`, {
-      method: 'POST', headers: H,
-      body: JSON.stringify({
-        type: `admin_bulk_${action}`,
-        actor_id: meta.adminId || null,
-        metadata: { action, target_ids: targetIds, count: targetIds.length, ...meta },
-        created_at: new Date().toISOString(),
-      }),
-    });
-  } catch (_) {}
-}
+import { NextRequest } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
-  if (!KEY) return NextResponse.json({ error: 'No key' }, { status: 500 });
-  const { action, userIds, data, adminId } = await req.json();
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
 
-  if (!Array.isArray(userIds) || userIds.length === 0) {
-    return NextResponse.json({ error: 'userIds required' }, { status: 400 });
-  }
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { action, userIds, data, adminId } = body as {
+      action?: string; userIds?: string[]; data?: Record<string, unknown>; adminId?: string;
+    };
 
-  const results = { success: 0, failed: 0 };
+    if (!Array.isArray(userIds) || userIds.length === 0)
+      return validationError({ userIds: 'Mindestens eine User-ID erforderlich' });
+    if (!action) return validationError({ action: 'Pflichtfeld' });
 
-  // ── change_role ──────────────────────────────────────────────────────────
-  if (action === 'change_role') {
-    const role = data?.role;
-    if (!role) return NextResponse.json({ error: 'role required' }, { status: 400 });
-    for (const id of userIds) {
-      const ok = await patchUser(id, { role });
-      ok ? results.success++ : results.failed++;
-    }
-    await logActivity('change_role', userIds, { role, adminId });
-    return NextResponse.json({ ok: true, ...results });
-  }
-
-  // ── block ────────────────────────────────────────────────────────────────
-  if (action === 'block') {
-    for (const id of userIds) {
-      const ok = await patchUser(id, { role: 'blocked', trust_score: -1 });
-      ok ? results.success++ : results.failed++;
-    }
-    await logActivity('block', userIds, { adminId });
-    return NextResponse.json({ ok: true, ...results });
-  }
-
-  // ── unblock ──────────────────────────────────────────────────────────────
-  if (action === 'unblock') {
-    for (const id of userIds) {
-      const ok = await patchUser(id, { role: 'basisuser', trust_score: 0 });
-      ok ? results.success++ : results.failed++;
-    }
-    await logActivity('unblock', userIds, { adminId });
-    return NextResponse.json({ ok: true, ...results });
-  }
-
-  // ── delete (soft) ────────────────────────────────────────────────────────
-  if (action === 'delete') {
-    for (const id of userIds) {
-      const ok = await patchUser(id, { role: 'deleted', trust_score: -999, is_member: false, membership_active: false });
-      ok ? results.success++ : results.failed++;
-    }
-    await logActivity('delete', userIds, { adminId });
-    return NextResponse.json({ ok: true, ...results });
-  }
-
-  // ── broadcast (send notification to selected users) ──────────────────────
-  if (action === 'broadcast') {
-    const { title, body: msgBody } = data || {};
-    if (!title || !msgBody) return NextResponse.json({ error: 'title and body required' }, { status: 400 });
+    const sb = getServiceClient();
     const now = new Date().toISOString();
-    const rows = userIds.map(uid => ({
-      user_id: uid, type: 'admin_broadcast', title, body: msgBody,
-      is_read: false, created_at: now,
-      metadata: { broadcast_id: crypto.randomUUID(), target_group: 'selected', sent_count: userIds.length },
-    }));
-    const res = await fetch(`${SUPA}/rest/v1/notifications`, {
-      method: 'POST', headers: H, body: JSON.stringify(rows),
-    });
-    await logActivity('broadcast', userIds, { title, adminId });
-    return NextResponse.json({ ok: res.ok, ...results, sent: userIds.length });
-  }
 
-  // ── change_membership ────────────────────────────────────────────────────
-  if (action === 'change_membership') {
-    const membership_type = data?.membership_type;
-    if (!membership_type) return NextResponse.json({ error: 'membership_type required' }, { status: 400 });
-    const is_member = ['member','premium','wirker'].includes(membership_type);
-    for (const id of userIds) {
-      const ok = await patchUser(id, { membership_type, is_member });
-      ok ? results.success++ : results.failed++;
+    const patchUsers = async (patch: Record<string, unknown>) => {
+      let success = 0; let failed = 0;
+      for (const id of userIds) {
+        const { error } = await sb.from('profiles').update({ ...patch, updated_at: now }).eq('id', id);
+        error ? failed++ : success++;
+      }
+      return { success, failed };
+    };
+
+    const logActivity = async (actType: string, meta: Record<string, unknown>) => {
+      try {
+        await sb.from('activity_logs').insert({
+          action: `admin_bulk_${actType}`,
+          actor_id: adminId ?? null,
+          metadata: { action: actType, targetIds: userIds, count: userIds.length, ...meta },
+          created_at: now,
+        });
+      } catch (_) {}
+    };
+
+    switch (action) {
+      case 'change_role': {
+        const role = data?.role as string;
+        if (!role) return validationError({ role: 'Pflichtfeld' });
+        const res = await patchUsers({ role });
+        await logActivity('change_role', { role });
+        return ok(res);
+      }
+      case 'block': {
+        const res = await patchUsers({ role: 'blocked', trust_score: -1 });
+        await logActivity('block', {});
+        return ok(res);
+      }
+      case 'unblock': {
+        const res = await patchUsers({ role: 'basisuser', trust_score: 0 });
+        await logActivity('unblock', {});
+        return ok(res);
+      }
+      case 'delete': {
+        const res = await patchUsers({ role: 'deleted', trust_score: -999, is_member: false });
+        await logActivity('delete', {});
+        return ok(res);
+      }
+      case 'broadcast': {
+        const title   = data?.title   as string;
+        const message = data?.body    as string;
+        if (!title || !message) return validationError({ title: 'Pflichtfeld', body: 'Pflichtfeld' });
+        const rows = userIds.map(userId => ({
+          user_id: userId, type: 'admin_broadcast',
+          title, message, is_read: false, read: false, created_at: now,
+        }));
+        const { error } = await sb.from('notifications').insert(rows);
+        if (error) throw error;
+        await logActivity('broadcast', { title });
+        return ok({ sent: userIds.length });
+      }
+      case 'change_membership': {
+        const membershipType = data?.membership_type as string;
+        if (!membershipType) return validationError({ membershipType: 'Pflichtfeld' });
+        const isMember = ['member','premium','wirker'].includes(membershipType);
+        const res = await patchUsers({ membership_type: membershipType, is_member: isMember });
+        await logActivity('change_membership', { membershipType });
+        return ok(res);
+      }
+      default:
+        return fail(`Unbekannte Aktion: ${action}`);
     }
-    await logActivity('change_membership', userIds, { membership_type, adminId });
-    return NextResponse.json({ ok: true, ...results });
+  } catch (err) {
+    return serverError(err, 'bulk POST');
   }
-
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
