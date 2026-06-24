@@ -1,43 +1,58 @@
 // frontend/src/app/api/notifications/route.ts
-// ── Server-only POST — einzelne Notification einfügen ─────────────────────────
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, created, fail, serverError, validationError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const adminHeaders = {
-  apikey:         SERVICE_KEY,
-  Authorization:  `Bearer ${SERVICE_KEY}`,
-  'Content-Type': 'application/json',
-  Prefer:         'return=minimal',
-};
-
-// POST: Einzelne Notification einfügen (z.B. Impact-Antrags-Benachrichtigung)
 export async function POST(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
-  if (!SERVICE_KEY) {
-    return NextResponse.json({ error: 'Service key missing' }, { status: 500 });
-  }
   try {
-    // Akzeptiert { notification: {...} } oder direkt das Payload-Objekt
-    const body = await req.json();
-    const payload = body.notification ?? body;
+    const body = await req.json().catch(() => ({}));
+    const { title, message, type, targetGroup, targetUserId } =
+      body as {
+        title?: string;
+        message?: string;
+        type?: string;
+        targetGroup?: string;
+        targetUserId?: string;
+      };
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: adminHeaders,
-      body: JSON.stringify(payload),
-    });
+    if (!message?.trim()) return validationError({ message: 'Pflichtfeld' });
 
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: err }, { status: res.status });
+    const supabase = getServiceClient();
+
+    // Zielgruppe ermitteln
+    let userIds: string[] = [];
+    if (targetUserId) {
+      userIds = [targetUserId];
+    } else {
+      let query = supabase.from('profiles').select('id');
+      if (targetGroup === 'wirker')   query = query.eq('is_wirker', true);
+      if (targetGroup === 'member')   query = query.eq('is_member', true);
+      if (targetGroup === 'admin')    query = query.eq('role', 'admin');
+      const { data, error } = await query.limit(5000);
+      if (error) throw error;
+      userIds = (data ?? []).map(p => p.id);
     }
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+
+    if (!userIds.length) return fail('Keine Zielnutzer gefunden');
+
+    const rows = userIds.map(userId => ({
+      user_id:      userId,
+      title:        title ?? 'HUI Nachricht',
+      message:      message.trim(),
+      type:         type ?? 'admin_broadcast',
+      is_read:      false,
+      read:         false,
+    }));
+
+    const { data, error } = await supabase.from('notifications').insert(rows).select();
+    if (error) throw error;
+
+    return created({ sent: data?.length ?? 0, recipients: userIds.length });
+  } catch (err) {
+    return serverError(err, 'notifications POST');
   }
 }
