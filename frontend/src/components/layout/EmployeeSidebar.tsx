@@ -7,68 +7,41 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useSettings } from '@/components/providers/ThemeProvider';
 import { useSystemHealth } from '@/lib/hooks/useSupabase';
+import { EMPLOYEE_NAV, navLabel, groupLabel } from '@/config/navigation';
 
-interface NavItem { href: string; label: string; icon: string; }
-interface NavGroup { id: string; label: string; icon: string; items: NavItem[]; }
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
 
-// Nur erlaubte Seiten für Mitarbeiter
-const EMP_NAV: NavGroup[] = [
-  {
-    id: 'management', label: 'Management', icon: '◎',
-    items: [
-      { href: '/employee/users',        label: 'User-Management',  icon: '👥' },
-      { href: '/employee/ambassadors',  label: 'Ambassadors',      icon: '🤝' },
-      { href: '/employee/talents',      label: 'Talent-Pool',      icon: '⭐' },
-      { href: '/employee/transactions', label: 'Transaktionen',    icon: '⇄'  },
-      { href: '/employee/bookings',     label: 'Buchungen',        icon: '📅' },
-    ],
-  },
-  {
-    id: 'content', label: 'Content', icon: '🎨',
-    items: [
-      { href: '/employee/works',        label: 'Werke & Content',  icon: '🖼️' },
-      { href: '/employee/experiences',  label: 'Erlebnisse & Projekte', icon: '🌿' },
-      { href: '/employee/memberships',  label: 'Mitgliedschaften', icon: '🏅' },
-    ],
-  },
-  {
-    id: 'tools', label: 'Tools', icon: '🛠️',
-    items: [
-      { href: '/employee/reports',      label: 'Reports',          icon: '📊' },
-      { href: '/employee/churns',       label: 'Churns & Kündig.', icon: '📉' },
-    ],
-  },
-  {
-    id: 'system', label: 'System', icon: '🔧',
-    items: [
-      { href: '/employee/settings',     label: 'Einstellungen',    icon: '⚙️' },
-    ],
-  },
-];
-
-interface SidebarProps { mobileOpen?: boolean; onClose?: () => void; }
-
-export default function EmployeeSidebar({ onClose }: SidebarProps) {
+export default function EmployeeSidebar({ mobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { logout, currentUser } = useAuth();
   const { lang } = useSettings();
   const { supabase: dbStatus } = useSystemHealth(60000);
 
+  // ── Active-State: exakter Match ODER Pfad-Präfix mit '/' ──────────────────
+  // Korrekter Check: /employee/users darf NICHT /employee/users-extra matchen
+  const isActive = (href: string): boolean =>
+    pathname === href || (
+      pathname.startsWith(href) &&
+      (pathname.length === href.length || pathname[href.length] === '/')
+    );
+
+  // ── Default: Gruppe mit aktivem Item öffnen ────────────────────────────────
   const getDefaultOpen = () => {
     const open: Record<string, boolean> = {};
-    for (const g of EMP_NAV) {
-      open[g.id] = g.items.some(i => pathname === i.href || pathname.startsWith(i.href));
+    for (const g of EMPLOYEE_NAV) {
+      open[g.id] = g.items.some(i => isActive(i.href));
     }
     return open;
   };
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaultOpen);
-  const toggleGroup = (id: string) => setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href);
+  const toggleGroup = (id: string) =>
+    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
 
-  void lang; // unused but keep for future i18n
-
-  return (
+  const sidebarContent = (
     <aside style={{
       width: 230, minWidth: 230,
       background: 'var(--bg-secondary)',
@@ -97,7 +70,6 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
               </span>
             </div>
           </div>
-          {/* Badge */}
           <span style={{
             fontSize: 9, fontWeight: 700, padding: '2px 6px',
             background: 'rgba(116,192,252,0.15)', color: '#74C0FC',
@@ -112,7 +84,7 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
       {/* ── Navigation ── */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
 
-        {/* Dashboard */}
+        {/* Dashboard — immer sichtbar */}
         <Link
           href="/employee/dashboard"
           onClick={onClose}
@@ -134,13 +106,16 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
 
         <div style={{ height: 1, background: 'var(--border)', margin: '4px 18px 8px' }} />
 
-        {/* Groups */}
-        {EMP_NAV.map(group => {
-          const isOpen = openGroups[group.id] ?? false;
+        {/* ── Collapsible Groups ── */}
+        {EMPLOYEE_NAV.map(group => {
+          const label    = groupLabel(group, lang);
+          const isOpen   = openGroups[group.id] ?? false;
           const anyActive = group.items.some(i => isActive(i.href));
 
           return (
             <div key={group.id} style={{ marginBottom: 2 }}>
+
+              {/* Group-Header */}
               <button
                 onClick={() => toggleGroup(group.id)}
                 style={{
@@ -156,13 +131,14 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
               >
                 <span style={{ fontSize: 14 }}>{group.icon}</span>
                 <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 600, color: anyActive && !isOpen ? '#74C0FC' : 'var(--text-primary)' }}>
-                  {group.label}
+                  {label}
                 </span>
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
               </button>
 
+              {/* Dropdown-Items */}
               {isOpen && (
-                <div style={{ paddingLeft: 18, paddingBottom: 4 }}>
+                <div style={{ paddingBottom: 4 }}>
                   {group.items.map(item => {
                     const active = isActive(item.href);
                     return (
@@ -172,8 +148,9 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
                         onClick={onClose}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '7px 14px 7px 10px', textDecoration: 'none',
-                          fontSize: 12.5, fontWeight: active ? 600 : 400,
+                          padding: '6px 18px 6px 38px',
+                          textDecoration: 'none', fontSize: 12.5,
+                          fontWeight: active ? 600 : 400,
                           borderLeft: `2px solid ${active ? '#74C0FC' : 'transparent'}`,
                           background: active ? 'rgba(116,192,252,0.08)' : 'transparent',
                           color: active ? '#74C0FC' : 'var(--text-secondary)',
@@ -184,7 +161,7 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
                         onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                       >
                         <span style={{ fontSize: 13 }}>{item.icon}</span>
-                        <span>{item.label}</span>
+                        <span>{navLabel(item, lang)}</span>
                       </Link>
                     );
                   })}
@@ -197,7 +174,28 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
 
       {/* ── Footer ── */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-        {/* Switch to Admin */}
+
+        {/* Current User */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #74C0FC, #4dabf7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 700, color: '#0F1117', flexShrink: 0,
+          }}>
+            {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'E'}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser?.name || 'Employee'}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser?.email || ''}
+            </div>
+          </div>
+        </div>
+
+        {/* Switch to Admin Dashboard */}
         <button
           onClick={() => {
             localStorage.removeItem('hui_dashboard_mode');
@@ -211,40 +209,58 @@ export default function EmployeeSidebar({ onClose }: SidebarProps) {
             borderRadius: 8, cursor: 'pointer', textAlign: 'left',
             fontSize: 11.5, color: 'var(--accent)', fontWeight: 600,
             fontFamily: 'var(--font-body)',
-            transition: 'all 0.15s',
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(78,205,196,0.15)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(78,205,196,0.08)'; }}
         >
           <span>🛡️</span>
-          <span>→ Admin Dashboard</span>
+          <span>{lang === 'en' ? 'Switch to Admin' : 'Zu Admin wechseln'}</span>
         </button>
 
-        {/* User info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: 'rgba(116,192,252,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, color: '#74C0FC', flexShrink: 0,
-          }}>
-            {currentUser?.name?.charAt(0)?.toUpperCase() || '?'}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentUser?.name || 'Mitarbeiter'}
-            </div>
-            <div style={{ fontSize: 10, color: '#74C0FC' }}>👤 Employee DB</div>
-          </div>
-          <button
-            onClick={logout}
-            title="Abmelden"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, padding: 4, lineHeight: 1, flexShrink: 0 }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--red)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-          >⏻</button>
-        </div>
+        {/* Logout */}
+        <button
+          onClick={async () => { await logout(); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '7px 10px', width: '100%',
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+            fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 500,
+            fontFamily: 'var(--font-body)',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#f03e3e'; (e.currentTarget as HTMLElement).style.color = '#f03e3e'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+        >
+          <span>⏻</span>
+          <span>{lang === 'en' ? 'Logout' : 'Abmelden'}</span>
+        </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop: sticky sidebar */}
+      <div className="desktop-only" style={{ display: 'flex' }}>
+        {sidebarContent}
+      </div>
+
+      {/* Mobile: overlay drawer */}
+      {mobileOpen && (
+        <>
+          <div
+            onClick={onClose}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 49,
+              background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
+            }}
+          />
+          <div style={{ position: 'fixed', left: 0, top: 0, zIndex: 50, height: '100vh' }}>
+            {sidebarContent}
+          </div>
+        </>
+      )}
+    </>
   );
 }
