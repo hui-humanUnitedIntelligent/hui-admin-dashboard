@@ -1,68 +1,52 @@
 // frontend/src/app/api/score-failures/[id]/route.ts
-// ── Server-only — Service Role Key nie im Client-Bundle ───────────────────────
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
+import { ok, fail, notFound, serverError, validationError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-function adminHeaders() {
-  return {
-    apikey:         SERVICE_KEY,
-    Authorization:  `Bearer ${SERVICE_KEY}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-// PATCH: Felder eines Score-Failures aktualisieren
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
-  if (!SERVICE_KEY) {
-    return NextResponse.json({ error: 'Service key missing' }, { status: 500 });
-  }
+  const { id } = params;
+  if (!id) return validationError({ id: 'Pflichtfeld' });
+
   try {
-    const body = await req.json();
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/impact_score_failures?id=eq.${params.id}`,
-      { method: 'PATCH', headers: adminHeaders(), body: JSON.stringify(body) }
-    );
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: err }, { status: res.status });
+    const body   = await req.json().catch(() => ({}));
+    const fields = body as Record<string, unknown>;
+    if (!Object.keys(fields).length) return fail('Keine Felder zum Aktualisieren');
+
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from('score_failures')
+      .update(fields)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return notFound('Score-Failure');
+      throw error;
     }
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return ok(data);
+  } catch (err) {
+    return serverError(err, 'score-failures PATCH');
   }
 }
 
-// DELETE: Score-Failure-Eintrag löschen
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
-  if (!SERVICE_KEY) {
-    return NextResponse.json({ error: 'Service key missing' }, { status: 500 });
-  }
+  const { id } = params;
+  if (!id) return validationError({ id: 'Pflichtfeld' });
+
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/impact_score_failures?id=eq.${params.id}`,
-      { method: 'DELETE', headers: adminHeaders() }
-    );
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: err }, { status: res.status });
-    }
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    const supabase = getServiceClient();
+    const { error } = await supabase.from('score_failures').delete().eq('id', id);
+    if (error) throw error;
+    return ok({ deleted: true, id });
+  } catch (err) {
+    return serverError(err, 'score-failures DELETE');
   }
 }
