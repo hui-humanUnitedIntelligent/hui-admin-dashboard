@@ -1,9 +1,9 @@
 // frontend/src/app/api/profiles/route.ts
 // Server-side profiles query — Service Key server-seitig (nie im Browser)
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardAdmin } from '@/app/lib/auth-guard';
 
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-// NEXT_PUBLIC_ wird von Vercel auch server-seitig bereitgestellt
 const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Nur Felder die wirklich in der DB existieren
@@ -17,7 +17,10 @@ const SELECT = [
   'member_since,blocked,blocked_at,blocked_by',
 ].join(',');
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
   if (!SUPABASE_URL || !SERVICE_KEY) {
     console.error('[/api/profiles] Missing config — URL:', !!SUPABASE_URL, 'KEY:', !!SERVICE_KEY);
     return NextResponse.json({ profiles: [], error: 'Supabase not configured' }, { status: 500 });
