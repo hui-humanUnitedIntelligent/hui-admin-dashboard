@@ -1,80 +1,75 @@
+// frontend/src/components/ui/Button.tsx
 'use client';
 
-type ButtonVariant = 'primary' | 'ghost' | 'danger' | 'warning';
-type ButtonSize = 'sm' | 'md';
+import { ButtonVariant, ButtonSize, buttonVariantStyles, buttonSizeStyles } from './system';
+
+export type { ButtonVariant, ButtonSize };
 
 interface ButtonProps {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  icon?: string;
-  type?: 'button' | 'submit';
+  variant?:   ButtonVariant;
+  size?:      ButtonSize;
+  children:   React.ReactNode;
+  onClick?:   () => void;
+  disabled?:  boolean;
+  icon?:      string;
+  iconRight?: string;
+  type?:      'button' | 'submit' | 'reset';
   fullWidth?: boolean;
+  loading?:   boolean;
+  /** ARIA-Label für Icon-Only-Buttons */
+  'aria-label'?: string;
+  title?: string;
 }
 
-const STYLES: Record<ButtonVariant, React.CSSProperties> = {
-  primary: {
-    background: 'var(--accent)',
-    color: '#0F1117',
-    border: 'none',
-  },
-  ghost: {
-    background: 'var(--bg-tertiary)',
-    color: 'var(--text-secondary)',
-    border: '1px solid var(--border)',
-  },
-  danger: {
-    background: 'var(--red-dim)',
-    color: 'var(--red)',
-    border: '1px solid rgba(255,107,107,0.3)',
-  },
-  warning: {
-    background: 'var(--gold-dim)',
-    color: 'var(--gold)',
-    border: '1px solid rgba(247,183,49,0.3)',
-  },
-};
-
-const SIZES: Record<ButtonSize, React.CSSProperties> = {
-  sm: { padding: '5px 10px', fontSize: 11 },
-  md: { padding: '8px 14px', fontSize: 12 },
-};
-
 export default function Button({
-  variant = 'ghost',
-  size = 'md',
+  variant    = 'ghost',
+  size       = 'md',
   children,
   onClick,
   disabled,
   icon,
-  type = 'button',
+  iconRight,
+  type       = 'button',
   fullWidth,
+  loading,
+  'aria-label': ariaLabel,
+  title,
 }: ButtonProps) {
+  const isDisabled = disabled || loading;
+
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
+      aria-label={ariaLabel}
+      aria-busy={loading ? 'true' : undefined}
+      title={title}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 6,
-        borderRadius: 8,
-        fontFamily: 'DM Sans, sans-serif',
+        fontFamily: 'var(--font-body)',
         fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
+        cursor: isDisabled ? 'not-allowed' : 'pointer',
+        opacity: isDisabled ? 0.5 : 1,
         transition: 'all 0.15s',
         width: fullWidth ? '100%' : undefined,
-        ...STYLES[variant],
-        ...SIZES[size],
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        ...buttonVariantStyles[variant],
+        ...buttonSizeStyles[size],
       }}
     >
-      {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
+      {loading
+        ? <span style={{ fontSize: 13, opacity: 0.8 }}>⟳</span>
+        : icon && <span style={{ fontSize: size === 'sm' ? 12 : 14, lineHeight: 1 }}>{icon}</span>
+      }
       {children}
+      {!loading && iconRight && (
+        <span style={{ fontSize: size === 'sm' ? 12 : 14, lineHeight: 1 }}>{iconRight}</span>
+      )}
     </button>
   );
 }
