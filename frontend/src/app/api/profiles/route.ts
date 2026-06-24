@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 // NEXT_PUBLIC_ wird von Vercel auch server-seitig bereitgestellt
-const SERVICE_KEY   = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Nur Felder die wirklich in der DB existieren
 const SELECT = [
