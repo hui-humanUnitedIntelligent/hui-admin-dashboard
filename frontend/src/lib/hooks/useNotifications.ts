@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { sbQuery, sbCount, sbUpdate } from '../api';
+import { getSessionToken } from '@/lib/session';
 
 export interface AdminNotification {
   id:          string;
@@ -29,21 +30,9 @@ export interface UseNotificationsOptions {
 }
 
 
-// ── Session-Token-Helper ──────────────────────────────────────────────────────
-function getSessionToken(): string {
   if (typeof window === 'undefined') return '';
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i) || '';
-      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        const val = JSON.parse(localStorage.getItem(key) || '{}');
-        return val?.access_token || '';
-      }
-    }
-  } catch { /* ignore */ }
   return '';
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function useNotifications(opts: UseNotificationsOptions = {}) {
   const { userId, type, unreadOnly, limit = 100, refreshInterval = 0, realtime = true } = opts;
