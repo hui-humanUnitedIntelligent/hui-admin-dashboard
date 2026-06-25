@@ -439,9 +439,10 @@ export function useImpactProjects(refreshInterval = 0) {
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
+      // Lade alle Projects (kein Status-Filter) — UI filtert selbst
       const rows = await sbQuery<HuiImpactProject>('impact_projects', {}, {
-        select: 'id,name,category,description,icon,color,votes,status,goal_eur,awarded_eur,month',
-        order: 'votes.desc', limit: 50,
+        select: 'id,name,category,description,icon,color,votes,status,goal_eur,awarded_eur,month,created_at,updated_at',
+        order: 'created_at.desc', limit: 500,
       });
       setProjects(rows); setError(null);
     } catch (e: unknown) {
@@ -465,7 +466,8 @@ export function useImpactProjects(refreshInterval = 0) {
 export function useWorks(opts: {
   status?: string; limit?: number; refreshInterval?: number;
 } = {}) {
-  const { status, limit = 50, refreshInterval = 0 } = opts;
+  // status: undefined/'all' = alle; 'submitted' = alle Einreichungen; andere = direkt filtern
+  const { status, limit = 500, refreshInterval = 0 } = opts;
   const [works, setWorks] = useState<HuiWork[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -474,31 +476,28 @@ export function useWorks(opts: {
   const fetchWorks = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const needsServiceRole = ['flagged','deleted','pending_review','rejected','pending'].includes(status || '');
-      if (needsServiceRole) {
-        const params = new URLSearchParams({ limit: String(limit) });
-        if (status) params.set('status', status);
-        const res = await fetch(`/api/works?${params}`);
-        if (res.ok) {
-          const rows = await res.json() as HuiWork[];
-          setWorks(Array.isArray(rows) ? rows : []);
-          setTotal(Array.isArray(rows) ? rows.length : 0);
-        }
-      } else {
-        const params: Record<string, string> = {};
-        if (status && status !== 'all') params['status'] = `eq.${status}`;
-        const [rows, count] = await Promise.all([
-          sbQuery<HuiWork>('works', params, { select: '*', order: 'created_at.desc', limit }),
-          sbCount('works', params),
-        ]);
-        setWorks(rows); setTotal(count);
-      }
+      const token = await getSessionToken();
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (status) params.set('status', status);
+      const res = await fetch(`/api/works?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      // API gibt { works, total } zurück (oder data.works je nach ok-wrapper)
+      const rawData = json?.data ?? json;
+      const rows = Array.isArray(rawData?.works) ? rawData.works
+                 : Array.isArray(rawData)        ? rawData
+                 : [];
+      setWorks(rows);
+      setTotal(rawData?.total ?? rows.length);
     } catch (e: unknown) {
       setError((e as Error).message);
       console.error('[useWorks]', e);
     } finally { setLoading(false); }
   }, [status, limit]);
 
+  // Realtime: ALLE Events → UI filtert selbst
   useRealtimeTable('works:realtime', ['works'], fetchWorks);
 
   useEffect(() => {
@@ -597,11 +596,12 @@ export function useMemberships(opts: { limit?: number; refreshInterval?: number 
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
+      // Lade ALLE Memberships — UI filtert nach Tab (active/expired/deleted/all)
       const [rows, count] = await Promise.all([
-        sbQuery<HuiMembership>('memberships', { 'status': 'eq.active' }, {
+        sbQuery<HuiMembership>('memberships', {}, {
           select: 'id,user_id,membership_type,status,vote_weight,started_at,expires_at',
           order: 'started_at.desc', limit }),
-        sbCount('memberships', { 'status': 'eq.active' }),
+        sbCount('memberships', {}),
       ]);
       setMemberships(rows); setTotal(count);
     } catch { /* non-critical */ }
@@ -659,18 +659,23 @@ export function useExperiencesAndProjects(opts: {
   const fetchEntries = useCallback(async () => {
     setLoading(true); setError(null);
     try {
+      const token = await getSessionToken();
       const params = new URLSearchParams({ limit: String(limit) });
       if (status) params.set('status', status);
-      const res = await fetch(`/api/experiences?${params}`);
-      if (res.ok) {
-        const rows = await res.json() as HuiEntry[];
-        const arr  = Array.isArray(rows) ? rows : [];
-        setEntries(arr); setTotal(arr.length);
-      } else {
-        setError(`HTTP ${res.status}`);
-      }
+      const res = await fetch(`/api/experiences?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      const json = await res.json();
+      // API gibt Array oder { data: [...] } zurück
+      const rawData = json?.data ?? json;
+      const arr = Array.isArray(rawData) ? rawData
+                : Array.isArray(rawData?.items) ? rawData.items
+                : [];
+      setEntries(arr); setTotal(arr.length);
     } catch (e: unknown) {
       setError((e as Error).message);
+      console.error('[useExperiencesAndProjects]', e);
     } finally { setLoading(false); }
   }, [status, limit]);
 
