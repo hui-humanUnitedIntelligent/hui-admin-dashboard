@@ -466,8 +466,9 @@ export function useImpactProjects(refreshInterval = 0) {
 export function useWorks(opts: {
   status?: string; limit?: number; refreshInterval?: number;
 } = {}) {
-  // status: undefined/'all' = alle; 'submitted' = alle Einreichungen; andere = direkt filtern
-  const { status, limit = 500, refreshInterval = 0 } = opts;
+  // IMMER über /api/works (Service Role) — kein sbQuery
+  // Response: { data: HuiWork[], total: number }
+  const { status, limit = 1000, refreshInterval = 0 } = opts;
   const [works, setWorks] = useState<HuiWork[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -478,19 +479,17 @@ export function useWorks(opts: {
     try {
       const token = await getSessionToken();
       const params = new URLSearchParams({ limit: String(limit) });
-      if (status) params.set('status', status);
+      // Nur filtern wenn Status explizit (nicht 'all')
+      if (status && status !== 'all') params.set('status', status);
       const res = await fetch(`/api/works?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // API gibt { works, total } zurück (oder data.works je nach ok-wrapper)
-      const rawData = json?.data ?? json;
-      const rows = Array.isArray(rawData?.works) ? rawData.works
-                 : Array.isArray(rawData)        ? rawData
-                 : [];
+      // API gibt { data: HuiWork[], total: number } zurück
+      const rows = Array.isArray(json.data) ? json.data : [];
       setWorks(rows);
-      setTotal(rawData?.total ?? rows.length);
+      setTotal(json.total ?? rows.length);
     } catch (e: unknown) {
       setError((e as Error).message);
       console.error('[useWorks]', e);
