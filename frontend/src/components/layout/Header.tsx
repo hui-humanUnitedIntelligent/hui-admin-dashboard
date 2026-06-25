@@ -13,6 +13,19 @@ interface HeaderProps {
 }
 
 
+async function handleLogout() {
+  try {
+    await fetch('/api/auth/admin-logout', { method: 'POST' });
+    // Auch localStorage leeren
+    localStorage.removeItem('hui_admin_token');
+    localStorage.removeItem('hui_admin_user');
+    localStorage.removeItem('hui_dashboard_mode');
+    window.location.href = '/login';
+  } catch {
+    window.location.href = '/login';
+  }
+}
+
 export default function Header({ title, actions, onMenuToggle, employeeMode }: HeaderProps) {
   const [time, setTime]           = useState<string>('');
   const [actionsOpen, setActionsOpen] = useState(false);
