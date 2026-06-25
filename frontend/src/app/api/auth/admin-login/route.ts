@@ -1,16 +1,21 @@
 // frontend/src/app/api/auth/admin-login/route.ts
 // POST /api/auth/admin-login
 // Body: { email, password, dashboard: 'admin' | 'employee' }
-// Setzt HTTP-Only Cookie: hui_admin_token
+// Setzt HTTP-Only Cookie via next/headers cookies()
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getAnonClient } from '@/app/lib/supabase-server';
 import { normalizeRole } from '@/lib/roles';
+
+const DOMAIN   = process.env.COOKIE_DOMAIN ?? undefined; // undefined = aktueller Host
+const IS_PROD  = process.env.NODE_ENV === 'production';
+const MAX_AGE  = 60 * 60 * 8; // 8 Stunden
 
 export async function POST(req: NextRequest) {
   try {
     const { email, password, dashboard } = await req.json() as {
-      email: string;
-      password: string;
+      email:     string;
+      password:  string;
       dashboard: 'admin' | 'employee';
     };
 
@@ -18,6 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'E-Mail und Passwort erforderlich' }, { status: 400 });
     }
 
+    // ── 1. Supabase Auth ────────────────────────────────────────────────────
     const supabase = getAnonClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -26,54 +32,57 @@ export async function POST(req: NextRequest) {
     }
 
     const { session, user } = data;
+    const access_token = session.access_token;
+
+    // ── 2. Rolle ermitteln (DB-Profil hat Vorrang) ──────────────────────────
     const appMeta  = user.app_metadata  ?? {};
     const userMeta = user.user_metadata ?? {};
     const rawRole  = appMeta.role || userMeta.role || 'employee';
-    const role     = normalizeRole(rawRole);
+    let   finalRole = normalizeRole(rawRole);
 
-    // Rollenberechtigung prüfen
-    if (dashboard === 'admin' && role !== 'superadmin') {
-      // Prüfe auch DB-Profil
-      const { getServiceClient } = await import('@/app/lib/supabase-server');
-      const sb = getServiceClient();
-      const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
-      const dbRole = normalizeRole(profile?.role || '');
-      if (dbRole !== 'superadmin') {
-        return NextResponse.json({ ok: false, error: 'Kein Superadmin-Zugriff' }, { status: 403 });
-      }
-    }
-
-    // Effektive Rolle: DB-Profil hat Vorrang
-    let finalRole = role;
     try {
       const { getServiceClient } = await import('@/app/lib/supabase-server');
       const sb = getServiceClient();
-      const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+      const { data: profile } = await sb
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
       if (profile?.role) finalRole = normalizeRole(profile.role);
     } catch { /* Fallback auf Metadata-Rolle */ }
 
-    // HTTP-Only Cookie setzen
-    const isProd = process.env.NODE_ENV === 'production';
-    const res = NextResponse.json({ ok: true, role: finalRole });
+    // ── 3. Admin-Rollencheck ────────────────────────────────────────────────
+    if (dashboard === 'admin' && finalRole !== 'superadmin') {
+      return NextResponse.json({ ok: false, error: 'Kein Superadmin-Zugriff' }, { status: 403 });
+    }
 
-    res.cookies.set('hui_admin_token', session.access_token, {
+    // ── 4. Cookies setzen via next/headers ─────────────────────────────────
+    const cookieStore = cookies();
+
+    cookieStore.set({
+      name:     'hui_admin_token',
+      value:    access_token,
       httpOnly: true,
-      secure:   isProd,
+      secure:   IS_PROD,
       sameSite: 'lax',
       path:     '/',
-      maxAge:   60 * 60 * 8, // 8 Stunden
+      maxAge:   MAX_AGE,
+      ...(DOMAIN ? { domain: DOMAIN } : {}),
     });
 
-    // Rolle auch als lesbares Cookie (nicht httpOnly) für Client-seitiges Routing
-    res.cookies.set('hui_admin_role', finalRole, {
+    cookieStore.set({
+      name:     'hui_admin_role',
+      value:    finalRole,
       httpOnly: false,
-      secure:   isProd,
+      secure:   IS_PROD,
       sameSite: 'lax',
       path:     '/',
-      maxAge:   60 * 60 * 8,
+      maxAge:   MAX_AGE,
+      ...(DOMAIN ? { domain: DOMAIN } : {}),
     });
 
-    return res;
+    return NextResponse.json({ ok: true, role: finalRole });
+
   } catch (err: unknown) {
     console.error('[admin-login]', err);
     return NextResponse.json({ ok: false, error: 'Serverfehler' }, { status: 500 });
