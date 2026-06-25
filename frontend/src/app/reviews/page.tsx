@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Button from '@/components/ui/Button';
@@ -31,6 +33,8 @@ function StarDisplay({ stars, size = 14 }: { stars: number; size?: number }) {
 }
 
 export default function ReviewsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const router  = useRouter();
   const [tab,        setTab]        = useState<'published' | 'pending'>('published');
   const [published,  setPublished]  = useState<Review[]>([]);
@@ -121,7 +125,15 @@ export default function ReviewsPage() {
   return (
     <DashboardLayout title="Review-Verwaltung">
 
-      {/* ── Detail Modal ─────────────────────────────────────────────────── */}
+      
+      <PageHeader
+        title="Reviews"
+        subtitle="Bewertungen & Feedback verwalten"
+        actionsRole="admin"
+        userRole={userRole}
+      />
+
+{/* ── Detail Modal ─────────────────────────────────────────────────── */}
       {/* ── Detail Modal ──────────────────────────────────────────────────── */}
       {detailReview && (
         <Modal
