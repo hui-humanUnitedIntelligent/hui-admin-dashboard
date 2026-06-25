@@ -1,11 +1,11 @@
 // frontend/src/app/api/bulk/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
