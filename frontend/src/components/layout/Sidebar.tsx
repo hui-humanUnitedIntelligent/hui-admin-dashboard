@@ -47,10 +47,10 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{
                 width: 6, height: 6, borderRadius: '50%',
-                background: dbStatus === 'online' ? '#22c55e' : '#f59e0b',
+                background: dbStatus === 'ok' ? '#22c55e' : '#f59e0b',
                 display: 'inline-block',
               }} />
-              {dbStatus === 'online' ? 'Live' : 'Verbinde...'}
+              {dbStatus === 'ok' ? 'Live' : 'Verbinde...'}
             </div>
           </div>
         </div>
