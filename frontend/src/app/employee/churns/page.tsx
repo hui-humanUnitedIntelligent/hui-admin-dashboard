@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 
 interface ChurnUser {
@@ -48,6 +50,8 @@ const FILTER_LABELS: Record<FilterPeriod, string> = {
 };
 
 export default function EmployeeChurnsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [allProfiles, setAllProfiles] = useState<ChurnUser[]>([]);
   const [loading, setLoading]         = useState(true);
   const [period, setPeriod]           = useState<FilterPeriod>('30d');
@@ -127,7 +131,15 @@ export default function EmployeeChurnsPage() {
       title="Kündigungen & Churns"
       headerActions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={period} onChange={e => setPeriod(e.target.value as FilterPeriod)} style={{ ...input, fontSize: 11 }}>
+          
+      <PageHeader
+        title="Churns"
+        subtitle="Abgelaufene Mitgliedschaften"
+        actionsRole="employee"
+        userRole={userRole}
+      />
+
+<select value={period} onChange={e => setPeriod(e.target.value as FilterPeriod)} style={{ ...input, fontSize: 11 }}>
             {(Object.keys(FILTER_LABELS) as FilterPeriod[]).map(k => <option key={k} value={k}>{FILTER_LABELS[k]}</option>)}
           </select>
           <button onClick={sendReengagement} style={{ padding: '5px 12px', background: 'var(--accent)', border: 'none', borderRadius: 8, fontSize: 11, color: '#0F1117', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-body)' }}>
