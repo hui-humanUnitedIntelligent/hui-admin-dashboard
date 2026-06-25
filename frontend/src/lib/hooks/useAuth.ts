@@ -44,7 +44,7 @@ export function useAuth() {
                 {
                   headers: {
                     apikey:         SUPABASE_ANON,
-                    Authorization:  `Bearer ${SUPABASE_ANON}`,
+                    Authorization:  `Bearer ${supaRes.access_token}`, // User-JWT (nicht ANON!)
                     'Content-Type': 'application/json',
                   },
                 }
@@ -52,7 +52,7 @@ export function useAuth() {
               if (profileRes.ok) {
                 const profileData = await profileRes.json();
                 if (Array.isArray(profileData) && profileData.length > 0 && profileData[0].role) {
-                  profileRole = profileData[0].role;
+                  profileRole = normalizeRole(profileData[0].role);
                 }
               }
             } catch {
@@ -64,7 +64,7 @@ export function useAuth() {
             id:    userId || 0,
             name:  supaRes.user?.user_metadata?.full_name || supaRes.user?.email || 'Admin',
             email: supaRes.user?.email || email,
-            role:  profileRole,
+            role:  normalizeRole(profileRole), // Single source of truth
           };
           storeAuth(supaRes.access_token, user);
           return true;
@@ -98,4 +98,17 @@ export function useAuth() {
   const currentUser = getStoredUser() as AdminUser | null;
 
   return { login, logout, loading, error, currentUser };
+}
+
+/** Liest die normalisierte Rolle aus dem gespeicherten Auth-State (Single Source of Truth) */
+export function getSessionRole(): string {
+  if (typeof window === 'undefined') return 'employee';
+  try {
+    const raw = localStorage.getItem('hui_admin_user');
+    if (!raw) return 'employee';
+    const user = JSON.parse(raw);
+    return normalizeRole(user?.role) ?? 'employee';
+  } catch {
+    return 'employee';
+  }
 }
