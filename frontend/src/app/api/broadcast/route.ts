@@ -1,6 +1,6 @@
 // frontend/src/app/api/broadcast/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
 import { NOTIFICATION_TYPES } from '@/lib/notification-types';
@@ -8,7 +8,7 @@ import { NOTIFICATION_TYPES } from '@/lib/notification-types';
 type Profile = { id: string; role: string; is_wirker: boolean; is_member: boolean };
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
