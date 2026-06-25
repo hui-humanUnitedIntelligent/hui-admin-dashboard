@@ -1,5 +1,7 @@
-// frontend/src/app/admins/page.tsx
 'use client';
+// frontend/src/app/admins/page.tsx
+
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -95,6 +97,12 @@ function Skeleton() {
 // ════════════════════════════════════════════════════════════════════════════
 export default function AdminsPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [admins, setAdmins]         = useState<AdminUser[]>([]);
   const [loading, setLoading]       = useState(true);
