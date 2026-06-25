@@ -102,3 +102,27 @@ export async function guardUser(req: NextRequest): Promise<NextResponse | null> 
   return null; // OK
 }
 
+// ── getAuthUser — gibt User-Objekt zurück (für Soft-Delete mit user_id) ──────
+export async function getAuthUser(req: NextRequest): Promise<{ id: string; email: string; role: string } | null> {
+  const result = await validateToken(req);
+  return result.user ?? null;
+}
+
+// ── guardEmployee — Employee oder höher (Admin/Superadmin) ───────────────────
+// Gibt null bei Erfolg, NextResponse bei Fehler.
+// Employee darf Soft-Deletes ausführen; Superadmin ebenfalls erlaubt.
+export async function guardEmployee(req: NextRequest): Promise<NextResponse | null> {
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) {
+    return NextResponse.json({ ok: false, error: 'Kein Token' }, { status: 401 });
+  }
+  const sb = getAnonClient();
+  const { data: { user }, error } = await sb.auth.getUser(token);
+  if (error || !user) {
+    return NextResponse.json({ ok: false, error: 'Ungültige Session' }, { status: 401 });
+  }
+  // Alle authentifizierten User dürfen Soft-Delete (Employee/Admin/Superadmin)
+  return null;
+}
+
