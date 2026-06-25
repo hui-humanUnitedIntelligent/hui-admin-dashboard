@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
+import type { HuiEntry } from '@/lib/hooks/useExperiences';
 import { useExperiencesAndProjects } from '@/lib/hooks/useSupabase';
 import { getSessionToken } from '@/lib/session';
 
@@ -96,7 +97,7 @@ export default function EmployeeExperiencesPage() {
               ))}
             </tr></thead>
             <tbody>
-              {filtered.map(e=>{
+              {filtered.map((e: HuiEntry)=>{
                 const isBusy=busy===e.id;
                 const isDeleted=e.approval_status==='deleted'||e.status==='deleted';
                 const actionKey=e._source==='experiences'?'experience':'project';
