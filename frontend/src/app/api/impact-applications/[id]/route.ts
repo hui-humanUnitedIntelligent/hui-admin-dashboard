@@ -4,19 +4,8 @@ import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, notFound, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-// ── Status-Enum ──────────────────────────────────────────────────────────────
-export const APPLICATION_STATUS = {
-  PENDING:  'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-} as const;
-export type ApplicationStatus = typeof APPLICATION_STATUS[keyof typeof APPLICATION_STATUS];
-
-const ALLOWED_STATUS_TRANSITIONS: Record<string, ApplicationStatus[]> = {
-  pending:  ['approved', 'rejected'],
-  approved: ['rejected'],
-  rejected: ['approved'],
-};
+import { APPLICATION_STATUS, ApplicationStatus, ALLOWED_STATUS_TRANSITIONS } from '@/lib/impact-status';
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── PATCH: Status-Update + activity_log ─────────────────────────────────────
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
