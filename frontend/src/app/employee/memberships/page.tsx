@@ -74,9 +74,9 @@ export default function EmployeeMembershipsPage() {
                     <Badge variant={m.status === 'active' ? 'success' : 'neutral'}>{m.status || '—'}</Badge>
                   </td>
                   <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{m.vote_weight ?? '—'}</td>
-                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(m.started_at)}</td>
-                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(m.expires_at)}</td>
-                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{timeAgo(m.started_at)}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(m.started_at  ?? undefined)}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(m.expires_at  ?? undefined)}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{timeAgo(m.started_at  ?? undefined)}</td>
                 </tr>
               ))}
             </tbody>
