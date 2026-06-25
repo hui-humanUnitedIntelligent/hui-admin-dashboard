@@ -2,13 +2,12 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { clearAuth } from '@/lib/api';
 import { useSettings } from '@/components/providers/ThemeProvider';
 import { useSystemHealth } from '@/lib/hooks/useSupabase';
-import { ADMIN_NAV, navLabel, groupLabel, filterItems, filterGroups } from '@/config/navigation';
+import AdminNavigation from '@/components/navigation/AdminNavigation';
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -16,35 +15,12 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
-  const pathname = usePathname();
   const { logout, currentUser } = useAuth();
-  const { lang } = useSettings();
-  const { supabase: dbStatus } = useSystemHealth(60000);
-  const role = currentUser?.role;
+  const { lang }                = useSettings();
+  const { supabase: dbStatus }  = useSystemHealth(60000);
+  const role                    = currentUser?.role;
 
-  // ── Active-State: exakter Match ODER Pfad-Präfix mit '/' ──────────────────
-  const isActive = (href: string): boolean =>
-    pathname === href || (
-      href !== '/dashboard' &&
-      pathname.startsWith(href) &&
-      (pathname.length === href.length || pathname[href.length] === '/')
-    );
-
-  // ── Default: Gruppe, die das aktive Item enthält, ist geöffnet ─────────────
-  const getDefaultOpen = () => {
-    const open: Record<string, boolean> = {};
-    for (const g of ADMIN_NAV) {
-      const items = filterItems(g.items, role);
-      open[g.id] = items.some(i => isActive(i.href));
-    }
-    return open;
-  };
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaultOpen);
-  const toggleGroup = (id: string) =>
-    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
-
-  const isSuperAdmin = role === 'super_admin' || role === 'superadmin';
+  const isSuperAdmin = role === 'super_admin' || role === 'superadmin' || role === 'admin';
 
   const sidebarContent = (
     <aside style={{
@@ -59,125 +35,55 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 34, height: 34,
+            width: 32, height: 32, borderRadius: 8,
             background: 'linear-gradient(135deg, var(--accent), #2BC5BB)',
-            borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-            color: '#0F1117', letterSpacing: '0.5px',
-            boxShadow: '0 0 12px rgba(78,205,196,0.3)',
-          }}>HUI</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>Admin Control</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-              <span className="live-dot" style={{ width: 5, height: 5 }} />
-              <span style={{ fontSize: 9.5, color: dbStatus === 'ok' ? 'var(--green)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                {dbStatus === 'ok' ? 'Live' : dbStatus === 'error' ? 'Offline' : 'Connecting'}
-              </span>
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 800, color: '#0F1117', flexShrink: 0,
+          }}>H</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+              HUI Admin
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: dbStatus === 'online' ? '#22c55e' : '#f59e0b',
+                display: 'inline-block',
+              }} />
+              {dbStatus === 'online' ? 'Live' : 'Verbinde...'}
             </div>
           </div>
-          {onClose && (
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, padding: 4, lineHeight: 1 }}>✕</button>
-          )}
         </div>
       </div>
 
-      {/* ── Navigation ── */}
-      <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
-
-        {/* Dashboard — immer sichtbar */}
+      {/* ── Dashboard Quick-Link ── */}
+      <div style={{ padding: '8px 12px 4px', flexShrink: 0 }}>
         <Link
           href="/dashboard"
           onClick={onClose}
           style={{
-            display: 'flex', alignItems: 'center', gap: 9,
-            padding: '9px 18px', textDecoration: 'none', fontSize: 13,
-            fontWeight: isActive('/dashboard') ? 600 : 500,
-            borderLeft: `2px solid ${isActive('/dashboard') ? 'var(--accent)' : 'transparent'}`,
-            background: isActive('/dashboard') ? 'var(--accent-dim)' : 'transparent',
-            color: isActive('/dashboard') ? 'var(--accent)' : 'var(--text-primary)',
-            transition: 'all 0.12s', marginBottom: 4,
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '7px 10px', borderRadius: 8,
+            textDecoration: 'none', fontSize: 13, fontWeight: 500,
+            color: 'var(--text-primary)',
+            background: 'transparent',
+            transition: 'background 0.12s',
           }}
-          onMouseEnter={e => { if (!isActive('/dashboard')) (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
-          onMouseLeave={e => { if (!isActive('/dashboard')) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <span style={{ fontSize: 15 }}>⊞</span>
-          <span>Dashboard</span>
+          <span>{lang === 'en' ? 'Dashboard' : 'Dashboard'}</span>
         </Link>
+        <div style={{ height: 1, background: 'var(--border)', margin: '6px 4px 4px' }} />
+      </div>
 
-        <div style={{ height: 1, background: 'var(--border)', margin: '4px 18px 8px' }} />
-
-        {/* ── Collapsible Groups ── */}
-        {filterGroups(ADMIN_NAV, role).map(group => {
-          const visibleItems = group.items; // bereits durch filterGroups gefiltert
-          if (visibleItems.length === 0) return null;  // Gruppe ausblenden wenn alle Items gefiltert
-
-          const label    = groupLabel(group, lang);
-          const isOpen   = openGroups[group.id] ?? false;
-          const anyActive = visibleItems.some(i => isActive(i.href));
-
-          return (
-            <div key={group.id} style={{ marginBottom: 2 }}>
-
-              {/* Group-Header */}
-              <button
-                onClick={() => toggleGroup(group.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  width: '100%', padding: '8px 18px',
-                  background: anyActive && !isOpen ? 'var(--accent-dim)' : 'transparent',
-                  border: 'none',
-                  borderLeft: `2px solid ${anyActive && !isOpen ? 'var(--accent)' : 'transparent'}`,
-                  cursor: 'pointer', transition: 'all 0.12s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = anyActive && !isOpen ? 'var(--accent-dim)' : 'transparent'; }}
-              >
-                <span style={{ fontSize: 14 }}>{group.icon}</span>
-                <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 600, color: anyActive && !isOpen ? 'var(--accent)' : 'var(--text-primary)' }}>
-                  {label}
-                </span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s', display: 'inline-block' }}>▾</span>
-              </button>
-
-              {/* Dropdown-Items */}
-              {isOpen && (
-                <div style={{ paddingBottom: 4 }}>
-                  {visibleItems.map(item => {
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onClose}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '6px 18px 6px 38px',
-                          textDecoration: 'none', fontSize: 12.5,
-                          borderLeft: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
-                          background: active ? 'var(--accent-dim)' : 'transparent',
-                          color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                          fontWeight: active ? 500 : 400,
-                          transition: 'all 0.1s',
-                        }}
-                        onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
-                        onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                      >
-                        <span style={{ fontSize: 13, opacity: 0.8 }}>{item.icon}</span>
-                        <span>{navLabel(item, lang)}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
+      {/* ── Rollenbasierte Navigation via AdminNavigation ── */}
+      <AdminNavigation role={role} lang={lang} onClose={onClose} />
 
       {/* ── User Footer ── */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
 
-        {/* Current User */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
           <div style={{
             width: 30, height: 30, borderRadius: '50%',
@@ -196,7 +102,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             </div>
           </div>
           {isSuperAdmin && (
-            <div style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500 }}>🛡️ Superadmin DB</div>
+            <div style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 600 }}>🛡️ SA</div>
           )}
         </div>
 
@@ -220,7 +126,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(78,205,196,0.08)'; }}
           >
             <span>👤</span>
-            <span>Employee Portal</span>
+            <span>{lang === 'en' ? 'Employee Portal' : 'Employee Portal'}</span>
           </button>
         )}
 
