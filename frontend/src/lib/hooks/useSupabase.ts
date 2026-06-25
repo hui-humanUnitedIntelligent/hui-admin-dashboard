@@ -683,3 +683,48 @@ export function useExperiencesAndProjects(opts: {
 
   return { entries, total, loading, error, refetch: fetchEntries };
 }
+
+// ── useScoreFailures — Ablehnungsgründe, read-only mit Realtime ──────────────
+export interface HuiScoreFailure {
+  id: string;
+  user_id: string | null;
+  project_name: string;
+  short_desc: string | null;
+  problem: string | null;
+  kategorie: string | null;
+  funding_goal: number | null;
+  ai_score: number;
+  grund: string;
+  created_at: string;
+}
+
+export function useScoreFailures(opts: { limit?: number } = {}) {
+  const { limit = 200 } = opts;
+  const [failures, setFailures] = useState<HuiScoreFailure[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const token = await getSessionToken();
+      const res   = await fetch(`/api/score-failures?limit=${limit}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json();
+      setFailures(j.data ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ladefehler');
+    } finally {
+      setLoading(false);
+    }
+  }, [limit]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Realtime: impact_score_failures
+  useRealtimeTable('score_failures:realtime', ['impact_score_failures'], fetchData);
+
+  return { failures, loading, error, refetch: fetchData };
+}
+
