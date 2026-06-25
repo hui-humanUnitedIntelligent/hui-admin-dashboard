@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { sbQuery } from '@/lib/api';
 
 interface AuditEntry {
@@ -36,6 +38,8 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 export default function AuditPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState<'auth_events'|'notifications'>('notifications');
