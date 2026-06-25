@@ -6,7 +6,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 'use client';
 import { WorksView } from '@/components/views/WorksView';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function WorksPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   return <WorksView role="superadmin" />;
 }
