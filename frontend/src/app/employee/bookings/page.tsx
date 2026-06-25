@@ -2,7 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { statusToBadge } from '@/components/ui/Badge';
 import { useBookings } from '@/lib/hooks/useSupabase';
 
@@ -27,6 +29,8 @@ function Skeleton() {
 }
 
 export default function EmployeeBookingsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [statusFilter, setStatusFilter] = useState('all');
   const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 100, refreshInterval: 0 });
 
