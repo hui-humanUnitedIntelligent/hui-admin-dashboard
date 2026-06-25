@@ -4,8 +4,7 @@ import type { NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = [
   '/login',
-  '/api/auth/admin-login',
-  '/api/auth/admin-logout',
+  '/api/auth/',
 ];
 
 export function middleware(req: NextRequest) {
