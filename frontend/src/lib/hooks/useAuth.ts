@@ -1,5 +1,6 @@
 // frontend/src/lib/hooks/useAuth.ts
 'use client';
+import { normalizeRole } from '@/lib/roles';
 
 import { useState, useCallback } from 'react';
 import { storeAuth, clearAuth, getStoredUser, supabaseAdminLogin, SUPABASE_URL, SUPABASE_ANON } from '../api';
