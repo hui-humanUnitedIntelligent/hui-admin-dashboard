@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
+import { getSessionToken } from '@/lib/session';
 
 interface Ticket {
   id: string; user_id: string; title: string; body: string;
@@ -50,7 +51,7 @@ export default function TicketsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/tickets?status=all').then(r => r.json()).catch(() => []);
+    const res = await fetch('/api/tickets?status=all', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r => r.json()).catch(() => []);
     setTickets(Array.isArray(res) ? res : []);
     setLoading(false);
   }, []);
@@ -71,9 +72,10 @@ export default function TicketsPage() {
   const doAction = async (action: string, extra: Record<string,unknown> = {}) => {
     if (!selected) return;
     setActioning(true);
+    const tkn = getSessionToken();
     const res = await fetch('/api/tickets', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (tkn || '') },
       body: JSON.stringify({ action, ticketId: selected.id, reply, ...extra }),
     });
     const data = await res.json();
@@ -89,9 +91,10 @@ export default function TicketsPage() {
   const doCreate = async () => {
     if (!form.subject.trim() || !form.message.trim()) { showToast('Betreff und Nachricht erforderlich', 'error'); return; }
     setCreating(true);
+    const tkn = getSessionToken();
     const res = await fetch('/api/tickets', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (tkn || '') },
       body: JSON.stringify({ action: 'create', subject: form.subject, message: form.message, category: form.category, priority: form.priority }),
     });
     setCreating(false);
