@@ -121,7 +121,7 @@ export default function EmployeeUsersPage() {
                     @{p.username || '—'}
                   </td>
                   <td style={{ padding: '10px 12px' }}>
-                    <Badge variant={p.role === 'superadmin' || p.role === 'admin' ? 'warning' : 'default'}>
+                    <Badge variant={p.role === 'superadmin' || p.role === 'admin' ? 'warning' : 'neutral'}>
                       {p.role || 'basisuser'}
                     </Badge>
                   </td>
