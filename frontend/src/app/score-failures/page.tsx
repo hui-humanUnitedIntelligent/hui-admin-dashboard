@@ -1,4 +1,5 @@
 'use client';
+import { isSuperAdmin } from '@/lib/roles';
 import { useAuth } from '@/lib/hooks/useAuth';
 import ScoreFailuresView from '@/components/views/ScoreFailuresView';
 export default function ScoreFailuresPage() {
