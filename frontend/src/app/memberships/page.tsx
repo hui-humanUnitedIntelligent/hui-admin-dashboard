@@ -1,6 +1,9 @@
 // frontend/src/app/memberships/page.tsx
 'use client';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { isSuperAdmin } from '@/lib/roles';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
@@ -29,6 +32,12 @@ function Skeleton() {
 
 export default function MembershipsPage() {
   const { currentUser } = useAuth();
+  const router = useRouter();
+  useEffect(() => {
+    if (currentUser && !isSuperAdmin(currentUser.role)) {
+      router.replace("/employee/memberships");
+    }
+  }, [currentUser, router]);
   const userRole = currentUser?.role;
   const { memberships, total, loading, refetch } = useMemberships({ limit: 200, refreshInterval: 0 });
 
