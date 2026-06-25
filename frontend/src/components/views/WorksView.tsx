@@ -11,7 +11,8 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
-import { useWorks, HuiWork } from '@/lib/hooks/useSupabase';
+import { useWorks } from '@/lib/hooks/useWorks';
+import type { HuiWork } from '@/lib/hooks/useWorks';
 import { ImageLightbox, ClickableImage } from '@/components/ui/ImageLightbox';
 // api imports handled via useWorks hook
 
