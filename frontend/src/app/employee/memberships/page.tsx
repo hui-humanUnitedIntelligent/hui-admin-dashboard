@@ -1,5 +1,6 @@
 // frontend/src/app/employee/memberships/page.tsx
 'use client';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
