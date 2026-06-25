@@ -2,7 +2,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { useSystemHealth, useKPIs } from '@/lib/hooks/useSupabase';
 import { SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
 
@@ -39,6 +41,8 @@ const INITIAL_CHECKS: ServiceCheck[] = [
 ];
 
 export default function SystemPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const health = useSystemHealth();
   const kpis   = useKPIs();
   const [checks, setChecks] = useState<ServiceCheck[]>(INITIAL_CHECKS);
@@ -101,7 +105,15 @@ export default function SystemPage() {
       title="System Status"
       headerActions={
         <button onClick={runChecks} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-          ↻ Alle prüfen
+          
+      <PageHeader
+        title="System-Status"
+        subtitle="Datenbankverbindung & Health-Checks"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+↻ Alle prüfen
         </button>
       }
     >
