@@ -1,5 +1,7 @@
-// frontend/src/app/system/page.tsx
 'use client';
+// frontend/src/app/system/page.tsx
+
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -42,6 +44,12 @@ const INITIAL_CHECKS: ServiceCheck[] = [
 
 export default function SystemPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const health = useSystemHealth();
   const kpis   = useKPIs();
