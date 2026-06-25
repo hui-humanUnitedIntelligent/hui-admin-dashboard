@@ -26,8 +26,17 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
       .range(skip, skip + limit - 1);
 
+    const SUBMITTED_STATES = ['submitted','pending','review','waiting_for_approval'];
     if (status && status !== 'all') {
-      query = query.eq('status', status);
+      if (status === 'submitted' || status === 'pending_all') {
+        query = query.in('status', SUBMITTED_STATES);
+      } else if (status === 'active_all') {
+        query = query.in('status', ['approved', 'active']);
+      } else if (status === 'not_deleted') {
+        query = query.neq('status', 'deleted');
+      } else {
+        query = query.eq('status', status);
+      }
     }
 
     const { data, error, count } = await query;
@@ -37,11 +46,15 @@ export async function GET(req: NextRequest) {
     const { data: counts } = await sb
       .from('impact_applications')
       .select('status');
+    const SUBMITTED_STATES_LOCAL = ['submitted','pending','review','waiting_for_approval'];
     const stats = {
-      total:    counts?.length ?? 0,
-      pending:  counts?.filter(r => r.status === 'pending').length  ?? 0,
-      approved: counts?.filter(r => r.status === 'approved').length ?? 0,
-      rejected: counts?.filter(r => r.status === 'rejected').length ?? 0,
+      total:     counts?.length ?? 0,
+      submitted: counts?.filter(r => SUBMITTED_STATES_LOCAL.includes(r.status)).length ?? 0,
+      pending:   counts?.filter(r => r.status === 'pending').length  ?? 0,
+      approved:  counts?.filter(r => r.status === 'approved').length ?? 0,
+      active:    counts?.filter(r => r.status === 'active').length   ?? 0,
+      rejected:  counts?.filter(r => r.status === 'rejected').length ?? 0,
+      deleted:   counts?.filter(r => r.status === 'deleted').length  ?? 0,
     };
 
     return ok({ applications: data ?? [], total: count ?? 0, stats, hasMore: (skip + limit) < (count ?? 0) });
