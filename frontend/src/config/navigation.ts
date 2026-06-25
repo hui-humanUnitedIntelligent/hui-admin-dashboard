@@ -35,11 +35,11 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/users',        label_de: 'User-Management',  label_en: 'User Management',  icon: '👥', roles: ['superadmin', 'employee'] },
       { href: '/admins',       label_de: 'Admin-Verwaltung', label_en: 'Admin Management', icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
       { href: '/ambassadors',  label_de: 'Ambassadors',      label_en: 'Ambassadors',      icon: '🤝', roles: ['superadmin'], superadminOnly: true },
-      { href: '/talents',      label_de: 'Talent-Pool',      label_en: 'Talent Pool',      icon: '⭐', roles: ['superadmin', 'employee'] },
-      { href: '/transactions', label_de: 'Transaktionen',    label_en: 'Transactions',     icon: '⇄',  roles: ['superadmin', 'employee'] },
-      { href: '/bookings',     label_de: 'Buchungen',        label_en: 'Bookings',         icon: '📅', roles: ['superadmin', 'employee'] },
+      { href: '/talents',      label_de: 'Talent-Pool',      label_en: 'Talent Pool',      icon: '⭐', roles: ['superadmin'] },
+      { href: '/transactions', label_de: 'Transaktionen',    label_en: 'Transactions',     icon: '⇄',  roles: ['superadmin'] },
+      { href: '/bookings',     label_de: 'Buchungen',        label_en: 'Bookings',         icon: '📅', roles: ['superadmin'] },
       { href: '/impact',       label_de: 'Impact Pool',      label_en: 'Impact Pool',      icon: '🌱', roles: ['superadmin'], superadminOnly: true },
-      { href: '/reviews',      label_de: 'Reviews',          label_en: 'Reviews',          icon: '💬', roles: ['superadmin', 'employee'] },
+      { href: '/reviews',      label_de: 'Reviews',          label_en: 'Reviews',          icon: '💬', roles: ['superadmin'] },
     ],
   },
   {
@@ -49,10 +49,10 @@ export const ADMIN_NAV: NavGroup[] = [
     icon: '🎨',
     items: [
       { href: '/works',           label_de: 'Werke & Content',           label_en: 'Works & Content',        icon: '🖼️', roles: ['superadmin', 'employee'] },
-      { href: '/experiences',     label_de: 'Erlebnisse & Projekte',     label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin', 'employee'] },
+      { href: '/experiences',     label_de: 'Erlebnisse & Projekte',     label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin'] },
       { href: '/impact-projekte', label_de: 'Impact Projekte',           label_en: 'Impact Projects',        icon: '💚', roles: ['superadmin'], superadminOnly: true },
       { href: '/score-failures',  label_de: 'Ablehnungsgründe',          label_en: 'Rejection Reasons',      icon: '🔍', roles: ['superadmin'], superadminOnly: true },
-      { href: '/memberships',     label_de: 'Mitgliedschaften',          label_en: 'Memberships',            icon: '🏅', roles: ['superadmin', 'employee'] },
+      { href: '/memberships',     label_de: 'Mitgliedschaften',          label_en: 'Memberships',            icon: '🏅', roles: ['superadmin'] },
     ],
   },
   {
@@ -64,9 +64,9 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/analytics', label_de: 'Analytics',       label_en: 'Analytics',       icon: '📈', roles: ['superadmin'], superadminOnly: true },
       { href: '/broadcast', label_de: 'Broadcast',       label_en: 'Broadcast',       icon: '📨', roles: ['superadmin'], superadminOnly: true },
       { href: '/tickets',   label_de: 'Support-Tickets', label_en: 'Support Tickets', icon: '🎫', roles: ['superadmin', 'employee'] },
-      { href: '/reports',   label_de: 'Reports',         label_en: 'Reports',         icon: '📊', roles: ['superadmin', 'employee'] },
+      { href: '/reports',   label_de: 'Reports',         label_en: 'Reports',         icon: '📊', roles: ['superadmin'] },
       { href: '/flags',     label_de: 'Feature-Flags',   label_en: 'Feature Flags',   icon: '🚩', roles: ['superadmin'], superadminOnly: true },
-      { href: '/churns',    label_de: 'Churns & Kündig.',label_en: 'Churns',          icon: '📉', roles: ['superadmin', 'employee'] },
+      { href: '/churns',    label_de: 'Churns & Kündig.',label_en: 'Churns',          icon: '📉', roles: ['superadmin'] },
     ],
   },
   {
@@ -78,7 +78,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/audit',    label_de: 'Audit Logs',    label_en: 'Audit Logs',    icon: '📋', roles: ['superadmin'], superadminOnly: true },
       { href: '/system',   label_de: 'System Status', label_en: 'System Status', icon: '🔧', roles: ['superadmin'], superadminOnly: true },
       { href: '/exports',  label_de: 'Daten-Export',  label_en: 'Data Export',   icon: '📥', roles: ['superadmin'], superadminOnly: true },
-      { href: '/settings', label_de: 'Einstellungen', label_en: 'Settings',      icon: '⚙️', roles: ['superadmin', 'employee'] },
+      { href: '/settings', label_de: 'Einstellungen', label_en: 'Settings',      icon: '⚙️', roles: ['superadmin'] },
     ],
   },
 ];
@@ -91,11 +91,11 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     label_en: 'Management',
     icon: '◎',
     items: [
-      { href: '/employee/users',        label_de: 'User-Management',       label_en: 'User Management',       icon: '👥', roles: ['employee'] },
-      { href: '/employee/ambassadors',  label_de: 'Ambassadors',           label_en: 'Ambassadors',           icon: '🤝', roles: ['employee'] },
-      { href: '/employee/talents',      label_de: 'Talent-Pool',           label_en: 'Talent Pool',           icon: '⭐', roles: ['employee'] },
-      { href: '/employee/transactions', label_de: 'Transaktionen',         label_en: 'Transactions',          icon: '⇄',  roles: ['employee'] },
-      { href: '/employee/bookings',     label_de: 'Buchungen',             label_en: 'Bookings',              icon: '📅', roles: ['employee'] },
+      { href: '/employee/users',        label_de: 'User-Management',       label_en: 'User Management',       icon: '👥', roles: ['superadmin', 'employee'] },
+      { href: '/employee/ambassadors',  label_de: 'Ambassadors',           label_en: 'Ambassadors',           icon: '🤝', roles: ['superadmin'] },
+      { href: '/employee/talents',      label_de: 'Talent-Pool',           label_en: 'Talent Pool',           icon: '⭐', roles: ['superadmin'] },
+      { href: '/employee/transactions', label_de: 'Transaktionen',         label_en: 'Transactions',          icon: '⇄',  roles: ['superadmin'] },
+      { href: '/employee/bookings',     label_de: 'Buchungen',             label_en: 'Bookings',              icon: '📅', roles: ['superadmin'] },
     ],
   },
   {
@@ -104,9 +104,9 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     label_en: 'Content',
     icon: '🎨',
     items: [
-      { href: '/employee/works',        label_de: 'Werke & Content',       label_en: 'Works & Content',        icon: '🖼️', roles: ['employee'] },
-      { href: '/employee/experiences',  label_de: 'Erlebnisse & Projekte', label_en: 'Experiences & Projects', icon: '🌿', roles: ['employee'] },
-      { href: '/employee/memberships',  label_de: 'Mitgliedschaften',      label_en: 'Memberships',            icon: '🏅', roles: ['employee'] },
+      { href: '/employee/works',        label_de: 'Werke & Content',       label_en: 'Works & Content',        icon: '🖼️', roles: ['superadmin', 'employee'] },
+      { href: '/employee/experiences',  label_de: 'Erlebnisse & Projekte', label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin'] },
+      { href: '/employee/memberships',  label_de: 'Mitgliedschaften',      label_en: 'Memberships',            icon: '🏅', roles: ['superadmin'] },
     ],
   },
   {
@@ -115,8 +115,8 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     label_en: 'Tools',
     icon: '🛠️',
     items: [
-      { href: '/employee/reports', label_de: 'Reports',          label_en: 'Reports', icon: '📊', roles: ['employee'] },
-      { href: '/employee/churns',  label_de: 'Churns & Kündig.', label_en: 'Churns',  icon: '📉', roles: ['employee'] },
+      { href: '/employee/reports', label_de: 'Reports',          label_en: 'Reports', icon: '📊', roles: ['superadmin'] },
+      { href: '/employee/churns',  label_de: 'Churns & Kündig.', label_en: 'Churns',  icon: '📉', roles: ['superadmin'] },
     ],
   },
   {
@@ -125,7 +125,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     label_en: 'System',
     icon: '🔧',
     items: [
-      { href: '/employee/settings', label_de: 'Einstellungen', label_en: 'Settings', icon: '⚙️', roles: ['employee'] },
+      { href: '/employee/settings', label_de: 'Einstellungen', label_en: 'Settings', icon: '⚙️', roles: ['superadmin'] },
     ],
   },
 ];
