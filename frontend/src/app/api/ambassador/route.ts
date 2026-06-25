@@ -3,20 +3,9 @@ import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, notFound, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
+import { calcLevel, buildRefCode, buildRefLink, computeAmbassadorMetrics, rewardForLevelUp } from '@/lib/ambassador-engine';
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-const REWARD_RATES: Record<string, number> = { bronze: 0.01, silver: 0.02, gold: 0.03, platinum: 0.04 };
-function calcLevel(n: number) {
-  if (n >= 201) return 'platinum'; if (n >= 51) return 'gold';
-  if (n >= 11)  return 'silver';   return 'bronze';
-}
-function buildRefLink(username: string, userId: string) {
-  const clean = (username || '').replace(/[^a-zA-Z0-9._-]/g,'').toLowerCase();
-  return clean.length >= 3 ? `https://be-hui.com/${clean}` : `https://be-hui.com/ref/${userId}`;
-}
-function buildRefCode(username: string) {
-  return (username||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5).padEnd(5,'X');
-}
+// Helpers: buildRefCode, buildRefLink, calcLevel → @/lib/ambassador-engine
 
 // ── GET ─────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -149,48 +138,64 @@ export async function POST(req: NextRequest) {
     const pm  = (profile.profile_modules as Record<string,unknown>) ?? {};
     const amb = (pm.ambassador as Record<string,unknown>) ?? {};
 
-    const logEvent = async (type: string, meta: Record<string,unknown>) => {
-      try { await sb.from('activity_logs').insert({ action: type, target_id: userId, actor_id: adminId ?? null, metadata: meta, created_at: now }); } catch {}
+    const logEvent = async (type: string, meta: Record<string,unknown>, before?: unknown, after?: unknown) => {
+      try {
+        await sb.from('activity_logs').insert({
+          action:     type,
+          target_id:  userId,
+          actor_id:   adminId ?? null,
+          metadata:   { ...meta, before: before ?? null, after: after ?? null },
+          created_at: now,
+        });
+      } catch (_) {}
     };
 
     switch (action) {
       case 'approve':
       case 'activate': {
-        const code = buildRefCode(profile.username as string);
-        const link = buildRefLink(profile.username as string, userId);
-        const newAmb = { ...amb, is_ambassador: true, status: 'active', referral_code: code, referral_link: link, level: 'bronze', activated_by: adminId ?? 'admin', activated_at: now, link_active: true, referral_count: Number(amb.referral_count)||0, revenue_generated: Number(amb.revenue_generated)||0 };
+        const refCode = buildRefCode(profile.username as string);
+        const refLink = buildRefLink(profile.username as string, userId);
+        const before  = { is_ambassador: profile.is_ambassador, status: amb.status ?? null };
+        const newAmb  = { ...amb, is_ambassador: true, status: 'active', referral_code: refCode, referral_link: refLink, level: 'bronze', activated_by: adminId ?? 'admin', activated_at: now, link_active: true, referral_count: Number(amb.referral_count)||0, revenue_generated: Number(amb.revenue_generated)||0 };
+        const after   = { is_ambassador: true, status: 'active', level: 'bronze' };
         await sb.from('profiles').update({ is_ambassador: true, profile_modules: { ...pm, ambassador: newAmb } }).eq('id', userId);
-        await sb.from('ambassador_ref_links').upsert({ user_id: userId, username: profile.username, ref_link: link, referral_code: code }, { onConflict: 'user_id' });
+        await sb.from('ambassador_ref_links').upsert({ user_id: userId, username: profile.username, ref_link: refLink, referral_code: refCode }, { onConflict: 'user_id' });
         if (action === 'approve') {
-          const appId = data.application_id as string | undefined;
+          const appId  = data.application_id as string | undefined;
           const update = { status: 'angenommen', reviewed_at: now, reviewed_by: adminId ?? 'admin' };
           if (appId) await sb.from('ambassadors_applications').update(update).eq('id', appId);
-          else await sb.from('ambassadors_applications').update(update).eq('user_id', userId).eq('status', 'offen');
+          else       await sb.from('ambassadors_applications').update(update).eq('user_id', userId).eq('status', 'offen');
         }
-        await logEvent(`ambassador_${action === 'approve' ? 'approved' : 'activated'}`, { referralCode: code, referralLink: link });
-        return ok({ referralCode: code, referralLink: link });
+        await logEvent(`ambassador_${action === 'approve' ? 'approved' : 'activated'}`, { referralCode: refCode, referralLink: refLink }, before, after);
+        return ok({ referralCode: refCode, referralLink: refLink });
       }
       case 'reject': {
-        const newAmb = { ...amb, is_ambassador: false, status: 'abgelehnt', rejected_at: now, rejected_by: adminId ?? 'admin', reject_reason: data.reason ?? null };
+        const before  = { is_ambassador: profile.is_ambassador, status: amb.status };
+        const newAmb  = { ...amb, is_ambassador: false, status: 'abgelehnt', rejected_at: now, rejected_by: adminId ?? 'admin', reject_reason: data.reason ?? null };
+        const after   = { is_ambassador: false, status: 'abgelehnt' };
         await sb.from('profiles').update({ is_ambassador: false, profile_modules: { ...pm, ambassador: newAmb } }).eq('id', userId);
-        const appId = data.application_id as string | undefined;
+        const appId  = data.application_id as string | undefined;
         const update = { status: 'abgelehnt', reviewed_at: now, reviewed_by: adminId ?? 'admin' };
         if (appId) await sb.from('ambassadors_applications').update(update).eq('id', appId);
-        else await sb.from('ambassadors_applications').update(update).eq('user_id', userId).eq('status', 'offen');
-        await logEvent('ambassador_rejected', { reason: data.reason });
+        else       await sb.from('ambassadors_applications').update(update).eq('user_id', userId).eq('status', 'offen');
+        await logEvent('ambassador_rejected', { reason: data.reason ?? null }, before, after);
         return ok({ rejected: true });
       }
       case 'revoke': {
-        const newAmb = { ...amb, is_ambassador: false, status: 'widerrufen', revoked_at: now, revoked_by: adminId ?? 'admin' };
+        const before  = { is_ambassador: profile.is_ambassador, status: amb.status, level: amb.level };
+        const newAmb  = { ...amb, is_ambassador: false, status: 'widerrufen', revoked_at: now, revoked_by: adminId ?? 'admin' };
+        const after   = { is_ambassador: false, status: 'widerrufen' };
         await sb.from('profiles').update({ is_ambassador: false, profile_modules: { ...pm, ambassador: newAmb } }).eq('id', userId);
         await sb.from('ambassador_ref_links').delete().eq('user_id', userId);
-        await logEvent('ambassador_revoked', {});
+        await logEvent('ambassador_revoked', { revokedBy: adminId }, before, after);
         return ok({ revoked: true });
       }
       case 'toggle_link': {
         const newActive = !amb.link_active;
+        const before    = { link_active: amb.link_active };
+        const after     = { link_active: newActive };
         await sb.from('profiles').update({ profile_modules: { ...pm, ambassador: { ...amb, link_active: newActive } } }).eq('id', userId);
-        await logEvent('ambassador_link_toggled', { linkActive: newActive });
+        await logEvent('ambassador_link_toggled', { linkActive: newActive }, before, after);
         return ok({ linkActive: newActive });
       }
       default: return fail(`Unbekannte Aktion: ${action}`);
