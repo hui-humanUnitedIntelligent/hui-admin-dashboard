@@ -73,11 +73,11 @@ export default function EmployeeImpactPage() {
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ziel</div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{fmtEur(p.goal_eur)}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{fmtEur(p.goal_eur    ?? undefined)}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Vergeben</div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{fmtEur(p.awarded_eur)}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{fmtEur(p.awarded_eur ?? undefined)}</div>
                 </div>
                 <Badge variant={p.status === 'active' ? 'success' : 'neutral'}>{p.status === 'active' ? 'Aktiv' : p.status || '—'}</Badge>
               </div>
