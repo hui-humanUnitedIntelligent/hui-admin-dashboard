@@ -2,6 +2,7 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import { useMemberships } from '@/lib/hooks/useSupabase';
 
@@ -26,6 +27,8 @@ function Skeleton() {
 }
 
 export default function EmployeeMembershipsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const { memberships, total, loading, refetch } = useMemberships({ limit: 200, refreshInterval: 0 });
 
   const byType = memberships.reduce<Record<string, number>>((acc, m) => {
