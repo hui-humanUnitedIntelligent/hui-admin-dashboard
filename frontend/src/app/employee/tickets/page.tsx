@@ -22,7 +22,7 @@ interface Ticket {
 const STATUS_LABEL: Record<string, string> = {
   open: 'Offen', replied: 'Beantwortet', closed: 'Geschlossen',
 };
-const PRIORITY_VARIANT: Record<string, 'danger' | 'warning' | 'default' | 'success'> = {
+const PRIORITY_VARIANT: Record<string, 'danger' | 'warning' | 'neutral' | 'success'> = {
   urgent: 'danger', high: 'warning', normal: 'default', low: 'success',
 };
 
@@ -108,7 +108,7 @@ export default function EmployeeTicketsPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <Badge variant={PRIORITY_VARIANT[t._priority] ?? 'default'}>
+                  <Badge variant={PRIORITY_VARIANT[t._priority] ?? 'neutral'}>
                     {t._priority || 'normal'}
                   </Badge>
                   <Badge variant={t._status === 'open' ? 'danger' : t._status === 'replied' ? 'warning' : 'success'}>
