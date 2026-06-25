@@ -1,7 +1,6 @@
 // frontend/src/app/layout.tsx
 import type { Metadata } from 'next';
 import '../styles/globals.css';
-import AuthGuard from './AuthGuard';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 export const metadata: Metadata = {
@@ -16,7 +15,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="robots" content="noindex, nofollow" />
         <meta name="referrer" content="no-referrer" />
-        {/* Prevent flash: apply saved theme before React hydrates */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -32,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <AuthGuard>{children}</AuthGuard>
+          {children}
         </ThemeProvider>
       </body>
     </html>
