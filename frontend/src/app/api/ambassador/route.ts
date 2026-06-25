@@ -1,6 +1,6 @@
 // frontend/src/app/api/ambassador/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, notFound, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 import { calcLevel, buildRefCode, buildRefLink, computeAmbassadorMetrics, rewardForLevelUp } from '@/lib/ambassador-engine';
@@ -9,7 +9,7 @@ import { calcLevel, buildRefCode, buildRefLink, computeAmbassadorMetrics, reward
 
 // ── GET ─────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
 
 // ── POST ────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
