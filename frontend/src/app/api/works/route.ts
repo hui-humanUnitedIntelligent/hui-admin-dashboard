@@ -1,8 +1,13 @@
 // frontend/src/app/api/works/route.ts
+// GET /api/works — alle Werke (kein Status-Filter im Backend, UI filtert)
+// Unterstützt ?status=pending|published|... für gezielte Abfragen
+// ?status=submitted → IN (submitted, pending, pending_review, review, waiting_for_approval)
 import { NextRequest } from 'next/server';
-import { guardAdmin, guardUser } from '@/app/lib/auth-guard';
+import { guardUser } from '@/app/lib/auth-guard';
 import { ok, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
+
+const SUBMITTED_STATES = ['submitted','pending','pending_review','review','waiting_for_approval'];
 
 export async function GET(req: NextRequest) {
   const guard = await guardUser(req);
@@ -12,20 +17,30 @@ export async function GET(req: NextRequest) {
     const supabase = getServiceClient();
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
-    const limit  = parseInt(searchParams.get('limit') || '500', 10);
+    const limit  = Math.min(parseInt(searchParams.get('limit') || '500', 10), 2000);
+    const skip   = parseInt(searchParams.get('skip') || '0', 10);
 
     let query = supabase
       .from('works')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('updated_at', { ascending: false })
-      .limit(limit);
+      .range(skip, skip + limit - 1);
 
-    if (status) query = query.eq('status', status);
+    if (status && status !== 'all') {
+      if (status === 'submitted' || status === 'pending_all') {
+        // Alle "eingereicht"-Status zusammenfassen
+        query = query.in('status', SUBMITTED_STATES);
+      } else if (status === 'not_deleted') {
+        query = query.neq('status', 'deleted');
+      } else {
+        query = query.eq('status', status);
+      }
+    }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw error;
 
-    return ok(data ?? []);
+    return ok({ works: data ?? [], total: count ?? 0 });
   } catch (err) {
     return serverError(err, 'works GET');
   }
