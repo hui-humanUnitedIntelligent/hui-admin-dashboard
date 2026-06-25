@@ -2,7 +2,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import RefreshBtn from '@/components/dashboard/RefreshBtn';
 import KPICard from '@/components/ui/KPICard';
 import { statusToBadge } from '@/components/ui/Badge';
@@ -36,6 +38,8 @@ const cardStyle: React.CSSProperties = {
 
 
 export default function DashboardPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const kpis     = useKPIs();
   const { payments, loading: txLoading } = usePayments({ limit: 8, refreshInterval: 0 });
   const { profiles: recentUsers } = useProfiles({ limit: 5, refreshInterval: 0 });
@@ -153,7 +157,15 @@ export default function DashboardPage() {
       title="Dashboard"
       headerActions={
         <RefreshBtn onClick={kpis.refetch} loading={kpis.loading} />
-      }
+      
+      <PageHeader
+        title="Dashboard"
+        subtitle="Live-Übersicht der HUI-Plattform"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+}
     >
       {/* ── KPI Row ── */}
       <div
