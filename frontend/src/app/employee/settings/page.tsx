@@ -2,7 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { useSettings, Theme, Lang } from '@/components/providers/ThemeProvider';
@@ -11,6 +13,8 @@ const STORAGE_KEY_REFRESH  = 'hui_admin_refresh';
 const STORAGE_KEY_PAGESIZE = 'hui_admin_pagesize';
 
 export default function EmployeeSettingsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const { theme, lang, setTheme, setLang, t } = useSettings();
 
   const [refreshRate, setRefreshRate] = useState(
@@ -89,7 +93,15 @@ export default function EmployeeSettingsPage() {
 
   return (
     <DashboardLayout employeeMode={true} title={t('settings.title')}>
-      <div style={{ maxWidth: 680 }}>
+      
+      <PageHeader
+        title="Einstellungen"
+        subtitle="Employee-Einstellungen"
+        actionsRole="employee"
+        userRole={userRole}
+      />
+
+<div style={{ maxWidth: 680 }}>
 
         {/* ── Appearance ── */}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, fontWeight: 600 }}>
