@@ -36,13 +36,19 @@ function isUpdated(entry: HuiEntry): boolean {
   return new Date(str(entry.last_submitted_at)).getTime() > new Date(entry.created_at).getTime() + 5000;
 }
 
+const SUBMITTED_STATES_EV = ['submitted','pending','pending_review','review','waiting_for_approval'];
 function normStatus(e: HuiEntry): string {
-  if (e.approval_status) return str(e.approval_status);
-  if (e.status === 'pending_review') return 'pending';
-  if (e.status === 'published')      return 'approved';
-  if (e.status === 'rejected')       return 'rejected';
-  if (e.status === 'draft')          return 'draft';
-  if (e.status === 'deleted')        return 'deleted';
+  // approval_status hat Vorrang
+  if (e.approval_status && e.approval_status !== 'draft') {
+    if (SUBMITTED_STATES_EV.includes(e.approval_status)) return 'pending';
+    return str(e.approval_status);
+  }
+  // status fallback
+  if (SUBMITTED_STATES_EV.includes(e.status || '')) return 'pending';
+  if (e.status === 'published')  return 'approved';
+  if (e.status === 'rejected')   return 'rejected';
+  if (e.status === 'draft')      return 'draft';
+  if (e.status === 'deleted')    return 'deleted';
   return str(e.status) || 'unknown';
 }
 
