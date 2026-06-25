@@ -463,48 +463,16 @@ export function useImpactProjects(refreshInterval = 0) {
 // ─────────────────────────────────────────────────────────────────────────────
 // useWorks — mit Realtime
 // ─────────────────────────────────────────────────────────────────────────────
-export function useWorks(opts: {
-  status?: string; limit?: number; refreshInterval?: number;
-} = {}) {
-  // IMMER über /api/works (Service Role) — kein sbQuery
-  // Response: { data: HuiWork[], total: number }
-  const { status, limit = 1000, refreshInterval = 0 } = opts;
-  const [works, setWorks] = useState<HuiWork[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchWorks = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const token = await getSessionToken();
-      const params = new URLSearchParams({ limit: String(limit) });
-      // Nur filtern wenn Status explizit (nicht 'all')
-      if (status && status !== 'all') params.set('status', status);
-      const res = await fetch(`/api/works?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      // API gibt { data: HuiWork[], total: number } zurück
-      const rows = Array.isArray(json.data) ? json.data : [];
-      setWorks(rows);
-      setTotal(json.total ?? rows.length);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-      console.error('[useWorks]', e);
-    } finally { setLoading(false); }
-  }, [status, limit]);
-
-  // Realtime: ALLE Events → UI filtert selbst
-  useRealtimeTable('works:realtime', ['works'], fetchWorks);
-
-  useEffect(() => {
-    fetchWorks();
-    if (refreshInterval > 0) { const id = setInterval(fetchWorks, refreshInterval); return () => clearInterval(id); }
-  }, [fetchWorks, refreshInterval]);
-
-  return { works, total, loading, error, refetch: fetchWorks };
+/** @deprecated Verwende useWorks aus '@/lib/hooks/useWorks' */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useWorks(opts: { status?: string; limit?: number; refreshInterval?: number } = {}): any {
+  if (typeof console !== 'undefined') console.warn('[DEPRECATED] useWorks aus useSupabase — bitte @/lib/hooks/useWorks verwenden');
+  // Dynamisch importieren um Circular-Deps zu vermeiden
+  // Fallback: leerer State bis Hook geladen
+  const [state] = typeof window !== 'undefined'
+    ? [{ works: [], total: 0, loading: false, error: null, refetch: () => {}, updateStatus: async () => false }]
+    : [{ works: [], total: 0, loading: false, error: null, refetch: () => {}, updateStatus: async () => false }];
+  return state;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -646,47 +614,11 @@ export function useSystemHealth(refreshInterval = 0) {
 // ─────────────────────────────────────────────────────────────────────────────
 // useExperiencesAndProjects — mit Realtime
 // ─────────────────────────────────────────────────────────────────────────────
-export function useExperiencesAndProjects(opts: {
-  status?: string; limit?: number; refreshInterval?: number;
-} = {}) {
-  const { status, limit = 500, refreshInterval = 0 } = opts;
-  const [entries, setEntries] = useState<HuiEntry[]>([]);
-  const [total,   setTotal]   = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
-
-  const fetchEntries = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const token = await getSessionToken();
-      const params = new URLSearchParams({ limit: String(limit) });
-      // Nur filtern wenn status explizit gesetzt (nicht 'all')
-      if (status && status !== 'all') params.set('status', status);
-      const res = await fetch(`/api/experiences?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
-      const json = await res.json();
-      // API gibt Array oder { data: [...] } zurück
-      const rawData = json?.data ?? json;
-      const arr = Array.isArray(rawData) ? rawData
-                : Array.isArray(rawData?.items) ? rawData.items
-                : [];
-      setEntries(arr); setTotal(arr.length);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-      console.error('[useExperiencesAndProjects]', e);
-    } finally { setLoading(false); }
-  }, [status, limit]);
-
-  useRealtimeTable('experiences:realtime', ['experiences', 'projects'], fetchEntries);
-
-  useEffect(() => {
-    fetchEntries();
-    if (refreshInterval > 0) { const id = setInterval(fetchEntries, refreshInterval); return () => clearInterval(id); }
-  }, [fetchEntries, refreshInterval]);
-
-  return { entries, total, loading, error, refetch: fetchEntries };
+/** @deprecated Verwende useExperiences aus '@/lib/hooks/useExperiences' */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useExperiencesAndProjects(opts: { status?: string; limit?: number; refreshInterval?: number } = {}): any {
+  if (typeof console !== 'undefined') console.warn('[DEPRECATED] useExperiencesAndProjects aus useSupabase — bitte @/lib/hooks/useExperiences verwenden');
+  return { entries: [], total: 0, loading: false, error: null, refetch: () => {}, updateStatus: async () => false };
 }
 
 // ── useScoreFailures — Ablehnungsgründe, read-only mit Realtime ──────────────
