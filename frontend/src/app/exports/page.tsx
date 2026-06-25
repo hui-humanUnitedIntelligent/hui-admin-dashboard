@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { isSuperAdmin } from '@/lib/roles';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
