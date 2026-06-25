@@ -3,7 +3,7 @@
 // POST: Bulk-Status-Update
 
 import { NextRequest } from 'next/server';
-import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, serverError, validationError, created } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
