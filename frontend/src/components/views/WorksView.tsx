@@ -411,54 +411,47 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
     open:false, title:'', message:'', onConfirm:()=>{}, loading:false
   });
 
-  // Load all status groups via useWorks (uses service role key → bypasses RLS)
-  const { works: allWorks,     loading,        refetch: refetchAll  } = useWorks({ status: 'all',     limit: 500, refreshInterval: 0 });
-  const { works: deletedWorks, refetch: refetchDeleted } = useWorks({ status: 'deleted', limit: 500, refreshInterval: 0 });
-  const { works: flaggedWorks,  refetch: refetchFlagged  } = useWorks({ status: 'flagged',         limit: 500, refreshInterval: 0 });
-  const { works: pendingWorks,  refetch: refetchPending  } = useWorks({ status: 'submitted', limit: 500, refreshInterval: 0 });
-  const { works: rejectedWorks, refetch: refetchRejected } = useWorks({ status: 'rejected',        limit: 500, refreshInterval: 0 });
-
-  const refetchAllTabs = useCallback(() => {
-    refetchAll();
-    refetchDeleted();
-    refetchFlagged();
-    refetchPending();
-    refetchRejected();
-  }, [refetchAll, refetchDeleted, refetchFlagged, refetchPending, refetchRejected]);
+  // ── EINEN einzigen useWorks-Call — alle Werke, Client filtert ──────────────
+  const SUBMITTED_WV = ['submitted','pending','pending_review','review','waiting_for_approval'];
+  const { works: allWorksRaw, loading, refetch: refetchAllTabs } = useWorks({ limit: 1000, refreshInterval: 0 });
 
   // Annotate all works with sensitive flag
   const annotate = (list: HuiWork[]): WorkWithMeta[] =>
     list.map((w) => ({ ...w, _sensitive: detectSensitive({ ...w, _sensitive: { flagged: false, reasons: [] } } as WorkWithMeta) }));
 
-  const annotatedAll      = useMemo(() => annotate(allWorks),     [allWorks]);
-  const annotatedDeleted  = useMemo(() => annotate(deletedWorks), [deletedWorks]);
-  const annotatedFlagged  = useMemo(() => annotate(flaggedWorks), [flaggedWorks]);
-  const annotatedPending  = useMemo(() => annotate(pendingWorks), [pendingWorks]);
-  const annotatedRejected = useMemo(() => annotate(rejectedWorks),[rejectedWorks]);
+  const annotatedAll = useMemo(() => annotate(allWorksRaw), [allWorksRaw]);
 
-  // Tab counts
-    const counts: Record<TabKey, number> = useMemo(() => ({
-    all:       annotatedAll.filter(w => !(['deleted','flagged','pending_review','submitted','review','waiting_for_approval','rejected'] as string[]).includes(w.status as string)).length,
-    published: annotatedAll.filter(w => w.status === 'published').length,
+  // Client-seitige Gruppen (kein zusätzlicher API-Call nötig)
+  const annotatedPending  = useMemo(() => annotatedAll.filter(w => SUBMITTED_WV.includes(w.status as string) || SUBMITTED_WV.includes((w as unknown as {approval_status?:string}).approval_status||'')), [annotatedAll]);
+  const annotatedPublished= useMemo(() => annotatedAll.filter(w => w.status === 'published'), [annotatedAll]);
+  const annotatedRejected = useMemo(() => annotatedAll.filter(w => w.status === 'rejected'), [annotatedAll]);
+  const annotatedDraft    = useMemo(() => annotatedAll.filter(w => w.status === 'draft'), [annotatedAll]);
+  const annotatedFlagged  = useMemo(() => annotatedAll.filter(w => w.status === 'flagged'), [annotatedAll]);
+  const annotatedDeleted  = useMemo(() => annotatedAll.filter(w => w.status === 'deleted'), [annotatedAll]);
+
+  // Tab counts — alle basieren auf dem einen Datensatz
+  const counts: Record<TabKey, number> = useMemo(() => ({
+    all:       annotatedAll.filter(w => w.status !== 'deleted').length,
+    published: annotatedPublished.length,
     pending:   annotatedPending.length,
     rejected:  annotatedRejected.length,
-    draft:     annotatedAll.filter(w => w.status === 'draft').length,
+    draft:     annotatedDraft.length,
     flagged:   annotatedFlagged.length,
     deleted:   annotatedDeleted.length,
     sensitive: annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted').length,
-  }), [annotatedAll, annotatedFlagged, annotatedDeleted, annotatedPending, annotatedRejected]);
+  }), [annotatedAll, annotatedPublished, annotatedPending, annotatedRejected, annotatedDraft, annotatedFlagged, annotatedDeleted]);
 
-  // Active list based on tab
+  // Active list based on tab — rein client-seitig
   const activeList = useMemo(() => {
     let base: WorkWithMeta[] = [];
-    if (tab === 'deleted')   base = annotatedDeleted;
+    if      (tab === 'deleted')   base = annotatedDeleted;
     else if (tab === 'flagged')   base = annotatedFlagged;
     else if (tab === 'sensitive') base = annotatedAll.filter(w => w._sensitive.flagged && w.status !== 'deleted');
-    else if (tab === 'published') base = annotatedAll.filter(w => w.status === 'published');
-    else if (tab === 'draft')     base = annotatedAll.filter(w => w.status === 'draft');
-    else if ((tab as string) === 'pending')   base = annotatedPending;
-    else if ((tab as string) === 'rejected')  base = annotatedRejected;
-    else base = annotatedAll.filter(w => !(['deleted','flagged','pending_review','submitted','review','waiting_for_approval','rejected'] as string[]).includes(w.status as string)); // 'all'
+    else if (tab === 'published') base = annotatedPublished;
+    else if (tab === 'draft')     base = annotatedDraft;
+    else if (tab === 'pending')   base = annotatedPending;
+    else if (tab === 'rejected')  base = annotatedRejected;
+    else base = annotatedAll.filter(w => w.status !== 'deleted'); // 'all'
 
     if (search) {
       const q = search.toLowerCase();
@@ -469,7 +462,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
       );
     }
     return base;
-  }, [tab, annotatedAll, annotatedDeleted, annotatedFlagged, search]);
+  }, [tab, annotatedAll, annotatedDeleted, annotatedFlagged, annotatedPublished, annotatedDraft, annotatedPending, annotatedRejected, search]);
 
   const setBusyFor = (id: string, v: boolean) => setBusy(p => ({ ...p, [id]: v }));
 
