@@ -64,7 +64,14 @@ export default function AuditPage() {
 
   return (
     <DashboardLayout title="Audit Logs" headerActions={
-      <button onClick={load} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻ Refresh</button>
+      <button onClick={load} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+      <PageHeader
+        title="Audit Logs"
+        subtitle="Administrative Aktionen & Protokolle"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+↻ Refresh</button>
     }>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {(['notifications','auth_events'] as const).map((s) => (
