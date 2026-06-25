@@ -1,10 +1,10 @@
 // frontend/src/app/api/employee/works/delete/route.ts
 // POST /api/employee/works/delete — Soft-Delete (Employee only)
 // Setzt status=deleted, deleted_by, deleted_at — KEIN Hard-Delete
-import {{ NextRequest }} from 'next/server';
-import {{ guardEmployee, getAuthUser }} from '@/app/lib/auth-guard';
-import {{ ok, serverError }} from '@/app/lib/api-response';
-import {{ getServiceClient }} from '@/app/lib/supabase-server';
+import { NextRequest } from 'next/server';
+import { guardEmployee, getAuthUser } from '@/app/lib/auth-guard';
+import { ok, serverError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
   const guard = await guardEmployee(req);
