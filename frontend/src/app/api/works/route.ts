@@ -1,11 +1,11 @@
 // frontend/src/app/api/works/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardAdmin, guardUser } from '@/app/lib/auth-guard';
 import { ok, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardUser(req);
   if (guard) return guard;
 
   try {
