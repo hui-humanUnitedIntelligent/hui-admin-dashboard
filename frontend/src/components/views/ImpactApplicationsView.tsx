@@ -36,7 +36,7 @@ interface ImpactApplication {
   youtube: string | null;
   other_links: string | null;
   why_support: string | null;
-  status: string; // 'submitted' | 'pending' | 'review' | 'approved' | 'active' | 'rejected' | 'deleted'
+  status: string; // Echte DB-Werte: 'approved' | 'rejected'
   rejection_reason: string | null;
   admin_comment: string | null;
   review_note: string | null;
@@ -56,8 +56,14 @@ async function fetchApplications(): Promise<ImpactApplication[]> {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-  const json = await res.json();
-  return (json.data?.applications ?? json.data ?? []) as ImpactApplication[];
+  const j = await res.json();
+  // ok() wrapper: { success, data: { applications, total, stats } }
+  // Fallbacks für direkte Array-Responses
+  const payload = j?.data ?? j;
+  const arr = Array.isArray(payload?.applications) ? payload.applications
+            : Array.isArray(payload)               ? payload
+            : [];
+  return arr as ImpactApplication[];
 }
 
 async function updateStatus(
