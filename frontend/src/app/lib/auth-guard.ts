@@ -90,11 +90,15 @@ export async function guardSuperAdmin(req: NextRequest): Promise<NextResponse | 
 export async function guardUser(req: NextRequest): Promise<NextResponse | null> {
   const authHeader = req.headers.get('Authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!token) return unauthorized('Kein Token');
+  if (!token) {
+    return NextResponse.json({ ok: false, error: 'Kein Token' }, { status: 401 });
+  }
 
   const sb = getAnonClient();
   const { data: { user }, error } = await sb.auth.getUser(token);
-  if (error || !user) return unauthorized('Ungültige Session');
+  if (error || !user) {
+    return NextResponse.json({ ok: false, error: 'Ungültige Session' }, { status: 401 });
+  }
   return null; // OK
 }
 
