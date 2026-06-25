@@ -1,6 +1,6 @@
 // frontend/src/app/api/flags/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, notFound, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
@@ -39,7 +39,7 @@ async function saveFlags(id: string | null, flags: Record<string, FlagEntry>) {
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
   try {
     const { flags } = await loadFlags();
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
   try {
     const body = await req.json().catch(() => ({}));
