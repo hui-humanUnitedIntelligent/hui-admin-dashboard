@@ -8,8 +8,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import KPICard from '@/components/ui/KPICard';
 import { showToast } from '@/components/ui/Toast';
-import { sbQuery, SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
+// api imports bereinigt (Prompt 8) — nutzt jetzt Server-API-Routen
 import { getSessionToken } from '@/lib/session';
 
 
@@ -50,11 +51,13 @@ type TabKey = 'all' | 'pending' | 'approved' | 'rejected';
 
 
 async function fetchApplications(): Promise<ImpactApplication[]> {
-  return sbQuery<ImpactApplication>('impact_applications', {}, {
-    select: '*',
-    order: 'created_at.desc',
-    limit: 500,
+  const token = getSessionToken();
+  const res = await fetch('/api/impact-applications?limit=500', {
+    headers: { Authorization: `Bearer ${token}` },
   });
+  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+  const json = await res.json();
+  return (json.data?.applications ?? json.data ?? []) as ImpactApplication[];
 }
 
 async function updateStatus(
@@ -63,26 +66,19 @@ async function updateStatus(
   rejection_reason?: string,
   admin_comment?: string,
 ): Promise<void> {
-  const adminKey = SUPABASE_ANON;
-  const body: Record<string, unknown> = {
-    status,
-    reviewed_at: new Date().toISOString(),
-  };
-  if (status === 'rejected') {
-    body.rejection_reason = rejection_reason || '';
-    body.rejected_at      = new Date().toISOString();
-  }
-  if (admin_comment) body.admin_comment = admin_comment;
+  const body: Record<string, unknown> = { status };
+  if (status === 'rejected') body.rejection_reason = rejection_reason ?? '';
+  if (admin_comment)         body.admin_comment    = admin_comment;
 
-  const res = await fetch(
-    `/api/impact-applications/${id}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSessionToken()}` },
-      body: JSON.stringify(body),
-    }
-  );
-  if (!res.ok) throw new Error(await res.text());
+  const res = await fetch(`/api/impact-applications/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization:  `Bearer ${getSessionToken()}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Status-Update fehlgeschlagen: ${res.status}`);
 }
 
 async function sendResonanzNotification(
@@ -95,7 +91,6 @@ async function sendResonanzNotification(
   rejectionReason?: string,
 ): Promise<void> {
   try {
-    const adminKey = SUPABASE_ANON;
     // Verwendet die bestehende notifications-Tabelle (Resonanzzentrum der be-hui App)
     const payload: Record<string, unknown> = {
       user_id:     userId,
@@ -646,19 +641,6 @@ function DetailModal({
   );
 }
 
-// ── KPI Card ─────────────────────────────────────────────────────────────────
-function KPI({ label, value, color }: { label: string; value: number | string; color?: string }) {
-  return (
-    <div style={{
-      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-      borderRadius: 12, padding: '14px 18px', minWidth: 120,
-    }}>
-      <div style={{ fontSize: 22, fontWeight: 800, color: color || 'var(--text-primary)' }}>{value}</div>
-      <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2, fontWeight: 500 }}>{label}</div>
-    </div>
-  );
-}
-
 // ── Haupt-View ────────────────────────────────────────────────────────────────
 export default function ImpactApplicationsView() {
   const [apps, setApps]         = useState<ImpactApplication[]>([]);
@@ -797,11 +779,11 @@ export default function ImpactApplicationsView() {
         </div>
 
         {/* KPIs */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-          <KPI label="Gesamt" value={counts.all} />
-          <KPI label="In Prüfung" value={counts.pending} color="#f97316" />
-          <KPI label="Bewilligt"  value={counts.approved} color="#22c55e" />
-          <KPI label="Abgelehnt" value={counts.rejected} color="#ef4444" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+          <KPICard label="Gesamt"      value={String(counts.all)}      icon="📋" variant="teal" />
+          <KPICard label="In Prüfung"  value={String(counts.pending)}  icon="⏳" variant="gold" delta="offen" />
+          <KPICard label="Bewilligt"   value={String(counts.approved)} icon="✅" variant="green" deltaPositive />
+          <KPICard label="Abgelehnt"   value={String(counts.rejected)} icon="❌" variant="red" />
         </div>
 
         {/* Tabs + Suche */}
