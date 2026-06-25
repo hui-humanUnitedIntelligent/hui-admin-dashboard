@@ -1,13 +1,12 @@
 // frontend/src/app/api/works/route.ts
-// GET /api/works — ALLE Werke laden (kein Status-Filter by default)
-// ?status=submitted → IN SUBMITTED_STATES
-// ?status=deleted|flagged|published|... → exakter Filter
+// GET /api/works — Alle Werke via Service Role (bypasses RLS)
+// Echte DB-Status: pending_review | published | rejected | deleted
+// ?status=pending_review|published|rejected|deleted → exakter Filter
+// kein status / status=all → alle laden
 import { NextRequest } from 'next/server';
 import { guardUser } from '@/app/lib/auth-guard';
 import { ok, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
-
-const SUBMITTED_STATES = ['submitted','pending','pending_review','review','waiting_for_approval'];
 
 export async function GET(req: NextRequest) {
   const guard = await guardUser(req);
@@ -26,18 +25,11 @@ export async function GET(req: NextRequest) {
       .order('updated_at', { ascending: false })
       .range(skip, skip + limit - 1);
 
-    // Nur filtern wenn explizit angefordert
+    // Nur filtern bei explizitem Status-Parameter
     if (status && status !== 'all') {
-      if (status === 'submitted') {
-        query = query.in('status', SUBMITTED_STATES);
-      } else if (status === 'not_deleted') {
-        query = query.neq('status', 'deleted');
-      } else {
-        // Einzelner Status (deleted, flagged, published, rejected, draft)
-        query = query.eq('status', status);
-      }
+      query = query.eq('status', status);
     }
-    // status === 'all' oder kein status → kein Filter, alle Werke
+    // Kein Filter → alle Werke (pending_review, published, rejected, deleted)
 
     const { data, error, count } = await query;
     if (error) throw error;
