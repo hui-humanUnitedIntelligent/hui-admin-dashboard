@@ -4,6 +4,7 @@
 // Niemals im Client-Bundle — nur in Server Components / Route Handlers.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeRole } from '@/lib/roles';
 import { getAnonClient } from './supabase-server';
 
 export interface AuthResult {
@@ -42,14 +43,10 @@ export async function requireAdmin(req: NextRequest): Promise<AuthResult> {
   const result = await validateToken(req);
   if (!result.user) return result;
 
-  const { role, email } = result.user;
-  const isAdmin =
-    role  === 'super_admin' ||
-    role  === 'superadmin'  ||
-    role  === 'admin'       ||
-    email.endsWith('@hui-platform.io');
-
-  if (!isAdmin) return { user: null, error: 'Forbidden', status: 403 };
+  const { role } = result.user;
+  const normalizedRole = normalizeRole(role);
+  // Nur normalisierte Rolle — kein E-Mail-Domain-Bypass (Security)
+  if (normalizedRole !== 'superadmin') return { user: null, error: 'Forbidden', status: 403 };
   return result;
 }
 
@@ -58,13 +55,10 @@ export async function requireSuperAdmin(req: NextRequest): Promise<AuthResult> {
   const result = await validateToken(req);
   if (!result.user) return result;
 
-  const { role, email } = result.user;
-  const isSuperAdmin =
-    role  === 'super_admin' ||
-    role  === 'superadmin'  ||
-    email.endsWith('@hui-platform.io');
-
-  if (!isSuperAdmin) return { user: null, error: 'Forbidden — Superadmin required', status: 403 };
+  const { role } = result.user;
+  const normalizedRole = normalizeRole(role);
+  // Single source of truth: normalizeRole() — kein E-Mail-Bypass
+  if (normalizedRole !== 'superadmin') return { user: null, error: 'Forbidden — Superadmin required', status: 403 };
   return result;
 }
 
