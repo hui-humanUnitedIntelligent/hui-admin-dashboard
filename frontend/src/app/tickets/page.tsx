@@ -44,7 +44,7 @@ export default function TicketsPage() {
   const router = useRouter();
   useEffect(() => {
     if (currentUser && !isSuperAdmin(currentUser.role)) {
-      router.replace(\'/employee\');
+      router.replace("/employee");
     }
   }, [currentUser, router]);
   const userRole = currentUser?.role;
