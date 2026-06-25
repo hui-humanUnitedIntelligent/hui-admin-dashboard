@@ -131,14 +131,17 @@ async function sendResonanzNotification(
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 function statusColor(status: string) {
-  if (status === 'approved') return '#22c55e';
+  if (status === 'approved' || status === 'active') return '#22c55e';
   if (status === 'rejected') return '#ef4444';
-  return '#f97316'; // pending
+  if (status === 'deleted')  return '#6b7280';
+  return '#f59e0b'; // submitted/pending
 }
 function statusLabel(status: string) {
-  if (status === 'approved') return '✅ Bewilligt';
+  if (status === 'approved' || status === 'active') return '✅ Aktiv / Bewilligt';
   if (status === 'rejected') return '❌ Abgelehnt';
-  return '⏳ In Prüfung';
+  if (status === 'deleted')  return '🗑 Gelöscht';
+  if (['submitted','pending','review','waiting_for_approval'].includes(status)) return '⏳ Eingereicht';
+  return `⏳ ${status}`;
 }
 function fmt(d: string | null) {
   if (!d) return '—';
@@ -771,10 +774,11 @@ export default function ImpactApplicationsView() {
   };
 
   const TABS: { key: TabKey; label: string; color?: string }[] = [
-    { key: 'all',      label: `Alle (${counts.all})` },
-    { key: 'pending',  label: `⏳ Prüfung (${counts.pending})`,  color: '#f97316' },
-    { key: 'approved', label: `✅ Bewilligt (${counts.approved})`, color: '#22c55e' },
-    { key: 'rejected', label: `❌ Abgelehnt (${counts.rejected})`, color: '#ef4444' },
+    { key: 'all',       label: `Alle (${counts.all})` },
+    { key: 'submitted', label: `⏳ Eingereicht (${counts.submitted})`, color: '#f59e0b' },
+    { key: 'active',    label: `✅ Aktiv (${counts.active})`,          color: '#22c55e' },
+    { key: 'rejected',  label: `❌ Abgelehnt (${counts.rejected})`,    color: '#ef4444' },
+    { key: 'deleted',   label: `🗑 Gelöscht (${counts.deleted})`,      color: '#6b7280' },
   ];
 
   return (
@@ -792,8 +796,8 @@ export default function ImpactApplicationsView() {
         {/* KPIs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
           <KPICard label="Gesamt"      value={String(counts.all)}      icon="📋" variant="teal" />
-          <KPICard label="In Prüfung"  value={String(counts.pending)}  icon="⏳" variant="gold" delta="offen" />
-          <KPICard label="Bewilligt"   value={String(counts.approved)} icon="✅" variant="green" deltaPositive />
+          <KPICard label="Eingereicht" value={String(counts.submitted)} icon="⏳" variant="gold" delta="offen" />
+          <KPICard label="Aktiv"       value={String(counts.active)}   icon="✅" variant="green" deltaPositive />
           <KPICard label="Abgelehnt"   value={String(counts.rejected)} icon="❌" variant="red" />
         </div>
 
