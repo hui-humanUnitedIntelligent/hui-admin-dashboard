@@ -1,4 +1,3 @@
-import type { HuiProfile } from '@/lib/hooks/useUsers';
 // frontend/src/app/employee/users/page.tsx
 // READ-ONLY Employee-Ansicht: User-Liste
 'use client';
