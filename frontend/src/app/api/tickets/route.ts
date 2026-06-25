@@ -1,142 +1,145 @@
 // frontend/src/app/api/tickets/route.ts
-// Support tickets — stored in 'invitations' table repurposed via metadata
-// Fields: id, user_id, title(=subject), body, text(=category), status(in metadata)
-// Actually: we store tickets as a special type in notifications with type='support_ticket'
-// And replies in notification_events. Self-contained, no new table needed.
+// Support tickets — gespeichert in 'invitations' table
+// Marker: title startet mit "[TICKET]"
+// Metadata (status, priority, category, reply) in 'text'-Feld als JSON
 
 import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
-import { ok, fail, serverError } from '@/app/lib/api-response';
+import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
-const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const H = {
-  apikey: KEY,
-  Authorization: `Bearer ${KEY}`,
-  'Content-Type': 'application/json',
-  Prefer: 'return=representation',
+type TicketMeta = {
+  status?:     string;
+  priority?:   string;
+  category?:   string;
+  reply?:      string;
+  repliedAt?:  string;
+  adminId?:    string;
 };
 
-// We store tickets in 'invitations' table (has: id, user_id, title, body, text, created_at)
-// metadata-like fields: title=subject, body=message, text=category|status|priority as JSON
+function parseMeta(text: string | null): TicketMeta {
+  try { return JSON.parse(text || '{}'); } catch { return {}; }
+}
 
+// ── GET ──────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
+
   try {
-  const { searchParams } = new URL(req.url);
-  const status   = searchParams.get('status');   // open|closed|all
-  const ticketId = searchParams.get('id');
+    const sb     = getServiceClient();
+    const params = new URL(req.url).searchParams;
+    const status   = params.get('status');
+    const ticketId = params.get('id');
 
-  if (ticketId) {
-    // Single ticket
-    const res = await fetch(`${SUPA}/rest/v1/invitations?id=eq.${ticketId}&select=*`, { headers: H });
-    const data = await res.json().catch(() => []);
-    return NextResponse.json(Array.isArray(data) ? data[0] : null);
+    if (ticketId) {
+      const { data, error } = await sb
+        .from('invitations').select('*').eq('id', ticketId).limit(1).single();
+      if (error) throw error;
+      if (!data) return (await import('@/app/lib/api-response')).notFound('Ticket');
+      const meta = parseMeta(data.text as string);
+      return ok({ ...data, _status: meta.status ?? 'open', _priority: meta.priority ?? 'normal', _category: meta.category ?? 'general', _reply: meta.reply ?? null });
+    }
+
+    const { data, error } = await sb
+      .from('invitations')
+      .select('*')
+      .like('title', '[TICKET]%')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+
+    const tickets = (data ?? []).map(r => {
+      const meta = parseMeta(r.text as string);
+      return { ...r, _status: meta.status ?? 'open', _priority: meta.priority ?? 'normal', _category: meta.category ?? 'general', _reply: meta.reply ?? null, _repliedAt: meta.repliedAt ?? null };
+    });
+
+    const filtered = (status && status !== 'all')
+      ? tickets.filter(t => t._status === status)
+      : tickets;
+
+    return ok(filtered);
+  } catch (err) {
+    return serverError(err, 'tickets GET');
   }
-
-  // List — filter by our marker (tickets have title starting with "[TICKET]")
-  let url = `${SUPA}/rest/v1/invitations?title=like.[TICKET]*&order=created_at.desc&limit=200&select=*`;
-  const res = await fetch(url, { headers: H });
-  const raw: Record<string,unknown>[] = await res.json().catch(() => []);
-
-  // Parse metadata from 'text' field
-  const tickets = raw.map(r => {
-    let meta: Record<string,unknown> = {};
-    try { meta = JSON.parse(r.text as string || '{}'); } catch (_) {}
-    return { ...r, _status: meta.status || 'open', _priority: meta.priority || 'normal', _category: meta.category || 'general', _reply: meta.reply || null, _replied_at: meta.replied_at || null };
-  });
-
-  const filtered = status && status !== 'all'
-    ? tickets.filter(t => t._status === status)
-    : tickets;
-
-  return NextResponse.json(filtered);
 }
 
+// ── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
+
   try {
-  const { action, ticketId, userId, subject, message, category, priority, reply, adminId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { action, ticketId, userId, subject, message, category, priority, reply, adminId } = body as {
+      action?: string; ticketId?: string; userId?: string; subject?: string;
+      message?: string; category?: string; priority?: string; reply?: string; adminId?: string;
+    };
+    if (!action) return validationError({ action: 'Pflichtfeld' });
 
-  if (action === 'create') {
-    // Create ticket
-    const meta = JSON.stringify({ status: 'open', priority: priority || 'normal', category: category || 'general', reply: null, replied_at: null });
-    const res = await fetch(`${SUPA}/rest/v1/invitations`, {
-      method: 'POST',
-      headers: H,
-      body: JSON.stringify({
-        user_id: userId,
-        title: `[TICKET] ${subject}`,
-        body: message,
-        text: meta,
-        created_at: new Date().toISOString(),
-      }),
-    });
-    const data = await res.json().catch(() => null);
-    return res.ok ? NextResponse.json({ ok: true, data }) : NextResponse.json({ error: 'Create failed' }, { status: 500 });
-  }
+    const sb  = getServiceClient();
+    const now = new Date().toISOString();
 
-  if (action === 'reply') {
-    // Fetch existing
-    const existing = await fetch(`${SUPA}/rest/v1/invitations?id=eq.${ticketId}&select=text`, { headers: H })
-      .then(r => r.json()).catch(() => []);
-    let meta: Record<string,unknown> = {};
-    try { meta = JSON.parse((existing[0]?.text as string) || '{}'); } catch (_) {}
-    meta.reply = reply;
-    meta.replied_at = new Date().toISOString();
-    meta.replied_by = adminId;
-    meta.status = 'replied';
-
-    const res = await fetch(`${SUPA}/rest/v1/invitations?id=eq.${ticketId}`, {
-      method: 'PATCH',
-      headers: H,
-      body: JSON.stringify({ text: JSON.stringify(meta) }),
-    });
-
-    // Notify user
-    if (existing[0]?.user_id) {
-      await fetch(`${SUPA}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { ...H, Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          user_id: existing[0].user_id,
-          type: 'support_reply',
-          title: 'Support hat geantwortet',
-          body: reply,
-          is_read: false,
-          created_at: new Date().toISOString(),
-        }),
-      });
+    if (action === 'create') {
+      if (!subject?.trim() || !message?.trim()) {
+        return validationError({ subject: 'Pflichtfeld', message: 'Pflichtfeld' });
+      }
+      const meta: TicketMeta = { status: 'open', priority: priority ?? 'normal', category: category ?? 'general' };
+      const { data, error } = await sb.from('invitations').insert({
+        user_id:    userId ?? null,
+        title:      `[TICKET] ${subject.trim()}`,
+        body:       message.trim(),
+        text:       JSON.stringify(meta),
+        created_at: now,
+      }).select().single();
+      if (error) throw error;
+      return (await import('@/app/lib/api-response')).created(data);
     }
 
-    return res.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'Reply failed' }, { status: 500 });
+    if (!ticketId) return validationError({ ticketId: 'Pflichtfeld' });
+
+    const { data: existing, error: fetchErr } = await sb
+      .from('invitations').select('*').eq('id', ticketId).limit(1).single();
+    if (fetchErr || !existing) return (await import('@/app/lib/api-response')).notFound('Ticket');
+
+    const meta = parseMeta(existing.text as string);
+
+    if (action === 'reply') {
+      if (!reply?.trim()) return validationError({ reply: 'Pflichtfeld' });
+      meta.reply     = reply.trim();
+      meta.repliedAt = now;
+      meta.status    = 'replied';
+      meta.adminId   = adminId;
+
+      const { error } = await sb.from('invitations').update({ text: JSON.stringify(meta) }).eq('id', ticketId);
+      if (error) throw error;
+
+      // Nutzer benachrichtigen
+      if (existing.user_id) {
+        await sb.from('notifications').insert({
+          user_id: existing.user_id, type: 'support_reply',
+          title: 'Support hat geantwortet', message: reply.trim(),
+          is_read: false, read: false, created_at: now,
+        }).catch(() => {});
+      }
+      return ok({ replied: true });
+    }
+
+    if (action === 'close' || action === 'reopen') {
+      meta.status = action === 'close' ? 'closed' : 'open';
+      const { error } = await sb.from('invitations').update({ text: JSON.stringify(meta) }).eq('id', ticketId);
+      if (error) throw error;
+      return ok({ status: meta.status });
+    }
+
+    if (action === 'delete') {
+      const { error } = await sb.from('invitations').delete().eq('id', ticketId);
+      if (error) throw error;
+      return ok({ deleted: true, ticketId });
+    }
+
+    return fail(`Unbekannte Aktion: ${action}`);
+  } catch (err) {
+    return serverError(err, 'tickets POST');
   }
-
-  if (action === 'close' || action === 'reopen') {
-    const existing = await fetch(`${SUPA}/rest/v1/invitations?id=eq.${ticketId}&select=text`, { headers: H })
-      .then(r => r.json()).catch(() => []);
-    let meta: Record<string,unknown> = {};
-    try { meta = JSON.parse((existing[0]?.text as string) || '{}'); } catch (_) {}
-    meta.status = action === 'close' ? 'closed' : 'open';
-
-    const res = await fetch(`${SUPA}/rest/v1/invitations?id=eq.${ticketId}`, {
-      method: 'PATCH',
-      headers: H,
-      body: JSON.stringify({ text: JSON.stringify(meta) }),
-    });
-    return res.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'Update failed' }, { status: 500 });
-  }
-
-  if (action === 'delete') {
-    const res = await fetch(`${SUPA}/rest/v1/invitations?id=eq.${ticketId}`, {
-      method: 'DELETE',
-      headers: { ...H, Prefer: 'return=minimal' },
-    });
-    return res.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'Delete failed' }, { status: 500 });
-  }
-
-  return fail('Unknown action');
 }
