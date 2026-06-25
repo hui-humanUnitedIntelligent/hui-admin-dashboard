@@ -717,7 +717,9 @@ export function useScoreFailures(opts: { limit?: number } = {}) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const j = await res.json();
-      setFailures(j.data ?? []);
+      // ok() wrapper gibt { data: [...] } zurück — Array-Fallback für Abwärtskompatibilität
+      const arr = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : [];
+      setFailures(arr);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ladefehler');
     } finally {
