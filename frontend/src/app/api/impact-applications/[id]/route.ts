@@ -1,6 +1,6 @@
 // frontend/src/app/api/impact-applications/[id]/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, notFound, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
@@ -9,7 +9,7 @@ import { APPLICATION_STATUS, ApplicationStatus, ALLOWED_STATUS_TRANSITIONS } fro
 
 // ── PATCH: Status-Update + activity_log ─────────────────────────────────────
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   const { id } = params;
@@ -104,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // ── DELETE: Hard-Delete + activity_log ───────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   const { id } = params;
