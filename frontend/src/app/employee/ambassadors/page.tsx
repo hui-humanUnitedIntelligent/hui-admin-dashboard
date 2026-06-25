@@ -3,10 +3,12 @@ type AmbActionData = Record<string, unknown>;
 // frontend/src/app/employee/ambassadors/page.tsx
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { getSessionToken } from '@/lib/session';
 import { AMBASSADOR_LEVELS } from '@/lib/ambassador-levels';
 import type { AmbLevel } from '@/lib/ambassador-levels';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 
 // ── Types ─────────────────────────────────────────────────────
@@ -102,6 +104,8 @@ import AmbassadorDrawer from '@/app/ambassadors/AmbassadorDrawer';
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function EmployeeAmbassadorsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [ambassadors, setAmbassadors]   = useState<AmbRecord[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [stats, setStats]               = useState<AmbStats|null>(null);
@@ -196,7 +200,15 @@ export default function EmployeeAmbassadorsPage() {
       title="Ambassador-Programm"
       headerActions={
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-          {(stats?.pending_applications||0)>0 && (
+          
+      <PageHeader
+        title="Ambassadors"
+        subtitle="Ambassador-Übersicht"
+        actionsRole="employee"
+        userRole={userRole}
+      />
+
+{(stats?.pending_applications||0)>0 && (
             <span style={{fontSize:11,color:'var(--gold)',background:'rgba(255,184,0,0.12)',padding:'3px 10px',borderRadius:20,border:'1px solid rgba(255,184,0,0.4)',fontWeight:600}}>
               ⚠️ {stats!.pending_applications} Antrag{stats!.pending_applications>1?'e':''} offen
             </span>
