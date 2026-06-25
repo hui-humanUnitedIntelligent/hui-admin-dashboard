@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 
 interface Module {
   key: string;
@@ -137,6 +139,8 @@ function toLog(allData: Record<string, Record<string, unknown>[]>, selected: str
 }
 
 export default function ExportsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [selected, setSelected]   = useState<Set<string>>(new Set());
   const [status, setStatus]       = useState<Status>('idle');
   const [message, setMessage]     = useState('');
@@ -243,7 +247,15 @@ export default function ExportsPage() {
 
   return (
     <DashboardLayout title="📥 Daten-Export">
-    <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
+    
+      <PageHeader
+        title="Daten-Export"
+        subtitle="CSV-, Excel- & Log-Exporte"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+<div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
