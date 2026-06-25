@@ -2,7 +2,8 @@
 import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
-import { getServiceClient } from '@/app/lib/supabase-server';
+import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
+import { NOTIFICATION_TYPES } from '@/lib/notification-types';
 
 type Profile = { id: string; role: string; is_wirker: boolean; is_member: boolean };
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     if (action === 'stats') {
       const [{ data: profiles }, { data: broadcasts }] = await Promise.all([
         sb.from('profiles').select('id,role,is_wirker,is_member').limit(2000),
-        sb.from('notifications').select('metadata').eq('type', 'admin_broadcast').limit(2000),
+        sb.from('notifications').select('metadata').eq('type', NOTIFICATION_TYPES.BROADCAST).limit(2000),
       ]);
       const p = (profiles ?? []) as Profile[];
       const broadcastIds = new Set<string>(
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
       const { data, error } = await sb
         .from('notifications')
         .select('id,title,body,created_at,metadata')
-        .eq('type', 'admin_broadcast')
+        .eq('type', NOTIFICATION_TYPES.BROADCAST)
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -95,14 +96,28 @@ export async function POST(req: NextRequest) {
 
     for (let i = 0; i < targets.length; i += batchSize) {
       const rows = targets.slice(i, i + batchSize).map(u => ({
-        user_id: u.id, type: 'admin_broadcast',
-        title: title.trim(), message: msgBody.trim(),
+        user_id: u.id, type: NOTIFICATION_TYPES.BROADCAST,
+        title: title.trim(), body: msgBody.trim(), message: msgBody.trim(),
         read: false, is_read: false, created_at: now,
         metadata: { broadcastId, targetGroup: targetGroup ?? 'all', sentCount: targets.length, senderId: senderId ?? null },
       }));
       const { error } = await sb.from('notifications').insert(rows);
       if (!error) sent += rows.length;
     }
+
+    // Activity Log — Broadcast gesendet
+    try {
+      const authH = req.headers.get('Authorization') ?? '';
+      const tok   = authH.replace('Bearer ', '');
+      const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
+      await sb.from('activity_logs').insert({
+        action:    'broadcast_sent',
+        actor_id:  adminUser?.id ?? senderId ?? null,
+        target_id: null,
+        metadata:  { broadcastId, title: title.trim(), targetGroup: targetGroup ?? 'all', sentCount: sent },
+        created_at: now,
+      });
+    } catch (_) {}
 
     return ok({ broadcastId, sentCount: sent, targetGroup: targetGroup ?? 'all' });
   } catch (err) { return serverError(err, 'broadcast POST'); }
@@ -118,7 +133,7 @@ export async function DELETE(req: NextRequest) {
 
     const sb = getServiceClient();
     const { data, error: fetchErr } = await sb
-      .from('notifications').select('id,metadata').eq('type', 'admin_broadcast');
+      .from('notifications').select('id,metadata').eq('type', NOTIFICATION_TYPES.BROADCAST);
     if (fetchErr) throw fetchErr;
 
     const ids = (data ?? [])
@@ -134,6 +149,15 @@ export async function DELETE(req: NextRequest) {
       const { error } = await sb.from('notifications').delete().in('id', ids.slice(i, i + batchSize));
       if (!error) deleted += Math.min(batchSize, ids.length - i);
     }
+    try {
+      const authH = req.headers.get('Authorization') ?? '';
+      const tok   = authH.replace('Bearer ', '');
+      const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
+      await sb.from('activity_logs').insert({
+        action: 'broadcast_deleted', actor_id: adminUser?.id ?? null, target_id: null,
+        metadata: { broadcastId, deletedCount: deleted }, created_at: new Date().toISOString(),
+      });
+    } catch (_) {}
     return ok({ deletedCount: deleted });
   } catch (err) { return serverError(err, 'broadcast DELETE'); }
 }
