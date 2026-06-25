@@ -1,4 +1,5 @@
 'use client';
+import { isSuperAdmin } from '@/lib/roles';
 type AmbActionData = Record<string, unknown>;
 // frontend/src/app/ambassadors/page.tsx
 
@@ -109,6 +110,12 @@ import AmbassadorDrawer from './AmbassadorDrawer';
 // ── Main Page ─────────────────────────────────────────────────
 export default function AmbassadorsPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [ambassadors, setAmbassadors]   = useState<AmbRecord[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
