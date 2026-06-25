@@ -157,16 +157,15 @@ export default function DashboardPage() {
       title="Dashboard"
       headerActions={
         <RefreshBtn onClick={kpis.refetch} loading={kpis.loading} />
-      
+      }
+    >
+
       <PageHeader
         title="Dashboard"
         subtitle="Live-Übersicht der HUI-Plattform"
         actionsRole="superadmin"
         userRole={userRole}
       />
-
-}
-    >
       {/* ── KPI Row ── */}
       <div
         style={{
