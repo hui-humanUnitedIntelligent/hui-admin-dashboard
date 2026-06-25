@@ -472,7 +472,7 @@ function DetailModal({
             </div>
 
             {/* Aktionen */}
-            {app.status === 'pending' && !rejectMode && !deleteMode && (
+            {(app.status !== 'approved' && app.status !== 'rejected') && !rejectMode && !deleteMode && (
               <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
                 <button
                   onClick={handleApprove}
@@ -829,7 +829,7 @@ export default function ImpactApplicationsView() {
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Lade Projekte…</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-            {tab === 'pending' ? '🎉 Keine offenen Projekte — alles geprüft!' : 'Keine Projekte gefunden.'}
+            {'Keine Projekte gefunden.'}
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
