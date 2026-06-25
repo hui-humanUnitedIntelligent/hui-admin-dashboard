@@ -44,7 +44,7 @@ export default function AuditPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (!isSuperAdmin(currentUser?.role)) router.replace(\'/dashboard\');
+    if (!isSuperAdmin(currentUser?.role)) router.replace("/dashboard");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.role]);
   if (!isSuperAdmin(currentUser?.role)) return null;
