@@ -8,7 +8,7 @@ export default function ScoreFailuresPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (!isSuperAdmin(currentUser?.role)) router.replace("/dashboard");
+    if (!isSuperAdmin(currentUser?.role)) router.replace("/employee/reasons");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.role]);
   if (!isSuperAdmin(currentUser?.role)) return null;
