@@ -1,28 +1,29 @@
 // frontend/src/lib/roles.ts
 // ── HUI Admin Dashboard — Rollen-System ──────────────────────────────────────
 
-export type Role = 'superadmin' | 'super_admin' | 'admin' | 'employee';
+export type Role = 'superadmin' | 'employee';
 
 /** Normalisiert verschiedene Schreibweisen auf den kanonischen Typ */
-export function normalizeRole(role: string | undefined | null): Role {
-  if (!role) return 'employee';
-  if (role === 'super_admin' || role === 'superadmin') return 'superadmin';
-  if (role === 'admin') return 'admin';
+export function normalizeRole(role: string | undefined | null): 'superadmin' | 'employee' {
+  if (!role) return 'employee'; // Sicherer Default — KEIN superadmin als Fallback
+  const r = String(role).toLowerCase().trim();
+  // Admin-Varianten: super_admin, superadmin, admin → superadmin (vollständige Dashboard-Rechte)
+  if (r === 'super_admin' || r === 'superadmin' || r === 'admin') return 'superadmin';
   return 'employee';
 }
 
 /** Priorität: superadmin > admin > employee */
 const ROLE_PRIORITY: Record<string, number> = {
-  superadmin:  3,
-  super_admin: 3,
-  admin:       2,
+  superadmin:  2,
+  super_admin: 2,
+  admin:       2, // admin = superadmin im Dashboard-Kontext
   employee:    1,
 };
 
 /** Prüft ob ein User die erforderliche Rolle hat */
 export function hasRole(
   userRole: string | undefined | null,
-  requiredRole: Role | 'superadmin' | 'admin' | 'employee',
+  requiredRole: 'superadmin' | 'admin' | 'employee',
 ): boolean {
   const userPriority     = ROLE_PRIORITY[userRole ?? ''] ?? 0;
   const requiredPriority = ROLE_PRIORITY[requiredRole]   ?? 0;
@@ -31,7 +32,7 @@ export function hasRole(
 
 /** Prüft ob User Superadmin ist (super_admin oder superadmin) */
 export function isSuperAdmin(role: string | undefined | null): boolean {
-  return role === 'super_admin' || role === 'superadmin';
+  return role === 'super_admin' || role === 'superadmin' || role === 'admin';
 }
 
 /** Prüft ob User mindestens Admin ist (super_admin, superadmin, admin) */
