@@ -25,7 +25,7 @@ export default function LoginPage() {
         method:      'POST',
         headers:     { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body:        JSON.stringify({
+        body: JSON.stringify({
           email,
           password,
           dashboard: mode === 'super' ? 'admin' : 'employee',
