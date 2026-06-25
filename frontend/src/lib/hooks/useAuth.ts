@@ -36,7 +36,7 @@ export function useAuth() {
           const userId = supaRes.user?.id;
 
           // Echte Rolle aus profiles-Tabelle lesen
-          let profileRole = 'superadmin';
+          let profileRole = 'employee'; // Sicheres Fallback — nur explizite DB-Rolle gibt Zugang
           if (userId) {
             try {
               const profileRes = await fetch(
@@ -56,7 +56,7 @@ export function useAuth() {
                 }
               }
             } catch {
-              // Fallback: superadmin (Admin-Dashboard-Zugang impliziert Admin-Rechte)
+              // Fallback: employee (nur explizite DB-Rolle gibt Admin-Rechte)
             }
           }
 
