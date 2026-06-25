@@ -3,14 +3,14 @@
 // POST: Bulk-Status-Update
 
 import { NextRequest } from 'next/server';
-import { guardSuperAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardUser } from '@/app/lib/auth-guard';
 import { ok, serverError, validationError, created } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 import { APPLICATION_STATUS } from '@/lib/impact-status';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardSuperAdmin(req);
+  const guard = await guardUser(req);
   if (guard) return guard;
 
   try {
