@@ -11,8 +11,7 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const MAX_AGE = 60 * 60 * 8; // 8 Stunden
 
 // Wichtig: Für Vercel Preview Domains MUSS die Domain gesetzt werden
-const COOKIE_DOMAIN =
-  process.env.COOKIE_DOMAIN || '.vercel.app'; // funktioniert für alle *.vercel.app Deployments
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'hui-admin-dashboard.vercel.app';
 
 export async function POST(req: NextRequest) {
   try {
