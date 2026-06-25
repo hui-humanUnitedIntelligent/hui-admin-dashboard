@@ -1,9 +1,10 @@
 'use client';
+import { useRouter } from 'next/navigation';
 // frontend/src/app/analytics/page.tsx
 
 import { isSuperAdmin } from '@/lib/roles';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
@@ -116,11 +117,12 @@ function KPI({ label, value, sub, color, icon }: { label: string; value: string;
 // ════════════════════════════════════════════════════════════════════════════
 export default function AnalyticsPage() {
   const { currentUser } = useAuth();
-  const role = currentUser?.role;
-  if (!isSuperAdmin(role)) {
-    if (typeof window !== 'undefined') window.location.replace('/dashboard');
-    return null;
-  }
+  const router = useRouter();
+  useEffect(() => {
+    if (!isSuperAdmin(currentUser?.role)) router.replace(\'/dashboard\');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.role]);
+  if (!isSuperAdmin(currentUser?.role)) return null;
 
   const userRole = currentUser?.role;
   const [data, setData]       = useState<Analytics | null>(null);
