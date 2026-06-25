@@ -1,3 +1,4 @@
+import type { HuiImpactProject } from '@/lib/hooks/useImpact';
 // frontend/src/app/employee/impact/page.tsx — volle Content-Rechte
 'use client';
 import { useState, useCallback } from 'react';
@@ -32,12 +33,12 @@ export default function EmployeeImpactPage() {
     finally{setBusy(null);}
   }
 
-  const filtered = projects.filter(p=>{
+  const filtered = projects.filter((p: HuiImpactProject)=>{
     if(tab==='active')   return p.status==='active';
     if(tab==='inactive') return p.status==='inactive'||p.status==='paused';
     if(tab==='deleted')  return p.status==='deleted';
     return true;
-  }).filter(p=>{
+  }).filter((p: HuiImpactProject)=>{
     const q=search.toLowerCase();
     return !q||(p.name||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q);
   });
@@ -62,7 +63,7 @@ export default function EmployeeImpactPage() {
       <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:8}}>🟢 Realtime · {filtered.length} Projekte</div>
       {loading?<div style={{padding:40,textAlign:'center',color:'var(--text-muted)'}}>Laden…</div>:(
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {filtered.map(p=>{
+          {filtered.map((p: HuiImpactProject)=>{
             const isBusy=busy===p.id;
             const isDeleted=p.status==='deleted';
             return(
