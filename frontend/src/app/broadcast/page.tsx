@@ -1,5 +1,7 @@
-// frontend/src/app/broadcast/page.tsx
 'use client';
+// frontend/src/app/broadcast/page.tsx
+
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -30,6 +32,12 @@ function timeAgo(iso: string) {
 
 export default function BroadcastPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [stats, setStats]             = useState<Stats | null>(null);
   const [history, setHistory]         = useState<BroadcastRecord[]>([]);
