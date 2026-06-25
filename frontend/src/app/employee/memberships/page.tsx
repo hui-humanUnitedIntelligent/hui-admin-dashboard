@@ -1,101 +1,89 @@
 // frontend/src/app/employee/memberships/page.tsx
+// READ-ONLY Employee-Ansicht: Mitgliedschaften
 'use client';
-import { useAuth } from '@/lib/hooks/useAuth';
-
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useCallback, useEffect, useState } from 'react';
+import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import { useMemberships } from '@/lib/hooks/useSupabase';
 
-function timeAgo(iso: string) {
+function timeAgo(iso?: string) {
   if (!iso) return '—';
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days < 1) return 'Heute';
-  return `Vor ${days} Tagen`;
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (d === 0) return 'Heute';
+  if (d < 7) return `${d}d`;
+  if (d < 30) return `${Math.floor(d/7)}w`;
+  return `${Math.floor(d/30)}mo`;
 }
-
-function Skeleton() {
-  return (
-    <tr>
-      {[...Array(5)].map((_, i) => (
-        <td key={i} style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ height: 11, background: 'var(--bg-tertiary)', borderRadius: 4, animation: 'pulse 2s ease-in-out infinite', width: '60%' }} />
-        </td>
-      ))}
-    </tr>
-  );
+function fmtDate(iso?: string) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 export default function EmployeeMembershipsPage() {
-  const { currentUser } = useAuth();
-  const userRole = currentUser?.role;
-  const { memberships, total, loading, refetch } = useMemberships({ limit: 200, refreshInterval: 0 });
+  const { memberships, loading } = useMemberships({ limit: 500 });
+  const [search, setSearch] = useState('');
+  const [tab,    setTab]    = useState<'active'|'expired'|'all'>('active');
 
-  const byType = memberships.reduce<Record<string, number>>((acc, m) => {
-    acc[m.membership_type] = (acc[m.membership_type] || 0) + 1;
-    return acc;
-  }, {});
+  const filtered = memberships.filter(m => {
+    const matchTab = tab === 'all' ? true : tab === 'active' ? m.status === 'active' : m.status !== 'active';
+    const q = search.toLowerCase();
+    const matchSearch = !q || (m.membership_type || '').toLowerCase().includes(q) || (m.user_id || '').toLowerCase().includes(q);
+    return matchTab && matchSearch;
+  });
 
   return (
-    <DashboardLayout employeeMode={true} title="Mitgliedschaften" headerActions={
-      <button onClick={refetch} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-      <PageHeader
-        title="Mitgliedschaften"
-        subtitle="Mitgliedschafts-Übersicht"
-        actionsRole="employee"
-        userRole={userRole}
-      />
-↻ Refresh</button>
-    }>
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }} className="grid-4">
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{loading ? '…' : total}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>Aktive Mitglieder</div>
-        </div>
-        {Object.entries(byType).slice(0, 3).map(([type, count]) => (
-          <div key={type} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>{count}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>{type}</div>
-          </div>
+    <EmployeeLayout title="Mitgliedschaften">
+      <PageHeader title="Mitgliedschaften" subtitle="Read-only Übersicht" actionsRole="employee" />
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        {(['active','expired','all'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: '6px 14px', borderRadius: 20, border: '1px solid var(--border)',
+            background: tab === t ? 'var(--accent)' : 'transparent',
+            color: tab === t ? '#0f1117' : 'var(--text-muted)',
+            fontWeight: 600, fontSize: 12, cursor: 'pointer',
+          }}>
+            {t === 'active' ? 'Aktiv' : t === 'expired' ? 'Abgelaufen' : 'Alle'}
+          </button>
         ))}
+        <input type="text" placeholder="Typ oder User-ID…" value={search} onChange={e => setSearch(e.target.value)} style={{
+          marginLeft: 'auto', padding: '6px 12px', borderRadius: 8,
+          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+          color: 'var(--text-primary)', fontSize: 12, minWidth: 180,
+        }} />
       </div>
 
-      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {loading ? (
+        <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Laden…</div>
+      ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr>
-                {['Membership ID', 'User ID', 'Typ', 'Vote-Gewicht', 'Status', 'Gestartet', 'Läuft ab'].map((h) => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
+              {['Typ','Status','Gewicht','Start','Ablauf','Erstellt'].map(h => (
+                <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 11 }}>{h}</th>
+              ))}
+            </tr></thead>
             <tbody>
-              {loading ? (
-                <><Skeleton /><Skeleton /><Skeleton /></>
-              ) : memberships.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Keine Mitgliedschaften</td></tr>
-              ) : memberships.map((m) => (
-                <tr key={m.id} className="tr-hover">
-                  <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{m.id.slice(0,8)}…</td>
-                  <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>{m.user_id.slice(0,8)}…</td>
-                  <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
-                    <Badge variant={m.membership_type === 'free' ? 'neutral' : m.membership_type === 'wirker' ? 'purple' : 'info'}>{m.membership_type}</Badge>
+              {filtered.map(m => (
+                <tr key={m.id} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={ev => (ev.currentTarget.style.background = 'var(--bg-hover)')}
+                    onMouseLeave={ev => (ev.currentTarget.style.background = 'transparent')}>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 500 }}>{m.membership_type || '—'}</td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <Badge variant={m.status === 'active' ? 'success' : 'neutral'}>{m.status || '—'}</Badge>
                   </td>
-                  <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', borderBottom: '1px solid var(--border)' }}>{m.vote_weight}x</td>
-                  <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
-                    <Badge variant="success">{m.status}</Badge>
-                  </td>
-                  <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{timeAgo(m.started_at)}</td>
-                  <td style={{ padding: '9px 14px', color: m.expires_at ? 'var(--gold)' : 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{m.expires_at ? new Date(m.expires_at).toLocaleDateString('de-DE') : '∞ Unbegrenzt'}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{m.vote_weight ?? '—'}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(m.started_at)}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtDate(m.expires_at)}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{timeAgo(m.started_at)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {filtered.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Keine Mitgliedschaften gefunden.</div>}
         </div>
-      </div>
-    </DashboardLayout>
+      )}
+    </EmployeeLayout>
   );
 }
