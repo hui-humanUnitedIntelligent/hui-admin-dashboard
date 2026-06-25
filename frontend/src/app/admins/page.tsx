@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
@@ -92,6 +94,8 @@ function Skeleton() {
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function AdminsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [admins, setAdmins]         = useState<AdminUser[]>([]);
   const [loading, setLoading]       = useState(true);
   const [addSearch, setAddSearch]   = useState('');
@@ -183,7 +187,15 @@ export default function AdminsPage() {
       title="Admin-Verwaltung"
       headerActions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
+          
+      <PageHeader
+        title="Admin-Verwaltung"
+        subtitle="Administratoren & Rollen verwalten"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+<span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
             👑 {superAdmins.length} Superadmin{superAdmins.length !== 1 ? 's' : ''} · 🛡️ {regularAdmins.length} Admin{regularAdmins.length !== 1 ? 's' : ''}
           </span>
           <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
