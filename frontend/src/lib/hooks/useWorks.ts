@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { sbUpdate } from '../api';
-import { getSessionToken } from '@/app/lib/session';
+import { getSessionToken } from '@/lib/session';
 import type { HuiWork } from './useSupabase';
 
 export type { HuiWork };
