@@ -1,34 +1,34 @@
 // frontend/src/lib/status-constants.ts
-// ── Zentrale Status-Konstanten für ALLE Content-Bereiche ──────────────────
-// Wird von API-Routes, Hooks und UI-Komponenten verwendet.
+// ── ECHTE DB-Statuswerte (ermittelt via SELECT DISTINCT status) ───────────
+// works:                pending_review | published | rejected | deleted
+// experiences:          pending_review | published
+// impact_projects:      active | voting | won | archived
+// impact_applications:  approved | rejected
 
-/** Alle Status-Werte, die "eingereicht / wartet auf Review" bedeuten */
-export const SUBMITTED_STATES = [
-  'submitted',
-  'pending',
-  'pending_review',
-  'review',
-  'waiting_for_approval',
-] as const;
+/** Werke/Erlebnisse — eingereicht, wartet auf Review */
+export const SUBMITTED_STATES = ['pending_review'] as const;
 
-/** Alle nicht-gelöschten Status */
-export const VISIBLE_STATES = [
-  'submitted', 'pending', 'pending_review', 'review',
-  'waiting_for_approval', 'published', 'approved', 'active',
-  'draft', 'rejected', 'flagged', 'sensitive',
-] as const;
+/** Impact Applications — nach Einreichung direkt "approved" in DB */
+export const SUBMITTED_APPLICATION_STATES = ['approved'] as const;
+
+/** Impact Projects — laufende/aktive Projekte */
+export const ACTIVE_PROJECT_STATES = ['active', 'voting', 'won'] as const;
+
+/** Impact Projects — archiviert */
+export const ARCHIVED_PROJECT_STATES = ['archived'] as const;
 
 export type SubmittedState = typeof SUBMITTED_STATES[number];
 
-/** Prüft ob ein Status-Wert "eingereicht" bedeutet */
+/** Prüft ob ein Werk/Erlebnis eingereicht ist */
 export function isSubmitted(status: string | null | undefined): boolean {
-  return SUBMITTED_STATES.includes((status ?? '') as SubmittedState);
+  return (status ?? '') === 'pending_review';
 }
 
-/** Normalisiert Status für UI-Anzeige */
-export function normalizeStatus(status: string | null | undefined, approvalStatus?: string | null): string {
-  if (approvalStatus === 'approved') return 'published';
-  if (approvalStatus === 'rejected') return 'rejected';
-  if (approvalStatus === 'pending' || status === 'pending_review') return 'pending';
+/** Normalisiert status für UI-Anzeige */
+export function normalizeStatus(status: string | null | undefined): string {
+  if (status === 'pending_review') return 'pending';
+  if (status === 'published')      return 'published';
+  if (status === 'rejected')       return 'rejected';
+  if (status === 'deleted')        return 'deleted';
   return status ?? 'unknown';
 }
