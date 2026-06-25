@@ -1,9 +1,10 @@
 'use client';
+import { useRouter } from 'next/navigation';
 // frontend/src/app/impact/page.tsx
 
 import { isSuperAdmin } from '@/lib/roles';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
@@ -82,11 +83,12 @@ function buildMonthlyBuckets(
 
 export default function ImpactPage() {
   const { currentUser } = useAuth();
-  const role = currentUser?.role;
-  if (!isSuperAdmin(role)) {
-    if (typeof window !== 'undefined') window.location.replace('/dashboard');
-    return null;
-  }
+  const router = useRouter();
+  useEffect(() => {
+    if (!isSuperAdmin(currentUser?.role)) router.replace(\'/dashboard\');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.role]);
+  if (!isSuperAdmin(currentUser?.role)) return null;
 
   const userRole = currentUser?.role;
   const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
