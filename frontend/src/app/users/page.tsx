@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { isSuperAdmin } from '@/lib/roles';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Modal from '@/components/ui/Modal';
@@ -910,6 +912,12 @@ function NotesPanel({ userId }: { userId: string }) {
 // ════════════════════════════════════════════════════════════════════════════
 export default function UsersPage() {
   const { currentUser } = useAuth();
+  const router = useRouter();
+  useEffect(() => {
+    if (currentUser && !isSuperAdmin(currentUser.role)) {
+      router.replace(\'/employee\');
+    }
+  }, [currentUser, router]);
   const userRole = currentUser?.role;
   const [tab, setTab]               = useState<UserTab>('active');
   const [search, setSearch]         = useState('');
