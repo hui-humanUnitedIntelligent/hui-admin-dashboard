@@ -47,7 +47,7 @@ interface ImpactApplication {
   created_at: string;
 }
 
-type TabKey = 'all' | 'submitted' | 'pending' | 'approved' | 'active' | 'rejected' | 'deleted';
+type TabKey = 'all' | 'approved' | 'rejected';
 
 
 async function fetchApplications(): Promise<ImpactApplication[]> {
@@ -131,17 +131,14 @@ async function sendResonanzNotification(
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 function statusColor(status: string) {
-  if (status === 'approved' || status === 'active') return '#22c55e';
+  if (status === 'approved') return '#22c55e';
   if (status === 'rejected') return '#ef4444';
-  if (status === 'deleted')  return '#6b7280';
-  return '#f59e0b'; // submitted/pending
+  return '#6b7280';
 }
 function statusLabel(status: string) {
-  if (status === 'approved' || status === 'active') return '✅ Aktiv / Bewilligt';
+  if (status === 'approved') return '✅ Bewilligt';
   if (status === 'rejected') return '❌ Abgelehnt';
-  if (status === 'deleted')  return '🗑 Gelöscht';
-  if (['submitted','pending','review','waiting_for_approval'].includes(status)) return '⏳ Eingereicht';
-  return `⏳ ${status}`;
+  return `${status}`;
 }
 function fmt(d: string | null) {
   if (!d) return '—';
@@ -667,15 +664,9 @@ export default function ImpactApplicationsView() {
 
   useEffect(() => { load(); }, [load]);
 
-  const SUBMITTED_IA = ['submitted','pending','review','waiting_for_approval'];
+  // Echte DB-Status: approved | rejected
   const filtered = apps.filter(a => {
-    if (tab === 'submitted') {
-      if (!SUBMITTED_IA.includes(a.status)) return false;
-    } else if (tab === 'active') {
-      if (!['approved','active'].includes(a.status)) return false;
-    } else if (tab !== 'all') {
-      if (a.status !== tab) return false;
-    }
+    if (tab !== 'all' && a.status !== tab) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -688,15 +679,11 @@ export default function ImpactApplicationsView() {
     return true;
   });
 
-  const SUBMITTED_IA2 = ['submitted','pending','review','waiting_for_approval'];
+  // Echte DB-Status: approved | rejected
   const counts = {
-    all:       apps.length,
-    submitted: apps.filter(a => SUBMITTED_IA2.includes(a.status)).length,
-    pending:   apps.filter(a => a.status === 'pending').length,
-    approved:  apps.filter(a => a.status === 'approved').length,
-    active:    apps.filter(a => ['approved','active'].includes(a.status)).length,
-    rejected:  apps.filter(a => a.status === 'rejected').length,
-    deleted:   apps.filter(a => a.status === 'deleted').length,
+    all:      apps.length,
+    approved: apps.filter(a => a.status === 'approved').length,
+    rejected: apps.filter(a => a.status === 'rejected').length,
   };
 
   const handleApprove = async (id: string) => {
@@ -773,12 +760,11 @@ export default function ImpactApplicationsView() {
     }
   };
 
+  // Echte DB-Status: approved | rejected
   const TABS: { key: TabKey; label: string; color?: string }[] = [
-    { key: 'all',       label: `Alle (${counts.all})` },
-    { key: 'submitted', label: `⏳ Eingereicht (${counts.submitted})`, color: '#f59e0b' },
-    { key: 'active',    label: `✅ Aktiv (${counts.active})`,          color: '#22c55e' },
-    { key: 'rejected',  label: `❌ Abgelehnt (${counts.rejected})`,    color: '#ef4444' },
-    { key: 'deleted',   label: `🗑 Gelöscht (${counts.deleted})`,      color: '#6b7280' },
+    { key: 'all',      label: `Alle (${counts.all})` },
+    { key: 'approved', label: `✅ Bewilligt (${counts.approved})`, color: '#22c55e' },
+    { key: 'rejected', label: `❌ Abgelehnt (${counts.rejected})`, color: '#ef4444' },
   ];
 
   return (
@@ -796,8 +782,8 @@ export default function ImpactApplicationsView() {
         {/* KPIs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
           <KPICard label="Gesamt"      value={String(counts.all)}      icon="📋" variant="teal" />
-          <KPICard label="Eingereicht" value={String(counts.submitted)} icon="⏳" variant="gold" delta="offen" />
-          <KPICard label="Aktiv"       value={String(counts.active)}   icon="✅" variant="green" deltaPositive />
+          <KPICard label="Bewilligt" value={String(counts.approved)} icon="✅" variant="green" deltaPositive />
+          <KPICard label="Abgelehnt" value={String(counts.rejected)} icon="❌" variant="red" />
           <KPICard label="Abgelehnt"   value={String(counts.rejected)} icon="❌" variant="red" />
         </div>
 
