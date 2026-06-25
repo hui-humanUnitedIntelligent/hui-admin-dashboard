@@ -661,7 +661,8 @@ export function useExperiencesAndProjects(opts: {
     try {
       const token = await getSessionToken();
       const params = new URLSearchParams({ limit: String(limit) });
-      if (status) params.set('status', status);
+      // Nur filtern wenn status explizit gesetzt (nicht 'all')
+      if (status && status !== 'all') params.set('status', status);
       const res = await fetch(`/api/experiences?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
