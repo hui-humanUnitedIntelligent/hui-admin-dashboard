@@ -6,10 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 'use client';
 import { ErlebnisseProjekteView } from '@/components/views/ExperiencesView';
-import PageHeader from '@/components/layout/PageHeader';
 
 export default function ErlebnisseProjektePage() {
-  const { currentUser } = useAuth();
-  const userRole = currentUser?.role;
   return <ErlebnisseProjekteView role="superadmin" />;
 }
