@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { clearAuth } from '@/lib/api';
 import { useSettings } from '@/components/providers/ThemeProvider';
 import { useSystemHealth } from '@/lib/hooks/useSupabase';
-import { ADMIN_NAV, navLabel, groupLabel, filterItems } from '@/config/navigation';
+import { ADMIN_NAV, navLabel, groupLabel, filterItems, filterGroups } from '@/config/navigation';
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -107,8 +107,8 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         <div style={{ height: 1, background: 'var(--border)', margin: '4px 18px 8px' }} />
 
         {/* ── Collapsible Groups ── */}
-        {ADMIN_NAV.map(group => {
-          const visibleItems = filterItems(group.items, role);
+        {filterGroups(ADMIN_NAV, role).map(group => {
+          const visibleItems = group.items; // bereits durch filterGroups gefiltert
           if (visibleItems.length === 0) return null;  // Gruppe ausblenden wenn alle Items gefiltert
 
           const label    = groupLabel(group, lang);
