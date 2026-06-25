@@ -2,7 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -16,6 +18,8 @@ function avatarColor(id: string) {
 }
 
 export default function EmployeeTalentsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [search, setSearch] = useState('');
   const [availOnly, setAvailOnly] = useState(false);
   const [selected, setSelected] = useState<HuiProfile | null>(null);
