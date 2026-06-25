@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
-import { sbQuery, sbUpdate } from '../api';
 import type { HuiImpactProject } from './useSupabase';
 
 export type { HuiImpactProject };
@@ -24,12 +23,13 @@ export function useImpact(opts: UseImpactOptions = {}) {
   const fetchImpact = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const rows = await sbQuery<HuiImpactProject>('impact_projects', {}, {
-        select: 'id,name,category,description,icon,color,votes,status,goal_eur,awarded_eur,month',
-        order:  'votes.desc',
-        limit:  100,
-      });
-      setProjects(rows);
+      const { data, error: err } = await supabase
+        .from('impact_projects')
+        .select('id,name,category,description,icon,color,votes,status,goal_eur,awarded_eur,month')
+        .order('votes', { ascending: false })
+        .limit(100);
+      if (err) throw err;
+      setProjects((data ?? []) as HuiImpactProject[]);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -37,6 +37,7 @@ export function useImpact(opts: UseImpactOptions = {}) {
     }
   }, []);
 
+  // Realtime-Subscription
   useEffect(() => {
     if (!realtime) return;
     if (channelRef.current) supabase.removeChannel(channelRef.current);
@@ -49,6 +50,7 @@ export function useImpact(opts: UseImpactOptions = {}) {
     return () => { supabase.removeChannel(channel); };
   }, [realtime, fetchImpact]);
 
+  // Initialer Load + Interval
   useEffect(() => {
     fetchImpact();
     if (refreshInterval > 0) {
@@ -57,10 +59,26 @@ export function useImpact(opts: UseImpactOptions = {}) {
     }
   }, [fetchImpact, refreshInterval]);
 
-  const updateProject = useCallback(async (id: string, data: Record<string, unknown>): Promise<boolean> => {
-    const ok = await sbUpdate('impact_projects', id, data);
-    if (ok) fetchImpact();
-    return ok;
+  // updateProject → über Server-API (nicht direkt via Client)
+  const updateProject = useCallback(async (
+    id: string,
+    data: Record<string, unknown>,
+    sessionToken?: string,
+  ): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/impact-applications/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) fetchImpact();
+      return res.ok;
+    } catch {
+      return false;
+    }
   }, [fetchImpact]);
 
   return { projects, loading, error, refetch: fetchImpact, updateProject };
