@@ -1,5 +1,7 @@
-// frontend/src/app/flags/page.tsx
 'use client';
+// frontend/src/app/flags/page.tsx
+
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -408,6 +410,12 @@ function PreviewModal({ flagKey, flag, onClose }: { flagKey: string; flag: Flag;
 // ── Main Page ─────────────────────────────────────────────────
 export default function FlagsPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [flags, setFlags]             = useState<Flags>({});
   const [loading, setLoading]         = useState(true);
