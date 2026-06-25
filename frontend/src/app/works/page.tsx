@@ -1,12 +1,11 @@
 // frontend/src/app/works/page.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// SUPERADMIN-ROUTE: /works
-// Alle Logik, UI und Daten: @/components/views/WorksView
-// Für Employee: /employee/works/page.tsx (identische Komponente, role="employee")
-// ─────────────────────────────────────────────────────────────────────────────
 'use client';
 import { WorksView } from '@/components/views/WorksView';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { normalizeRole } from '@/lib/roles';
 
 export default function WorksPage() {
-  return <WorksView role="superadmin" />;
+  const { currentUser } = useAuth();
+  const role = normalizeRole(currentUser?.role);
+  return <WorksView role={role} />;
 }
