@@ -1,30 +1,23 @@
 // frontend/src/lib/impact-status.ts
-// Zentrale Status-Definition für Impact Applications
+// Echte DB-Statuswerte für Impact (ermittelt via SELECT DISTINCT)
+// impact_applications:  approved | rejected
+// impact_projects:      active | voting | won | archived
+
 export const APPLICATION_STATUS = {
-  PENDING:  'pending',
-  SUBMITTED:'submitted',
-  REVIEW:   'review',
   APPROVED: 'approved',
-  ACTIVE:   'active',
   REJECTED: 'rejected',
-  DELETED:  'deleted',
 } as const;
 
 export type ApplicationStatus = typeof APPLICATION_STATUS[keyof typeof APPLICATION_STATUS];
 
-/** Alle "Eingereicht / Ausstehend" Status */
-export const SUBMITTED_APPLICATION_STATES = [
-  'submitted', 'pending', 'review', 'waiting_for_approval',
-] as const;
+/** Impact Applications — direkt "approved" nach Einreichung in der HUI-App */
+export const SUBMITTED_APPLICATION_STATES = ['approved'] as const;
 
-/** Alle "Aktiv / Genehmigt" Status */
-export const ACTIVE_APPLICATION_STATES = ['approved', 'active'] as const;
+/** Impact Projects — aktive Zustände */
+export const ACTIVE_PROJECT_STATES   = ['active', 'voting', 'won'] as const;
+export const ARCHIVED_PROJECT_STATES = ['archived'] as const;
 
-export const ALLOWED_STATUS_TRANSITIONS: Record<string, ApplicationStatus[]> = {
-  pending:   ['approved', 'rejected', 'active'],
-  submitted: ['approved', 'rejected', 'active'],
-  review:    ['approved', 'rejected'],
-  approved:  ['rejected', 'active'],
-  active:    ['rejected'],
-  rejected:  ['approved', 'pending'],
+export const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
+  approved: ['rejected'],
+  rejected: ['approved'],
 };
