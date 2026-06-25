@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { isSuperAdmin } from '@/lib/roles';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
@@ -39,6 +41,12 @@ function timeAgo(iso: string) {
 
 export default function TicketsPage() {
   const { currentUser } = useAuth();
+  const router = useRouter();
+  useEffect(() => {
+    if (currentUser && !isSuperAdmin(currentUser.role)) {
+      router.replace(\'/employee\');
+    }
+  }, [currentUser, router]);
   const userRole = currentUser?.role;
   const [tickets, setTickets]         = useState<Ticket[]>([]);
   const [loading, setLoading]         = useState(true);
