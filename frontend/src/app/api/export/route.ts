@@ -1,6 +1,6 @@
 // frontend/src/app/api/export/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
@@ -30,7 +30,7 @@ function toCSV(rows: Record<string, unknown>[], columns: string[]): string {
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
