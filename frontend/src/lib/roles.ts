@@ -1,10 +1,10 @@
 // frontend/src/lib/roles.ts
 // ── HUI Admin Dashboard — Rollen-System ──────────────────────────────────────
 
-export type Role = 'superadmin' | 'employee';
+export type Role = 'superadmin' | 'admin' | 'employee';
 
 /** Normalisiert verschiedene Schreibweisen auf den kanonischen Typ */
-export function normalizeRole(role: string | undefined | null): 'superadmin' | 'employee' {
+export function normalizeRole(role: string | undefined | null): Role {
   if (!role) return 'employee'; // Sicherer Default — KEIN superadmin als Fallback
   const r = String(role).toLowerCase().trim();
   // Admin-Varianten: super_admin, superadmin, admin → superadmin (vollständige Dashboard-Rechte)
@@ -23,7 +23,7 @@ const ROLE_PRIORITY: Record<string, number> = {
 /** Prüft ob ein User die erforderliche Rolle hat */
 export function hasRole(
   userRole: string | undefined | null,
-  requiredRole: 'superadmin' | 'admin' | 'employee',
+  requiredRole: Role,
 ): boolean {
   const userPriority     = ROLE_PRIORITY[userRole ?? ''] ?? 0;
   const requiredPriority = ROLE_PRIORITY[requiredRole]   ?? 0;
