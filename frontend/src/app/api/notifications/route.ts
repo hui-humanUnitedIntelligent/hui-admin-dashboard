@@ -167,13 +167,19 @@ export async function PATCH(req: NextRequest) {
     const sb  = getServiceClient();
     const now = new Date().toISOString();
 
-    const { error, count } = await sb
+    const { count: beforeCount } = await sb
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    const { error } = await sb
       .from('notifications')
       .update({ is_read: true, read: true })
       .eq('user_id', userId)
-      .eq('is_read', false)
-      .select('id', { count: 'exact' });
+      .eq('is_read', false);
 
+    const count = beforeCount ?? 0;
     if (error) throw error;
 
     try {
