@@ -1,12 +1,11 @@
 // frontend/src/app/experiences/page.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// SUPERADMIN-ROUTE: /experiences
-// Alle Logik, UI und Daten: @/components/views/ExperiencesView
-// Für Employee: /employee/experiences/page.tsx (identische Komponente, role="employee")
-// ─────────────────────────────────────────────────────────────────────────────
 'use client';
 import { ErlebnisseProjekteView } from '@/components/views/ExperiencesView';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { normalizeRole } from '@/lib/roles';
 
 export default function ErlebnisseProjektePage() {
-  return <ErlebnisseProjekteView role="superadmin" />;
+  const { currentUser } = useAuth();
+  const role = normalizeRole(currentUser?.role);
+  return <ErlebnisseProjekteView role={role} />;
 }
