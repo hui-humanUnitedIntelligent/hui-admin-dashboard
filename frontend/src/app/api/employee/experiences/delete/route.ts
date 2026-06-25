@@ -1,7 +1,7 @@
 // frontend/src/app/api/employee/experiences/delete/route.ts
 // POST /api/employee/experiences/delete — Soft-Delete (Employee only)
 // Setzt status=deleted, deleted_by, deleted_at — KEIN Hard-Delete
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee, getAuthUser } from '@/app/lib/auth-guard';
 import { ok, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
