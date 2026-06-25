@@ -34,7 +34,7 @@ export function isSuperAdmin(role: string | undefined | null): boolean {
   return role === 'super_admin' || role === 'superadmin';
 }
 
-/** Prüft ob User mindestens Admin ist */
+/** Prüft ob User mindestens Admin ist (super_admin, superadmin, admin) */
 export function isAdmin(role: string | undefined | null): boolean {
   return isSuperAdmin(role) || role === 'admin';
 }
@@ -49,4 +49,39 @@ export function roleLabel(role: string | undefined | null): string {
   if (isSuperAdmin(role)) return 'Super Admin';
   if (role === 'admin')   return 'Admin';
   return 'Employee';
+}
+
+// ── Navigations-Rollen-Matrix ─────────────────────────────────────────────────
+
+/** Alle Routen die ausschließlich für Superadmin zugänglich sind */
+export const SUPERADMIN_ONLY_ROUTES = [
+  '/admins',
+  '/audit',
+  '/analytics',
+  '/broadcast',
+  '/exports',
+  '/flags',
+  '/impact',
+  '/impact-projekte',
+  '/ambassadors',
+  '/score-failures',
+  '/system',
+] as const;
+
+/** Prüft ob eine Route superadmin-only ist */
+export function isRouteAdminOnly(path: string): boolean {
+  return SUPERADMIN_ONLY_ROUTES.some(r => path === r || path.startsWith(r + '/'));
+}
+
+/** Gibt die erlaubten Routen für eine Rolle zurück */
+export function getAllowedRoutes(role: string | undefined | null): string[] {
+  const base = [
+    '/dashboard', '/users', '/tickets', '/works', '/experiences',
+    '/memberships', '/talents', '/bookings', '/churns', '/reports',
+    '/settings', '/reviews', '/transactions',
+  ];
+  if (isAdmin(role)) {
+    return [...base, ...SUPERADMIN_ONLY_ROUTES];
+  }
+  return base;
 }
