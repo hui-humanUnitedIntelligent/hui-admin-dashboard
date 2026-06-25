@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
   open: 'Offen', replied: 'Beantwortet', closed: 'Geschlossen',
 };
 const PRIORITY_VARIANT: Record<string, 'danger' | 'warning' | 'neutral' | 'success'> = {
-  urgent: 'danger', high: 'warning', normal: 'default', low: 'success',
+  urgent: 'danger', high: 'warning', normal: 'neutral', low: 'success',
 };
 
 function timeAgo(iso: string) {
