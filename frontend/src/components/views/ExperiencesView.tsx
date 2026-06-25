@@ -12,7 +12,8 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
-import { useExperiencesAndProjects, HuiEntry } from '@/lib/hooks/useSupabase';
+import { useExperiences } from '@/lib/hooks/useExperiences';
+import type { HuiEntry } from '@/lib/hooks/useExperiences';
 
 type TabKey = 'all' | 'pending' | 'published' | 'rejected' | 'draft' | 'deleted' | 'sensitive';
 
@@ -430,7 +431,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   const [localDel,      setLocalDel]     = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading]= useState<string|null>(null);
 
-  const { entries: all, loading, refetch } = useExperiencesAndProjects({ limit:1000, refreshInterval:0 }); // kein status-Filter → alle laden
+  const { entries: all, loading, refetch } = useExperiences({ limit:1000, refreshInterval:0 }); // kein status-Filter → alle laden
   const refetchAll = useCallback(() => refetch(), [refetch]);
 
   const counts = useMemo<Record<TabKey,number>>(() => ({
