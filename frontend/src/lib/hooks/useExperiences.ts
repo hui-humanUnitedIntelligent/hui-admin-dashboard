@@ -32,24 +32,28 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
   const [error,   setError]   = useState<string | null>(null);
   const channelRef            = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // ── Fetch via bestehende /api/experiences Route ──────────────────────
+  // ── Fetch via /api/experiences (Service Role) ────────────────────────
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const { getSessionToken } = await import('@/lib/session');
+      const token = await getSessionToken();
       const params = new URLSearchParams({ limit: String(limit) });
-      if (status) params.set('status', status);
-      const res = await fetch(`/api/experiences?${params}`);
-      if (res.ok) {
-        const rows = (await res.json()) as HuiEntry[];
-        const arr  = Array.isArray(rows) ? rows : [];
-        setEntries(arr);
-        setTotal(arr.length);
-      } else {
-        setError(`HTTP ${res.status}`);
-      }
+      // Nur filtern wenn explizit gesetzt (nicht 'all')
+      if (status && status !== 'all') params.set('status', status);
+      const res = await fetch(`/api/experiences?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      // API gibt Array direkt zurück (kein ok()-wrapper)
+      const arr = Array.isArray(json) ? json : [];
+      setEntries(arr);
+      setTotal(arr.length);
     } catch (e: unknown) {
       setError((e as Error).message);
+      console.error('[useExperiences]', e);
     } finally {
       setLoading(false);
     }
@@ -63,7 +67,7 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
     const channel = supabase
       .channel('admin:experiences')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'experiences' }, fetchEntries)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects'    }, fetchEntries)
+      // .on('postgres_changes', { event: '*', schema: 'public', table: 'projects'    }, fetchEntries) // table does not exist
       .subscribe();
 
     channelRef.current = channel;
