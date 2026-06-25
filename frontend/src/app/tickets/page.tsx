@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 import { getSessionToken } from '@/lib/session';
 
@@ -36,6 +38,8 @@ function timeAgo(iso: string) {
 }
 
 export default function TicketsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [tickets, setTickets]         = useState<Ticket[]>([]);
   const [loading, setLoading]         = useState(true);
   const [tab, setTab]                 = useState<'all' | 'open' | 'replied' | 'closed'>('open');
@@ -125,7 +129,15 @@ export default function TicketsPage() {
       title="Support-Tickets"
       headerActions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
+          
+      <PageHeader
+        title="Support-Tickets"
+        subtitle="Nutzeranfragen & Support"
+        actionsRole="admin"
+        userRole={userRole}
+      />
+
+<button
             onClick={() => setShowCreate(p => !p)}
             style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#0F1117', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
           >+ Ticket erstellen</button>
