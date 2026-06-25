@@ -57,7 +57,7 @@ export default function EmployeeExperiencesPage() {
     if(tab==='rejected') return e.approval_status==='rejected'||e.status==='rejected';
     if(tab==='deleted')  return e.approval_status==='deleted'||e.status==='deleted';
     return true;
-  }).filter(e=>{
+  }).filter((e: {approval_status?: string; status?: string; title?: string; category?: string})=>{
     const q=search.toLowerCase();
     return !q||(e.title||'').toLowerCase().includes(q)||(e.category||'').toLowerCase().includes(q);
   });
