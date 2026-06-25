@@ -45,14 +45,14 @@ export default function EmployeeExperiencesPage() {
 
   const counts = {
     pending: entries.filter(isPendingExp).length,
-    approved:entries.filter(e=>e.approval_status==='approved'||e.status==='published').length,
-    rejected:entries.filter(e=>e.approval_status==='rejected'||e.status==='rejected').length,
-    deleted: entries.filter(e=>e.approval_status==='deleted'||e.status==='deleted').length,
+    approved:entries.filter((e: {approval_status?: string; status?: string})=>e.approval_status==='approved'||e.status==='published').length,
+    rejected:entries.filter((e: {approval_status?: string; status?: string})=>e.approval_status==='rejected'||e.status==='rejected').length,
+    deleted: entries.filter((e: {approval_status?: string; status?: string})=>e.approval_status==='deleted'||e.status==='deleted').length,
     all:     entries.length,
   };
 
-  const filtered = entries.filter(e=>{
-    if(tab==='pending')  return isPendingExp(e);
+  const filtered = entries.filter((e: {approval_status?: string; status?: string})=>{
+    if(tab==='pending')  return isPendingExp(e as Record<string,string>);
     if(tab==='approved') return e.approval_status==='approved'||e.status==='published';
     if(tab==='rejected') return e.approval_status==='rejected'||e.status==='rejected';
     if(tab==='deleted')  return e.approval_status==='deleted'||e.status==='deleted';
