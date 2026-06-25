@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
-import { getServiceClient } from '@/app/lib/supabase-server';
+import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
+import { NOTIFICATION_TYPES } from '@/lib/notification-types';
 
 type TicketMeta = {
   status?:     string;
@@ -118,12 +119,25 @@ export async function POST(req: NextRequest) {
       if (existing.user_id) {
         try {
         await sb.from('notifications').insert({
-          user_id: existing.user_id, type: 'support_reply',
+          user_id: existing.user_id, type: NOTIFICATION_TYPES.TICKET_REPLY,
           title: 'Support hat geantwortet', message: reply.trim(),
           is_read: false, read: false, created_at: now,
         });
         } catch (_) {}
       }
+      // Activity Log
+      try {
+        const authH = req.headers.get('Authorization') ?? '';
+        const tok   = authH.replace('Bearer ', '');
+        const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
+        await sb.from('activity_logs').insert({
+          action:    'ticket_reply',
+          actor_id:  adminUser?.id ?? adminId ?? null,
+          target_id: ticketId,
+          metadata:  { before: { status: meta.status }, after: { status: 'replied' }, reply_excerpt: (reply ?? '').slice(0, 100) },
+          created_at: now,
+        });
+      } catch (_) {}
       return ok({ replied: true });
     }
 
@@ -131,12 +145,35 @@ export async function POST(req: NextRequest) {
       meta.status = action === 'close' ? 'closed' : 'open';
       const { error } = await sb.from('invitations').update({ text: JSON.stringify(meta) }).eq('id', ticketId);
       if (error) throw error;
+      // Activity Log
+      try {
+        const authH = req.headers.get('Authorization') ?? '';
+        const tok   = authH.replace('Bearer ', '');
+        const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
+        await sb.from('activity_logs').insert({
+          action:    `ticket_${meta.status}`,
+          actor_id:  adminUser?.id ?? adminId ?? null,
+          target_id: ticketId,
+          metadata:  { status: meta.status },
+          created_at: now,
+        });
+      } catch (_) {}
       return ok({ status: meta.status });
     }
 
     if (action === 'delete') {
       const { error } = await sb.from('invitations').delete().eq('id', ticketId);
       if (error) throw error;
+      // Activity Log
+      try {
+        const authH = req.headers.get('Authorization') ?? '';
+        const tok   = authH.replace('Bearer ', '');
+        const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
+        await sb.from('activity_logs').insert({
+          action: 'ticket_deleted', actor_id: adminUser?.id ?? adminId ?? null,
+          target_id: ticketId, metadata: { before: existing }, created_at: now,
+        });
+      } catch (_) {}
       return ok({ deleted: true, ticketId });
     }
 
