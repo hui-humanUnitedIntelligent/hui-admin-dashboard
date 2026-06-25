@@ -3,30 +3,49 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/hooks/useAuth';
 import { SUPABASE_URL } from '@/lib/api';
 
 type DashboardMode = 'super' | 'employee';
 
 export default function LoginPage() {
-  const { login, loading, error } = useAuth();
   const router = useRouter();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [mode, setMode]         = useState<DashboardMode>('super');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const ok = await login(email, password);
-    if (ok) {
-      // Speichere gewählten Modus
-      localStorage.setItem('hui_dashboard_mode', mode);
-      if (mode === 'employee') {
-        router.push('/employee/dashboard');
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/admin-login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          email,
+          password,
+          dashboard: mode === 'super' ? 'admin' : 'employee',
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        // Cookie ist gesetzt — direkt routen
+        localStorage.setItem('hui_dashboard_mode', mode);
+        if (mode === 'employee') {
+          router.push('/employee/works');
+        } else {
+          router.push('/works');
+        }
       } else {
-        router.push('/dashboard');
+        setError(data.error || 'Anmeldung fehlgeschlagen');
       }
+    } catch {
+      setError('Netzwerkfehler — bitte erneut versuchen');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,9 +91,7 @@ export default function LoginPage() {
         </div>
 
         {/* Dashboard-Auswahl */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20,
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
           {([
             { key: 'super',    label: 'Admin Dashboard',    icon: '🛡️', desc: 'Vollzugriff' },
             { key: 'employee', label: 'Employee Dashboard', icon: '👤', desc: 'Eingeschränkt' },
@@ -113,8 +130,6 @@ export default function LoginPage() {
           border: '1px solid var(--border)',
           borderRadius: 14, padding: 28,
         }}>
-
-          {/* Gewähltes Dashboard-Indikator */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 12px', marginBottom: 20,
@@ -148,8 +163,7 @@ export default function LoginPage() {
               type="email" value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@hui-platform.io"
-              required autoFocus
-              style={inputStyle}
+              required autoFocus style={inputStyle}
               onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
               onBlur={(e)  => (e.target.style.borderColor = 'var(--border)')}
             />
@@ -198,12 +212,6 @@ export default function LoginPage() {
               </>
             ) : `Anmelden → ${mode === 'super' ? 'Admin Dashboard' : 'Employee Dashboard'}`}
           </button>
-
-          {!isLive && (
-            <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg-tertiary)', borderRadius: 8, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
-              Demo: <strong style={{ color: 'var(--accent)' }}>admin@hui-platform.io</strong> / <strong style={{ color: 'var(--accent)' }}>admin123</strong>
-            </div>
-          )}
         </form>
 
       </div>
