@@ -412,7 +412,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
   });
 
   // ── EINEN einzigen useWorks-Call — alle Werke, Client filtert ──────────────
-  const SUBMITTED_WV = ['submitted','pending','pending_review','review','waiting_for_approval'];
+  const SUBMITTED_WV = ['pending_review']; // einziger echter DB-Status für 'eingereicht'
   const { works: allWorksRaw, loading, refetch: refetchAllTabs } = useWorks({ limit: 1000, refreshInterval: 0 });
 
   // Annotate all works with sensitive flag
@@ -422,7 +422,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
   const annotatedAll = useMemo(() => annotate(allWorksRaw), [allWorksRaw]);
 
   // Client-seitige Gruppen (kein zusätzlicher API-Call nötig)
-  const annotatedPending  = useMemo(() => annotatedAll.filter(w => SUBMITTED_WV.includes(w.status as string) || SUBMITTED_WV.includes((w as unknown as {approval_status?:string}).approval_status||'')), [annotatedAll]);
+  const annotatedPending  = useMemo(() => annotatedAll.filter(w => w.status === 'pending_review'), [annotatedAll]);
   const annotatedPublished= useMemo(() => annotatedAll.filter(w => w.status === 'published'), [annotatedAll]);
   const annotatedRejected = useMemo(() => annotatedAll.filter(w => w.status === 'rejected'), [annotatedAll]);
   const annotatedDraft    = useMemo(() => annotatedAll.filter(w => w.status === 'draft'), [annotatedAll]);
