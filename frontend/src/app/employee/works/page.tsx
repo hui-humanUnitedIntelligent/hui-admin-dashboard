@@ -56,7 +56,7 @@ export default function EmployeeWorksPage() {
     }
   }
 
-  const SUBMITTED = ['submitted','pending','pending_review','review','waiting_for_approval'];
+  const SUBMITTED = ['pending_review']; // einziger echter DB-Status
   const counts: Record<TabKey, number> = {
     pending:   works.filter(w=>SUBMITTED.includes(w.status||'')||SUBMITTED.includes(w.approval_status||'')).length,
     published: works.filter(w=>w.status==='published'||w.approval_status==='approved').length,
