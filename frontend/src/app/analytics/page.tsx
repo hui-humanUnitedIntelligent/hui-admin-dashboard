@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Profile { id: string; role: string; is_wirker: boolean; is_member: boolean; created_at: string; location_label?: string; membership_type?: string; }
@@ -111,6 +113,8 @@ function KPI({ label, value, sub, color, icon }: { label: string; value: string;
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function AnalyticsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [data, setData]       = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod]   = useState<'6m' | '3m' | '1m'>('6m');
@@ -186,7 +190,15 @@ export default function AnalyticsPage() {
       title="Analytics"
       headerActions={
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {tabBtn('1m', '1M')} {tabBtn('3m', '3M')} {tabBtn('6m', '6M')}
+          
+      <PageHeader
+        title="Analytics"
+        subtitle="Plattform-Metriken & Trends"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+{tabBtn('1m', '1M')} {tabBtn('3m', '3M')} {tabBtn('6m', '6M')}
           <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', marginLeft: 4 }}>↻</button>
         </div>
       }
