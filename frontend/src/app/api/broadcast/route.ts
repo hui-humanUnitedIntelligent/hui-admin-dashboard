@@ -1,6 +1,6 @@
 // frontend/src/app/api/broadcast/route.ts
 import { NextRequest } from 'next/server';
-import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
 import { NOTIFICATION_TYPES } from '@/lib/notification-types';
