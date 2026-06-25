@@ -2,7 +2,9 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import KPICard from '@/components/ui/KPICard';
 import { useImpactProjects, usePayments } from '@/lib/hooks/useSupabase';
 
@@ -77,6 +79,8 @@ function buildMonthlyBuckets(
 // Works werden nicht mehr für Impact-Berechnung verwendet
 
 export default function ImpactPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
   const { payments, loading: payLoading } = usePayments({ refreshInterval: 0, limit: 1000 });
 
@@ -205,7 +209,15 @@ export default function ImpactPage() {
       title="Impact Pool"
       headerActions={
         <button onClick={refetch} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-          ↻ Refresh
+          
+      <PageHeader
+        title="Impact Pool"
+        subtitle="Impact-Projekte & Pool-Verteilung"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+↻ Refresh
         </button>
       }
     >
