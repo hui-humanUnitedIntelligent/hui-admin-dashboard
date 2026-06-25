@@ -3,11 +3,13 @@ type AmbActionData = Record<string, unknown>;
 // frontend/src/app/ambassadors/page.tsx
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getSessionToken } from '@/lib/session';
+import { AMBASSADOR_LEVELS } from '@/lib/ambassador-levels';
+import type { AmbLevel } from '@/lib/ambassador-levels';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
 
 // ── Types ─────────────────────────────────────────────────────
-type AmbLevel   = 'bronze' | 'silver' | 'gold' | 'platinum';
 type MainTab    = 'active' | 'applications' | 'search' | 'logs';
 
 interface AmbRecord {
@@ -43,12 +45,10 @@ interface AmbStats {
 }
 
 // ── Design ────────────────────────────────────────────────────
-const LEVEL: Record<AmbLevel, {color:string;bg:string;icon:string;label:string}> = {
-  bronze:   { color:'#CD7F32', bg:'rgba(205,127,50,0.12)',  icon:'🥉', label:'Bronze'  },
-  silver:   { color:'#C0C0C0', bg:'rgba(192,192,192,0.12)', icon:'🥈', label:'Silber'  },
-  gold:     { color:'#FFD700', bg:'rgba(255,215,0,0.12)',   icon:'🥇', label:'Gold'    },
-  platinum: { color:'#B197FC', bg:'rgba(177,151,252,0.12)', icon:'💎', label:'Platin'  },
-};
+// LEVEL aus lib/ambassador-levels.ts
+const LEVEL = Object.fromEntries(
+  AMBASSADOR_LEVELS.map(l => [l.level, { color: l.color, bg: l.bg, icon: l.icon, label: l.label }])
+) as Record<AmbLevel, { color: string; bg: string; icon: string; label: string }>;
 const STATUS_COLORS: Record<string,{color:string;label:string}> = {
   active:   { color:'var(--green)',  label:'Aktiv'        },
   pending:  { color:'var(--gold)',   label:'Antrag offen' },
@@ -126,10 +126,10 @@ export default function AmbassadorsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [list, apps, s, l] = await Promise.all([
-      fetch('/api/ambassador?action=list').then(r=>r.json()).catch(()=>[]),
-      fetch('/api/ambassador?action=applications').then(r=>r.json()).catch(()=>[]),
-      fetch('/api/ambassador?action=stats').then(r=>r.json()).catch(()=>null),
-      fetch('/api/ambassador?action=logs').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/ambassador?action=list', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r=>r.json()).catch(()=>[]),
+      fetch('/api/ambassador?action=applications', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r=>r.json()).catch(()=>[]),
+      fetch('/api/ambassador?action=stats', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r=>r.json()).catch(()=>null),
+      fetch('/api/ambassador?action=logs', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r=>r.json()).catch(()=>[]),
     ]);
     setAmbassadors(Array.isArray(list)?list:[]);
     setApplications(Array.isArray(apps)?apps:[]);
@@ -163,7 +163,7 @@ export default function AmbassadorsPage() {
     if(q.length<2){setSearchResults([]);return;}
     searchRef.current = setTimeout(async()=>{
       setSearchLoading(true);
-      const r = await fetch('/api/ambassador?action=search&q=' + encodeURIComponent(q)).then(x=>x.json()).catch(()=>[]);
+      const r = await fetch('/api/ambassador?action=search&q=' + encodeURIComponent(q), { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(x=>x.json()).catch(()=>[]);
       setSearchResults(Array.isArray(r)?r:[]);
       setSearchLoading(false);
     },350);
@@ -172,7 +172,7 @@ export default function AmbassadorsPage() {
   const manualActivate = async(userId:string)=>{
     setActing(true);
     try {
-      const res = await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'activate',user_id:userId})});
+      const res = await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+(getSessionToken()||'')},body:JSON.stringify({action:'activate',user_id:userId})});
       const d = await res.json();
       if(res.ok){showToast(`✅ Ambassador aktiviert — ${d.referral_link}`,'success');load();doSearch(search);}
       else showToast(d.error||'Fehler','error');
@@ -352,7 +352,7 @@ export default function AmbassadorsPage() {
                     <div style={{display:'flex',gap:6}}>
                       <button disabled={acting} onClick={async()=>{
                         setActing(true);
-                        const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},
+                        const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+(getSessionToken()||'')},
                           body:JSON.stringify({action:'approve',user_id:userId,data:{application_id:appId}})});
                         if(res.ok){showToast('✅ Antrag genehmigt','success');load();}
                         else showToast('Fehler beim Genehmigen','error');
@@ -364,7 +364,7 @@ export default function AmbassadorsPage() {
                         const reason=prompt('Ablehnungsgrund (optional):');
                         if(reason===null)return;
                         setActing(true);
-                        const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json'},
+                        const res=await fetch('/api/ambassador',{method:'POST',headers:{'Content-Type':'application/json', Authorization:'Bearer '+(getSessionToken()||'')},
                           body:JSON.stringify({action:'reject',user_id:userId,data:{reason,application_id:appId}})});
                         if(res.ok){showToast('Antrag abgelehnt','info');load();}
                         else showToast('Fehler','error');
