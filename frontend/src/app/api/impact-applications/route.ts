@@ -7,11 +7,7 @@ import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, serverError, validationError, created } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-export const APPLICATION_STATUS = {
-  PENDING:  'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-} as const;
+import { APPLICATION_STATUS } from '@/lib/impact-status';
 
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
