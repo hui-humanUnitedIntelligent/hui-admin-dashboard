@@ -1,5 +1,7 @@
-// frontend/src/app/audit/page.tsx
 'use client';
+// frontend/src/app/audit/page.tsx
+
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -39,6 +41,12 @@ const ACTION_COLORS: Record<string, string> = {
 
 export default function AuditPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
