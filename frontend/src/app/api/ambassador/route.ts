@@ -1,6 +1,6 @@
 // frontend/src/app/api/ambassador/route.ts
 import { NextRequest } from 'next/server';
-import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, notFound, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 import { calcLevel, buildRefCode, buildRefLink, computeAmbassadorMetrics, rewardForLevelUp } from '@/lib/ambassador-engine';
