@@ -38,7 +38,14 @@ export default function MembershipsPage() {
 
   return (
     <DashboardLayout title="Mitgliedschaften" headerActions={
-      <button onClick={refetch} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻ Refresh</button>
+      <button onClick={refetch} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+      <PageHeader
+        title="Mitgliedschaften"
+        subtitle="Mitgliedschaftsstatus verwalten"
+        actionsRole="admin"
+        userRole={userRole}
+      />
+↻ Refresh</button>
     }>
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }} className="grid-4">
