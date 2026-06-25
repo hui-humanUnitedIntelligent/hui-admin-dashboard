@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
+import type { HuiWork } from '@/lib/hooks/useWorks';
 import { useWorks } from '@/lib/hooks/useSupabase';
 import { getSessionToken } from '@/lib/session';
 
@@ -58,11 +59,11 @@ export default function EmployeeWorksPage() {
 
   const SUBMITTED = ['pending_review']; // einziger echter DB-Status
   const counts: Record<TabKey, number> = {
-    pending:   works.filter(w=>SUBMITTED.includes(w.status||'')||SUBMITTED.includes(w.approval_status||'')).length,
-    published: works.filter(w=>w.status==='published'||w.approval_status==='approved').length,
-    rejected:  works.filter(w=>w.status==='rejected'||w.approval_status==='rejected').length,
-    flagged:   works.filter(w=>w.status==='flagged').length,
-    deleted:   works.filter(w=>w.status==='deleted').length,
+    pending:   works.filter((w: HuiWork)=>SUBMITTED.includes(w.status||'')||SUBMITTED.includes(w.approval_status||'')).length,
+    published: works.filter((w: HuiWork)=>w.status==='published'||w.approval_status==='approved').length,
+    rejected:  works.filter((w: HuiWork)=>w.status==='rejected'||w.approval_status==='rejected').length,
+    flagged:   works.filter((w: HuiWork)=>w.status==='flagged').length,
+    deleted:   works.filter((w: HuiWork)=>w.status==='deleted').length,
     all:       works.length,
   };
 
