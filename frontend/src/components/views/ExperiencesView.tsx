@@ -435,11 +435,11 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   const [localDel,      setLocalDel]     = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading]= useState<string|null>(null);
 
-  const { entries: all, loading, refetch } = useExperiencesAndProjects({ status:'all', limit:1000, refreshInterval:0 });
+  const { entries: all, loading, refetch } = useExperiencesAndProjects({ limit:1000, refreshInterval:0 }); // kein status-Filter → alle laden
   const refetchAll = useCallback(() => refetch(), [refetch]);
 
   const counts = useMemo<Record<TabKey,number>>(() => ({
-    all:       all.filter(e=>isApproved(e)).length,
+    all:       all.filter(e=>!isDeleted(e)).length,
     published: all.filter(e=>isApproved(e)).length,
     pending:   all.filter(e=>isPending(e)).length,
     rejected:  all.filter(e=>isRejected(e)).length,
@@ -457,7 +457,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     else if (tab==='draft')     base = visible.filter(e=>isDraft(e));
     else if (tab==='deleted')   base = visible.filter(e=>isDeleted(e));
     else if (tab==='sensitive') base = visible.filter(e=>!isDeleted(e) && detectSensitiveExp(e).flagged);
-    else                        base = visible.filter(e=>isApproved(e));
+    else                        base = visible.filter(e=>!isDeleted(e)); // 'all' → alles außer gelöscht
     if (!search.trim()) return base;
     const q = search.toLowerCase();
     return base.filter(e => [e.title,e.category,e.description].some(v=>(v||'').toLowerCase().includes(q)));
