@@ -2,8 +2,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { useKPIs, useGrowthChart } from '@/lib/hooks/useSupabase';
 import { getStoredUser } from '@/lib/api';
 
@@ -11,6 +13,8 @@ function fmtNum(n: number) { return n >= 1000 ? `${(n/1000).toFixed(1)}k` : Stri
 function fmtEur(n: number) { return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); }
 
 export default function EmployeeDashboard() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const router = useRouter();
   const { totalUsers, activeMembers: activeMemberships, totalWorks, totalPayments, activeBookings, monthlyRevenue, loading } = useKPIs();
   const { labels: chartLabels, newUsers: chartNewUsers } = useGrowthChart();
@@ -46,7 +50,15 @@ export default function EmployeeDashboard() {
 
   return (
     <EmployeeLayout title="Employee Dashboard">
-      <div style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
+      
+      <PageHeader
+        title="Dashboard"
+        subtitle="Employee-Übersicht"
+        actionsRole="employee"
+        userRole={userRole}
+      />
+
+<div style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
 
         {/* Begrüßung */}
         <div style={{ marginBottom: 24 }}>
