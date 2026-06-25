@@ -1,12 +1,10 @@
 // frontend/src/lib/hooks/useNotifications.ts
-// ── HUI Admin — useNotifications Hook mit Realtime ───────────────────────
+// ── HUI Admin — useNotifications Hook (Server-API + Realtime) ────────────────
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
-import { sbQuery, sbCount, sbUpdate } from '../api';
 import { getSessionToken } from '@/lib/session';
-
 
 export interface AdminNotification {
   id:          string;
@@ -18,6 +16,7 @@ export interface AdminNotification {
   metadata:    Record<string, unknown> | null;
   entity_id:   string | null;
   entity_type: string | null;
+  action_url:  string | null;
   created_at:  string;
 }
 
@@ -30,37 +29,34 @@ export interface UseNotificationsOptions {
   realtime?:        boolean;
 }
 
-
-
 export function useNotifications(opts: UseNotificationsOptions = {}) {
   const { userId, type, unreadOnly, limit = 100, refreshInterval = 0, realtime = true } = opts;
+
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [total,         setTotal]         = useState(0);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState<string | null>(null);
-  const channelRef                        = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const params: Record<string, string> = {};
-      if (userId)    params['user_id'] = `eq.${userId}`;
-      if (type)      params['type']    = `eq.${type}`;
-      if (unreadOnly) params['is_read'] = 'eq.false';
+      const token = getSessionToken();
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (userId)    params.set('user_id', userId);
+      if (type)      params.set('type', type);
+      if (unreadOnly) params.set('unread', 'true');
 
-      const [rows, count, unread] = await Promise.all([
-        sbQuery<AdminNotification>('notifications', params, {
-          select: 'id,user_id,type,title,body,is_read,metadata,entity_id,entity_type,created_at',
-          order:  'created_at.desc',
-          limit,
-        }),
-        sbCount('notifications', params),
-        sbCount('notifications', { ...params, is_read: 'eq.false' }),
-      ]);
-      setNotifications(rows);
-      setTotal(count);
-      setUnreadCount(unread);
+      const res = await fetch(`/api/notifications?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const d    = json.data ?? {};
+      setNotifications(d.notifications ?? []);
+      setTotal(d.total ?? 0);
+      setUnreadCount(d.unreadCount ?? 0);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -68,13 +64,13 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     }
   }, [userId, type, unreadOnly, limit]);
 
+  // Realtime-Subscription via supabase-js (nur READ — kein Schreiben)
   useEffect(() => {
     if (!realtime) return;
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     const channel = supabase
       .channel('admin:notifications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications'       }, fetchNotifications)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_events' }, fetchNotifications)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchNotifications)
       .subscribe();
     channelRef.current = channel;
     return () => { supabase.removeChannel(channel); };
@@ -88,23 +84,50 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     }
   }, [fetchNotifications, refreshInterval]);
 
+  // markRead → Server-API (KEIN direktes sbUpdate)
   const markRead = useCallback(async (id: string): Promise<boolean> => {
+    // Optimistic UI update
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-    return sbUpdate('notifications', id, { is_read: true });
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    try {
+      const token = getSessionToken();
+      const res = await fetch(`/api/notifications/${id}`, {
+        method:  'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ is_read: true }),
+      });
+      if (!res.ok) {
+        // Rollback bei Fehler
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: false } : n));
+        setUnreadCount(prev => prev + 1);
+      }
+      return res.ok;
+    } catch {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: false } : n));
+      return false;
+    }
   }, []);
 
+  // sendNotification → Server-API
   const sendNotification = useCallback(async (
     targetUserId: string,
-    type: string,
+    notifType: string,
     title: string,
     body: string,
     metadata: Record<string, unknown> = {}
   ): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/notifications`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSessionToken()}` },
-        body: JSON.stringify({ notification: { user_id: targetUserId, type, title, body, metadata, is_read: false } }),
+      const token = getSessionToken();
+      const res = await fetch('/api/notifications', {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ user_id: targetUserId, type: notifType, title, body, metadata }),
       });
       if (res.ok) fetchNotifications();
       return res.ok;
@@ -117,6 +140,7 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     notifications, total, unreadCount,
     loading, error,
     refetch: fetchNotifications,
-    markRead, sendNotification,
+    markRead,
+    sendNotification,
   };
 }
