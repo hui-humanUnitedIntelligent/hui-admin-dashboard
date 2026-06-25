@@ -1,6 +1,6 @@
 // frontend/src/app/api/bulk/route.ts
 import { NextRequest } from 'next/server';
-import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
