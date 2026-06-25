@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import Modal from '@/components/ui/Modal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Button from '@/components/ui/Button';
@@ -873,6 +875,8 @@ function NotesPanel({ userId }: { userId: string }) {
 // ── MAIN PAGE ───────────────────────────────────────────────────────────────
 // ════════════════════════════════════════════════════════════════════════════
 export default function EmployeeUsersPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [tab, setTab]               = useState<UserTab>('active');
   const [search, setSearch]         = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -980,7 +984,15 @@ export default function EmployeeUsersPage() {
       title="User Management"
       headerActions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {blockedProfiles.length > 0 && (
+          
+      <PageHeader
+        title="User-Management"
+        subtitle="Nutzer einsehen & bearbeiten"
+        actionsRole="employee"
+        userRole={userRole}
+      />
+
+{blockedProfiles.length > 0 && (
             <button onClick={() => setTab('blocked')} style={{ fontSize: 11, background: 'var(--gold-dim)', color: 'var(--gold)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--gold)', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
               🚫 {blockedProfiles.length} blockiert
             </button>
