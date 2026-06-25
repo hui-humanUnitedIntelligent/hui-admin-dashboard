@@ -22,9 +22,10 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await fetch('/api/auth/admin-login', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body:        JSON.stringify({
           email,
           password,
           dashboard: mode === 'super' ? 'admin' : 'employee',
