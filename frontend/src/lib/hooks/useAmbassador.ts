@@ -4,21 +4,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSessionToken } from '@/lib/session';
 
+// Interface hält snake_case für Backwards-Kompatibilität mit bestehenden Pages
 export interface AmbassadorStats {
-  activeAmbassadors:    number;
-  pendingApplications:  number;
-  totalReferrals:       number;
-  totalRevenue:         number;
-  netImpact:            number;
-  levelDistribution:    Record<string, number>;
+  active_ambassadors:   number;
+  pending_applications: number;
+  total_referrals:      number;
+  total_revenue:        number;
+  net_impact:           number;
+  level_distribution:   Record<string, number>;
   loading:              boolean;
   error:                string | null;
 }
 
 const DEFAULT: AmbassadorStats = {
-  activeAmbassadors: 0, pendingApplications: 0, totalReferrals: 0,
-  totalRevenue: 0, netImpact: 0,
-  levelDistribution: { bronze: 0, silver: 0, gold: 0, platinum: 0 },
+  active_ambassadors: 0, pending_applications: 0, total_referrals: 0,
+  total_revenue: 0, net_impact: 0,
+  level_distribution: { bronze: 0, silver: 0, gold: 0, platinum: 0 },
   loading: true, error: null,
 };
 
@@ -33,15 +34,15 @@ export function useAmbassadorStats(refreshInterval = 60000): AmbassadorStats {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // Unterstütze beide Response-Shapes (camelCase aus neuer Route)
+      // Normalisiere: API gibt camelCase → wir mappen auf snake_case Interface
       const d = json.data ?? json;
       setStats({
-        activeAmbassadors:   d.activeAmbassadors   ?? d.active_ambassadors   ?? 0,
-        pendingApplications: d.pendingApplications ?? d.pending_applications ?? 0,
-        totalReferrals:      d.totalReferrals       ?? d.total_referrals       ?? 0,
-        totalRevenue:        d.totalRevenue         ?? d.total_revenue         ?? 0,
-        netImpact:           d.netImpact            ?? d.net_impact            ?? 0,
-        levelDistribution:   d.levelDistribution    ?? d.level_distribution    ?? { bronze: 0, silver: 0, gold: 0, platinum: 0 },
+        active_ambassadors:   d.activeAmbassadors   ?? d.active_ambassadors   ?? 0,
+        pending_applications: d.pendingApplications ?? d.pending_applications ?? 0,
+        total_referrals:      d.totalReferrals       ?? d.total_referrals       ?? 0,
+        total_revenue:        d.totalRevenue         ?? d.total_revenue         ?? 0,
+        net_impact:           d.netImpact            ?? d.net_impact            ?? 0,
+        level_distribution:   d.levelDistribution    ?? d.level_distribution    ?? { bronze: 0, silver: 0, gold: 0, platinum: 0 },
         loading: false, error: null,
       });
     } catch (e) {
