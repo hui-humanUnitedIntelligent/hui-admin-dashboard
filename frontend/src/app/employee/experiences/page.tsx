@@ -39,7 +39,7 @@ export default function EmployeeExperiencesPage() {
     finally{setBusy(null);}
   }
 
-  const SUBMITTED_EXP = ['submitted','pending','pending_review','review','waiting_for_approval'];
+  const SUBMITTED_EXP = ['pending_review']; // einziger echter DB-Status
   const isPendingExp = (e: typeof entries[0]) => 
     SUBMITTED_EXP.includes(e.approval_status||'') || SUBMITTED_EXP.includes(e.status||'');
 
