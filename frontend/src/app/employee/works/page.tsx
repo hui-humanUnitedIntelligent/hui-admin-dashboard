@@ -67,14 +67,14 @@ export default function EmployeeWorksPage() {
     all:       works.length,
   };
 
-  const filtered = works.filter(w => {
+  const filtered = works.filter((w: HuiWork) => {
     if (tab==='pending')   return SUBMITTED.includes(w.status||'')||SUBMITTED.includes(w.approval_status||'');
     if (tab==='published') return w.status==='published'||w.approval_status==='approved';
     if (tab==='rejected')  return w.status==='rejected'||w.approval_status==='rejected';
     if (tab==='flagged')   return w.status==='flagged';
     if (tab==='deleted')   return w.status==='deleted';
     return true;
-  }).filter(w => {
+  }).filter((w: HuiWork) => {
     const q = search.toLowerCase();
     return !q||(w.title||'').toLowerCase().includes(q)||(w.category||'').toLowerCase().includes(q);
   });
@@ -121,7 +121,7 @@ export default function EmployeeWorksPage() {
               ))}
             </tr></thead>
             <tbody>
-              {filtered.map(w => {
+              {filtered.map((w: HuiWork) => {
                 const isDeleted = w.status==='deleted' || deletedIds.has(w.id);
                 const isBusy = busy === w.id;
                 return (
