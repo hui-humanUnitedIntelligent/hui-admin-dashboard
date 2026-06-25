@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await sb
       .from('impact_score_failures')
-      .select('id,user_id,project_name,short_desc,kategorie,funding_goal,ai_score,grund,created_at')
+      .select('id,user_id,project_name,short_desc,problem,umsetzung,kategorie,funding_goal,ai_score,grund,status,deleted_by,deleted_at,created_at')
       .order('created_at', { ascending: false })
       .limit(limit);
 
