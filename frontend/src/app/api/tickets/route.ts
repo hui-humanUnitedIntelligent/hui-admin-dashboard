@@ -116,11 +116,13 @@ export async function POST(req: NextRequest) {
 
       // Nutzer benachrichtigen
       if (existing.user_id) {
+        try {
         await sb.from('notifications').insert({
           user_id: existing.user_id, type: 'support_reply',
           title: 'Support hat geantwortet', message: reply.trim(),
           is_read: false, read: false, created_at: now,
-        }).catch(() => {});
+        });
+        } catch (_) {}
       }
       return ok({ replied: true });
     }
