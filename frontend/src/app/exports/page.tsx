@@ -1,4 +1,5 @@
 'use client';
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -140,6 +141,12 @@ function toLog(allData: Record<string, Record<string, unknown>[]>, selected: str
 
 export default function ExportsPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [selected, setSelected]   = useState<Set<string>>(new Set());
   const [status, setStatus]       = useState<Status>('idle');
