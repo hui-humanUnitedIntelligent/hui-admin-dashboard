@@ -2,17 +2,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = [
-  '/login',
-  '/api/auth/',
-  '/api/auth/debug',
-];
-
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Public Routen immer erlauben
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+  // Public: Login + ALLE Auth-API-Routen (egal ob Query, RSC, Next.js intern)
+  if (
+    pathname === '/login' ||
+    pathname.startsWith('/api/auth')
+  ) {
     return NextResponse.next();
   }
 
