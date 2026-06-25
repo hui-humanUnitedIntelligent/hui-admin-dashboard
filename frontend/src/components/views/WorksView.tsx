@@ -415,7 +415,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
   const { works: allWorks,     loading,        refetch: refetchAll  } = useWorks({ status: 'all',     limit: 500, refreshInterval: 0 });
   const { works: deletedWorks, refetch: refetchDeleted } = useWorks({ status: 'deleted', limit: 500, refreshInterval: 0 });
   const { works: flaggedWorks,  refetch: refetchFlagged  } = useWorks({ status: 'flagged',         limit: 500, refreshInterval: 0 });
-  const { works: pendingWorks,  refetch: refetchPending  } = useWorks({ status: 'pending_review', limit: 500, refreshInterval: 0 });
+  const { works: pendingWorks,  refetch: refetchPending  } = useWorks({ status: 'submitted', limit: 500, refreshInterval: 0 });
   const { works: rejectedWorks, refetch: refetchRejected } = useWorks({ status: 'rejected',        limit: 500, refreshInterval: 0 });
 
   const refetchAllTabs = useCallback(() => {
@@ -438,7 +438,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
 
   // Tab counts
     const counts: Record<TabKey, number> = useMemo(() => ({
-    all:       annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)).length,
+    all:       annotatedAll.filter(w => !(['deleted','flagged','pending_review','submitted','review','waiting_for_approval','rejected'] as string[]).includes(w.status as string)).length,
     published: annotatedAll.filter(w => w.status === 'published').length,
     pending:   annotatedPending.length,
     rejected:  annotatedRejected.length,
@@ -458,7 +458,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
     else if (tab === 'draft')     base = annotatedAll.filter(w => w.status === 'draft');
     else if ((tab as string) === 'pending')   base = annotatedPending;
     else if ((tab as string) === 'rejected')  base = annotatedRejected;
-    else base = annotatedAll.filter(w => !(['deleted','flagged','pending_review','rejected'] as string[]).includes(w.status as string)); // 'all'
+    else base = annotatedAll.filter(w => !(['deleted','flagged','pending_review','submitted','review','waiting_for_approval','rejected'] as string[]).includes(w.status as string)); // 'all'
 
     if (search) {
       const q = search.toLowerCase();
