@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_PATHS = [
   '/login',
   '/api/auth/',
+  '/api/auth/debug',
 ];
 
 export function middleware(req: NextRequest) {
