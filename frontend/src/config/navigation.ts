@@ -106,8 +106,10 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     icon: '🎨',
     items: [
       { href: '/employee/works',        label_de: 'Werke & Content',       label_en: 'Works & Content',        icon: '🖼️', roles: ['superadmin', 'employee'] },
-      { href: '/employee/experiences',  label_de: 'Erlebnisse & Projekte', label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin'] },
-      { href: '/employee/memberships',  label_de: 'Mitgliedschaften',      label_en: 'Memberships',            icon: '🏅', roles: ['superadmin'] },
+      { href: '/employee/experiences',  label_de: 'Erlebnisse & Projekte', label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin', 'employee'] },
+      { href: '/employee/memberships',  label_de: 'Mitgliedschaften',      label_en: 'Memberships',            icon: '🏅', roles: ['superadmin', 'employee'] },
+      { href: '/employee/impact',       label_de: 'Impact Projekte',       label_en: 'Impact Projects',        icon: '🌿', roles: ['superadmin', 'employee'] },
+      { href: '/employee/reasons',      label_de: 'Ablehnungsgründe',      label_en: 'Rejection Reasons',      icon: '📋', roles: ['superadmin', 'employee'] },
     ],
   },
   {
