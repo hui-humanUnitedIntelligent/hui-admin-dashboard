@@ -3,7 +3,7 @@
 // Uses SUPABASE_SERVICE_ROLE_KEY (server-only, never exposed to client)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 
 const SUPABASE_URL          = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -92,7 +92,7 @@ async function logActivity(userId: string, action: string, meta: Record<string, 
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   if (!SUPABASE_SERVICE_KEY) {
@@ -538,7 +538,7 @@ export async function POST(req: NextRequest) {
 
 // ── GET handler — simple table read for dashboard widgets ─────────────────
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
