@@ -39,20 +39,23 @@ export default function EmployeeExperiencesPage() {
     finally{setBusy(null);}
   }
 
+  const SUBMITTED_EXP = ['submitted','pending','pending_review','review','waiting_for_approval'];
+  const isPendingExp = (e: typeof entries[0]) => 
+    SUBMITTED_EXP.includes(e.approval_status||'') || SUBMITTED_EXP.includes(e.status||'');
+
   const counts = {
-    pending: entries.filter(e=>e.approval_status==='pending'||(!e.approval_status&&e.status==='draft')).length,
-    approved:entries.filter(e=>e.approval_status==='approved').length,
-    rejected:entries.filter(e=>e.approval_status==='rejected').length,
+    pending: entries.filter(isPendingExp).length,
+    approved:entries.filter(e=>e.approval_status==='approved'||e.status==='published').length,
+    rejected:entries.filter(e=>e.approval_status==='rejected'||e.status==='rejected').length,
     deleted: entries.filter(e=>e.approval_status==='deleted'||e.status==='deleted').length,
     all:     entries.length,
   };
 
   const filtered = entries.filter(e=>{
-    const status = e.approval_status || e.status || '';
-    if(tab==='pending')  return status==='pending'||(!e.approval_status&&e.status==='draft');
-    if(tab==='approved') return status==='approved';
-    if(tab==='rejected') return status==='rejected';
-    if(tab==='deleted')  return status==='deleted';
+    if(tab==='pending')  return isPendingExp(e);
+    if(tab==='approved') return e.approval_status==='approved'||e.status==='published';
+    if(tab==='rejected') return e.approval_status==='rejected'||e.status==='rejected';
+    if(tab==='deleted')  return e.approval_status==='deleted'||e.status==='deleted';
     return true;
   }).filter(e=>{
     const q=search.toLowerCase();
