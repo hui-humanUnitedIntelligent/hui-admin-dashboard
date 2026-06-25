@@ -56,9 +56,10 @@ export default function EmployeeWorksPage() {
     }
   }
 
+  const SUBMITTED = ['submitted','pending','pending_review','review','waiting_for_approval'];
   const counts: Record<TabKey, number> = {
-    pending:   works.filter(w=>w.approval_status==='pending'||w.status==='pending').length,
-    published: works.filter(w=>w.status==='published').length,
+    pending:   works.filter(w=>SUBMITTED.includes(w.status||'')||SUBMITTED.includes(w.approval_status||'')).length,
+    published: works.filter(w=>w.status==='published'||w.approval_status==='approved').length,
     rejected:  works.filter(w=>w.status==='rejected'||w.approval_status==='rejected').length,
     flagged:   works.filter(w=>w.status==='flagged').length,
     deleted:   works.filter(w=>w.status==='deleted').length,
@@ -66,8 +67,8 @@ export default function EmployeeWorksPage() {
   };
 
   const filtered = works.filter(w => {
-    if (tab==='pending')   return w.approval_status==='pending'||w.status==='pending';
-    if (tab==='published') return w.status==='published';
+    if (tab==='pending')   return SUBMITTED.includes(w.status||'')||SUBMITTED.includes(w.approval_status||'');
+    if (tab==='published') return w.status==='published'||w.approval_status==='approved';
     if (tab==='rejected')  return w.status==='rejected'||w.approval_status==='rejected';
     if (tab==='flagged')   return w.status==='flagged';
     if (tab==='deleted')   return w.status==='deleted';
