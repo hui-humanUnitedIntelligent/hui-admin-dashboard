@@ -60,11 +60,22 @@ async function fetchFailures(): Promise<ScoreFailure[]> {
   return res.json();
 }
 
-async function deleteFailure(id: string): Promise<void> {
-  const res = await fetch(
-    `/api/score-failures/${id}`,
-    { method: 'DELETE' }
-  );
+async function softDeleteFailure(id: string): Promise<void> {
+  const token = getSessionToken();
+  const res = await fetch('/api/employee/reasons/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function hardDeleteFailure(id: string): Promise<void> {
+  const token = getSessionToken();
+  const res = await fetch(`/api/admin/reasons/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error(await res.text());
 }
 
@@ -151,17 +162,36 @@ export default function ScoreFailuresView() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [deletingId, setDeletingId] = useState<string|null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
+
   const handleDelete = async (id: string) => {
     if (!confirm('Diesen Eintrag löschen?')) return;
+    setDeletingId(id);
     try {
-      await deleteFailure(id);
-      setFailures(prev => prev.filter(f => f.id !== id));
-      showToast('Eintrag gelöscht', 'success');
+      await softDeleteFailure(id);
+      setFailures(prev => prev.map(f => f.id===id ? { ...f, status: 'deleted' } : f));
+      showToast('Eintrag gelöscht (Soft-Delete)', 'success');
     } catch { showToast('Fehler beim Löschen', 'error'); }
+    finally { setDeletingId(null); }
+  };
+
+  const handleHardDelete = async (id: string) => {
+    if (!confirm('⚠️ Endgültig löschen? Diese Aktion ist irreversibel!')) return;
+    setDeletingId(id);
+    try {
+      await hardDeleteFailure(id);
+      setFailures(prev => prev.filter(f => f.id !== id));
+      showToast('Endgültig gelöscht', 'success');
+    } catch { showToast('Fehler beim endgültigen Löschen', 'error'); }
+    finally { setDeletingId(null); }
   };
 
   // Filter + Search
   const filtered = failures.filter(f => {
+    const fStatus = (f as ScoreFailure & { status?: string }).status;
+    if (!showDeleted && fStatus === 'deleted') return false;
+    if (showDeleted && fStatus !== 'deleted') return false;
     const matchGrund = filterGrund === 'all' || f.grund === filterGrund;
     const q = search.toLowerCase();
     const matchSearch = !q || f.project_name.toLowerCase().includes(q)
@@ -193,6 +223,12 @@ export default function ScoreFailuresView() {
           <p style={{ margin: 0, fontSize: 14, color: 'var(--text-muted)' }}>
             Projekte, die den KI-Score nicht erreicht haben (Schwelle: 45/100) — vor der Admin-Prüfung automatisch gefiltert.
           </p>
+        </div>
+
+        {/* Tabs: Aktiv / Gelöscht */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={() => setShowDeleted(false)} style={{ padding:'6px 16px', borderRadius:20, border:'1px solid var(--border)', background:!showDeleted?'var(--accent)':'transparent', color:!showDeleted?'#0f1117':'var(--text-muted)', fontWeight:600, fontSize:12, cursor:'pointer' }}>Aktiv</button>
+          <button onClick={() => setShowDeleted(true)}  style={{ padding:'6px 16px', borderRadius:20, border:'1px solid var(--border)', background:showDeleted?'var(--accent)':'transparent', color:showDeleted?'#0f1117':'var(--text-muted)', fontWeight:600, fontSize:12, cursor:'pointer' }}>🗑 Gelöscht</button>
         </div>
 
         {/* KPI-Karten */}
