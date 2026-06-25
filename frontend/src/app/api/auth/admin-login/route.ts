@@ -3,7 +3,6 @@
 // Body: { email, password, dashboard: 'admin' | 'employee' }
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getAnonClient, getServiceClient } from '@/app/lib/supabase-server';
 import { normalizeRole } from '@/lib/roles';
 
@@ -71,32 +70,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4) Cookies setzen (HTTP-Only + Domain-Fix)
-    const cookieStore = cookies();
+    // 4) Cookies via response.cookies.set() — kompatibel mit Next.js Middleware
+    const response = NextResponse.json({ ok: true, role: finalRole });
 
-    cookieStore.set({
-      name: 'hui_admin_token',
-      value: access_token,
+    response.cookies.set('hui_admin_token', access_token, {
       httpOnly: true,
-      secure: IS_PROD,
+      secure: true,
       sameSite: 'lax',
       path: '/',
       maxAge: MAX_AGE,
-      domain: COOKIE_DOMAIN,
     });
 
-    cookieStore.set({
-      name: 'hui_admin_role',
-      value: finalRole,
+    response.cookies.set('hui_admin_role', finalRole, {
       httpOnly: false,
-      secure: IS_PROD,
+      secure: true,
       sameSite: 'lax',
       path: '/',
       maxAge: MAX_AGE,
-      domain: COOKIE_DOMAIN,
     });
 
-    return NextResponse.json({ ok: true, role: finalRole });
+    return response;
   } catch (err) {
     console.error('[admin-login]', err);
     return NextResponse.json(
