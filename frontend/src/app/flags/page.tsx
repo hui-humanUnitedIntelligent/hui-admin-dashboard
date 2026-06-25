@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 
 interface Flag {
@@ -405,6 +407,8 @@ function PreviewModal({ flagKey, flag, onClose }: { flagKey: string; flag: Flag;
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function FlagsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [flags, setFlags]             = useState<Flags>({});
   const [loading, setLoading]         = useState(true);
   const [toggling, setToggling]       = useState<Record<string, boolean>>({});
@@ -499,7 +503,15 @@ export default function FlagsPage() {
       title="Feature-Flags"
       headerActions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: 'var(--green)', background: 'var(--green-dim)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--green)', fontWeight: 600 }}>✅ {enabledCount} aktiv</span>
+          
+      <PageHeader
+        title="Feature-Flags"
+        subtitle="Plattform-Features steuern"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
+
+<span style={{ fontSize: 11, color: 'var(--green)', background: 'var(--green-dim)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--green)', fontWeight: 600 }}>✅ {enabledCount} aktiv</span>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>🔴 {disabledCount} inaktiv</span>
           <button onClick={() => setShowCreate(p => !p)} style={{ padding: '5px 12px', background: 'var(--accent)', border: 'none', borderRadius: 8, fontSize: 11, color: '#0F1117', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-body)' }}>+ Flag</button>
           <button onClick={resetDefaults} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↺ Reset</button>
