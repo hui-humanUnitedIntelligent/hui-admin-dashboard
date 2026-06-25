@@ -47,7 +47,7 @@ interface ImpactApplication {
   created_at: string;
 }
 
-type TabKey = 'all' | 'pending' | 'approved' | 'rejected';
+type TabKey = 'all' | 'submitted' | 'pending' | 'approved' | 'active' | 'rejected' | 'deleted';
 
 
 async function fetchApplications(): Promise<ImpactApplication[]> {
@@ -664,8 +664,15 @@ export default function ImpactApplicationsView() {
 
   useEffect(() => { load(); }, [load]);
 
+  const SUBMITTED_IA = ['submitted','pending','review','waiting_for_approval'];
   const filtered = apps.filter(a => {
-    if (tab !== 'all' && a.status !== tab) return false;
+    if (tab === 'submitted') {
+      if (!SUBMITTED_IA.includes(a.status)) return false;
+    } else if (tab === 'active') {
+      if (!['approved','active'].includes(a.status)) return false;
+    } else if (tab !== 'all') {
+      if (a.status !== tab) return false;
+    }
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -678,11 +685,15 @@ export default function ImpactApplicationsView() {
     return true;
   });
 
+  const SUBMITTED_IA2 = ['submitted','pending','review','waiting_for_approval'];
   const counts = {
-    all:      apps.length,
-    pending:  apps.filter(a => a.status === 'pending').length,
-    approved: apps.filter(a => a.status === 'approved').length,
-    rejected: apps.filter(a => a.status === 'rejected').length,
+    all:       apps.length,
+    submitted: apps.filter(a => SUBMITTED_IA2.includes(a.status)).length,
+    pending:   apps.filter(a => a.status === 'pending').length,
+    approved:  apps.filter(a => a.status === 'approved').length,
+    active:    apps.filter(a => ['approved','active'].includes(a.status)).length,
+    rejected:  apps.filter(a => a.status === 'rejected').length,
+    deleted:   apps.filter(a => a.status === 'deleted').length,
   };
 
   const handleApprove = async (id: string) => {
