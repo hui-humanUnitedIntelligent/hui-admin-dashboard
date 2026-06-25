@@ -15,11 +15,13 @@ export interface AuthResult {
 
 // ── Interne Token-Validierung ─────────────────────────────────────────────────
 async function validateToken(req: NextRequest): Promise<AuthResult> {
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return { user: null, error: 'Unauthorized', status: 401 };
+  // Cookie-First, dann Bearer-Header
+  const cookieToken = req.cookies.get('hui_admin_token')?.value;
+  const authHeader  = req.headers.get('Authorization') || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const token       = cookieToken || bearerToken;
 
-  const token = authHeader.replace('Bearer ', '').trim();
-  if (!token)   return { user: null, error: 'Unauthorized', status: 401 };
+  if (!token) return { user: null, error: 'Unauthorized', status: 401 };
 
   try {
     const supabase = getAnonClient();
@@ -86,10 +88,16 @@ export async function guardSuperAdmin(req: NextRequest): Promise<NextResponse | 
   return null;
 }
 
-// ── guardUser — jede authentifizierte Session (keine Rollenprüfung) ──────────
+// ── guardUser — prüft Cookie ODER Bearer-Header ────────────────────────────
 export async function guardUser(req: NextRequest): Promise<NextResponse | null> {
+  // 1. HTTP-Only Cookie (neue Login-Methode)
+  const cookieToken = req.cookies.get('hui_admin_token')?.value;
+  // 2. Authorization: Bearer <token> (alte Methode / Mobile)
   const authHeader = req.headers.get('Authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  const token = cookieToken || bearerToken;
+
   if (!token) {
     return NextResponse.json({ ok: false, error: 'Kein Token' }, { status: 401 });
   }
