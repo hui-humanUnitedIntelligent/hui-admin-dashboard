@@ -2,7 +2,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 
 interface PeriodReport {
@@ -34,6 +36,8 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
 }
 
 export default function EmployeeReportsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [data, setData]       = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [type, setType]       = useState<'monthly' | 'weekly'>('monthly');
@@ -125,7 +129,15 @@ export default function EmployeeReportsPage() {
       title="Automatische Reports"
       headerActions={
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          {tabBtn('monthly', 'Monatlich')} {tabBtn('weekly', 'Wöchentlich')}
+          
+      <PageHeader
+        title="Reports"
+        subtitle="Berichte & Auswertungen"
+        actionsRole="employee"
+        userRole={userRole}
+      />
+
+{tabBtn('monthly', 'Monatlich')} {tabBtn('weekly', 'Wöchentlich')}
           <select value={periods} onChange={e => setPeriods(Number(e.target.value))} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', outline: 'none' }}>
             <option value={3}>3 Perioden</option>
             <option value={6}>6 Perioden</option>
