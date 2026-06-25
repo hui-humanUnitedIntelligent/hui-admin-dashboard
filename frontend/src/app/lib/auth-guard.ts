@@ -85,3 +85,16 @@ export async function guardSuperAdmin(req: NextRequest): Promise<NextResponse | 
   }
   return null;
 }
+
+// ── guardUser — jede authentifizierte Session (keine Rollenprüfung) ──────────
+export async function guardUser(req: NextRequest): Promise<NextResponse | null> {
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) return unauthorized('Kein Token');
+
+  const sb = getAnonClient();
+  const { data: { user }, error } = await sb.auth.getUser(token);
+  if (error || !user) return unauthorized('Ungültige Session');
+  return null; // OK
+}
+
