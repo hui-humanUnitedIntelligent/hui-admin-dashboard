@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '@/components/ui/Toast';
+import { getSessionToken } from '@/lib/session';
+import { AMBASSADOR_LEVELS } from '@/lib/ambassador-levels';
+import type { AmbLevel } from '@/lib/ambassador-levels';
 
-type AmbLevel = 'bronze' | 'silver' | 'gold' | 'platinum';
 type AmbActionPayload = { [key: string]: unknown };
 
 interface AmbDetailData {
@@ -13,12 +15,10 @@ interface AmbDetailData {
   stats:        { total: number; active: number; sleeping: number };
 }
 
-const LEVEL_CONFIG = {
-  bronze:   { color: '#CD7F32', bg: 'rgba(205,127,50,0.12)',   icon: '🥉', label: 'Bronze'   },
-  silver:   { color: '#C0C0C0', bg: 'rgba(192,192,192,0.12)',  icon: '🥈', label: 'Silber'   },
-  gold:     { color: '#FFD700', bg: 'rgba(255,215,0,0.12)',    icon: '🥇', label: 'Gold'     },
-  platinum: { color: '#B197FC', bg: 'rgba(177,151,252,0.12)', icon: '💎', label: 'Platinum'  },
-};
+// Level-Config aus zentralem lib/ambassador-levels.ts
+const LEVEL_CONFIG = Object.fromEntries(
+  AMBASSADOR_LEVELS.map(l => [l.level, { color: l.color, bg: l.bg, icon: l.icon, label: l.label }])
+) as Record<AmbLevel, { color: string; bg: string; icon: string; label: string }>;
 
 const LOG_ICONS_MAP: { [key: string]: string } = {
   ambassador_approved: '✅', ambassador_activated_by_admin: '⚡',
@@ -53,9 +53,13 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
-    const url = '/api/ambassador?action=detail&user_id=' + encodeURIComponent(ambId);
-    const r = await fetch(url).then(x => x.json()).catch(() => null);
-    setDetail(r);
+    try {
+      const token = getSessionToken();
+      const url = '/api/ambassador?action=detail&user_id=' + encodeURIComponent(ambId);
+      const res = await fetch(url, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+      const json = await res.json().catch(() => null);
+      setDetail(json?.data ?? json ?? null);
+    } catch { setDetail(null); }
     setLoading(false);
   }, [ambId]);
 
@@ -64,12 +68,11 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
   const act = async (action: string, payload: AmbActionPayload = {}) => {
     setActing(true);
     try {
-      const body = JSON.stringify({ action, user_id: ambId, data: payload });
-      const res = await fetch('/api/ambassador', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
+      const token = getSessionToken();
+      const body  = JSON.stringify({ action, user_id: ambId, data: payload });
+      const hdrs: Record<string,string> = { 'Content-Type': 'application/json' };
+      if (token) hdrs['Authorization'] = 'Bearer ' + token;
+      const res = await fetch('/api/ambassador', { method: 'POST', headers: hdrs, body });
       if (res.ok) {
         showToast('Erfolgreich', 'success');
         onRefresh();
