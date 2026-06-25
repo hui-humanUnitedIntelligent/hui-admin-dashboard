@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
+import { getSessionToken } from '@/lib/session';
 
 interface BroadcastRecord { id: string; title: string; body: string; target_group: string; sent_count: number; created_at: string; }
 interface Stats { total_users: number; wirker: number; members: number; admins: number; total_broadcasts: number; }
@@ -41,8 +42,8 @@ export default function BroadcastPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [s, h] = await Promise.all([
-      fetch('/api/broadcast?action=stats').then(r => r.json()).catch(() => null),
-      fetch('/api/broadcast?action=list').then(r => r.json()).catch(() => []),
+      fetch('/api/broadcast?action=stats', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r => r.json()).catch(() => null),
+      fetch('/api/broadcast?action=list', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r => r.json()).catch(() => []),
     ]);
     setStats(s);
     setHistory(Array.isArray(h) ? h : []);
@@ -69,9 +70,10 @@ export default function BroadcastPage() {
     if (!confirm(`Broadcast an ${estimated} User senden?`)) return;
     setSending(true);
     try {
-      const res = await fetch('/api/broadcast', {
+      const token = getSessionToken();
+    const res = await fetch('/api/broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
         body: JSON.stringify({ title, body, target_group: targetGroup }),
       });
       const data = await res.json();
@@ -89,8 +91,10 @@ export default function BroadcastPage() {
     if (!confirm(`Broadcast "${title}" und alle ${history.find(b => b.id === broadcastId)?.sent_count ?? 0} Nachrichten unwiderruflich löschen?`)) return;
     setDeleting(broadcastId);
     try {
-      const res = await fetch(`/api/broadcast?broadcast_id=${encodeURIComponent(broadcastId)}`, {
+      const dToken = getSessionToken();
+    const res = await fetch(`/api/broadcast?broadcast_id=${encodeURIComponent(broadcastId)}`, {
         method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + (dToken || '') },
       });
       const data = await res.json();
       if (res.ok) {
