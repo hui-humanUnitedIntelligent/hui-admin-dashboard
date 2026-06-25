@@ -1,5 +1,7 @@
-// frontend/src/app/analytics/page.tsx
 'use client';
+// frontend/src/app/analytics/page.tsx
+
+import { isSuperAdmin } from '@/lib/roles';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -114,6 +116,12 @@ function KPI({ label, value, sub, color, icon }: { label: string; value: string;
 // ════════════════════════════════════════════════════════════════════════════
 export default function AnalyticsPage() {
   const { currentUser } = useAuth();
+  const role = currentUser?.role;
+  if (!isSuperAdmin(role)) {
+    if (typeof window !== 'undefined') window.location.replace('/dashboard');
+    return null;
+  }
+
   const userRole = currentUser?.role;
   const [data, setData]       = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
