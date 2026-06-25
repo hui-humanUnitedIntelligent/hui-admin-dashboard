@@ -2,7 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import PageHeader from '@/components/layout/PageHeader';
 import { statusToBadge } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { usePayments, HuiPayment } from '@/lib/hooks/useSupabase';
@@ -30,6 +32,8 @@ function Skeleton() {
 }
 
 export default function TransactionsPage() {
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role;
   const [statusFilter, setStatusFilter] = useState('all');
   const [daysFilter, setDaysFilter] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
@@ -66,7 +70,15 @@ export default function TransactionsPage() {
           onClick={refetch}
           style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5 }}
         >
-          ↻ Live Refresh
+          
+      <PageHeader
+        title="Transaktionen"
+        subtitle="Alle Zahlungen & Buchungen"
+        actionsRole="admin"
+        userRole={userRole}
+      />
+
+↻ Live Refresh
         </button>
       }
     >
