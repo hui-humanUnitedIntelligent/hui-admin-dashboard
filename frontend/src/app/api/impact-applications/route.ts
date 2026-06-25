@@ -3,14 +3,14 @@
 // POST: Bulk-Status-Update
 
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, serverError, validationError, created } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 import { APPLICATION_STATUS } from '@/lib/impact-status';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Neue Impact-Bewerbung anlegen
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardSuperAdmin(req);
   if (guard) return guard;
 
   try {
