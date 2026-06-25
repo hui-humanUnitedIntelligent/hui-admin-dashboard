@@ -1,9 +1,10 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import { isSuperAdmin } from '@/lib/roles';
 type AmbActionData = Record<string, unknown>;
 // frontend/src/app/ambassadors/page.tsx
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { getSessionToken } from '@/lib/session';
 import { AMBASSADOR_LEVELS } from '@/lib/ambassador-levels';
@@ -110,11 +111,12 @@ import AmbassadorDrawer from './AmbassadorDrawer';
 // ── Main Page ─────────────────────────────────────────────────
 export default function AmbassadorsPage() {
   const { currentUser } = useAuth();
-  const role = currentUser?.role;
-  if (!isSuperAdmin(role)) {
-    if (typeof window !== 'undefined') window.location.replace('/dashboard');
-    return null;
-  }
+  const router = useRouter();
+  useEffect(() => {
+    if (!isSuperAdmin(currentUser?.role)) router.replace(\'/dashboard\');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.role]);
+  if (!isSuperAdmin(currentUser?.role)) return null;
 
   const userRole = currentUser?.role;
   const [ambassadors, setAmbassadors]   = useState<AmbRecord[]>([]);
