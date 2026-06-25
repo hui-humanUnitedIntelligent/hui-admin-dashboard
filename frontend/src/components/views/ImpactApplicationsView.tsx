@@ -36,7 +36,7 @@ interface ImpactApplication {
   youtube: string | null;
   other_links: string | null;
   why_support: string | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string; // 'submitted' | 'pending' | 'review' | 'approved' | 'active' | 'rejected' | 'deleted'
   rejection_reason: string | null;
   admin_comment: string | null;
   review_note: string | null;
