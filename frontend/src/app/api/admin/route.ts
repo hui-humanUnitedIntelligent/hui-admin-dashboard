@@ -3,7 +3,7 @@
 // Uses SUPABASE_SERVICE_ROLE_KEY (server-only, never exposed to client)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { guardSuperAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 
 const SUPABASE_URL          = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
