@@ -1,6 +1,7 @@
 // frontend/src/app/api/auth/admin-login/route.ts
 // POST /api/auth/admin-login
-// Body: { email, password, dashboard: 'admin' | 'employee' }
+// Akzeptiert JSON (AJAX) oder form-encoded (native Form POST)
+// Setzt httpOnly Cookies und redirectet bei Form-POST direkt
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnonClient, getServiceClient } from '@/app/lib/supabase-server';
@@ -8,89 +9,95 @@ import { normalizeRole } from '@/lib/roles';
 
 const MAX_AGE = 60 * 60 * 8; // 8 Stunden
 
+async function doLogin(email: string, password: string, dashboard: string) {
+  if (!email || !password) {
+    return { ok: false, error: 'E-Mail und Passwort erforderlich', status: 400 };
+  }
+
+  const supabase = getAnonClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error || !data?.session?.access_token) {
+    return { ok: false, error: 'Ungültige Anmeldedaten', status: 401 };
+  }
+
+  const { session, user } = data;
+  const access_token = session.access_token;
+
+  let finalRole = normalizeRole(
+    (user.app_metadata?.role || user.user_metadata?.role || 'employee') as string
+  );
+
+  try {
+    const sb = getServiceClient();
+    const { data: profile } = await sb
+      .from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role) finalRole = normalizeRole(profile.role);
+  } catch { /* fallback */ }
+
+  if (dashboard === 'admin' && finalRole !== 'superadmin') {
+    return { ok: false, error: 'Kein Superadmin-Zugriff', status: 403 };
+  }
+
+  return { ok: true, finalRole, access_token, status: 200 };
+}
+
+function setCookies(response: NextResponse, access_token: string, finalRole: string) {
+  const base = {
+    secure: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 60 * 60 * 8,
+  };
+  response.cookies.set('hui_admin_token', access_token, { ...base, httpOnly: true });
+  response.cookies.set('hui_admin_role',  finalRole,    { ...base, httpOnly: false });
+  return response;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, dashboard } = await req.json();
+    const contentType = req.headers.get('content-type') || '';
+    let email = '', password = '', dashboard = 'admin';
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { ok: false, error: 'E-Mail und Passwort erforderlich' },
-        { status: 400 }
-      );
+    if (contentType.includes('application/json')) {
+      const body = await req.json().catch(() => ({}));
+      email     = body.email     || '';
+      password  = body.password  || '';
+      dashboard = body.dashboard || 'admin';
+    } else {
+      // form-encoded (native Form POST)
+      const form = await req.formData().catch(() => new FormData());
+      email     = form.get('email')     as string || '';
+      password  = form.get('password')  as string || '';
+      dashboard = form.get('dashboard') as string || 'admin';
     }
 
-    // 1) Supabase Auth Login
-    const supabase = getAnonClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const result = await doLogin(email, password, dashboard);
 
-    if (error || !data?.session?.access_token) {
-      return NextResponse.json(
-        { ok: false, error: 'Ungültige Anmeldedaten' },
-        { status: 401 }
-      );
-    }
-
-    const { session, user } = data;
-    const access_token = session.access_token;
-
-    // 2) Rolle bestimmen (DB-Profil hat Vorrang)
-    let finalRole = normalizeRole(
-      user.app_metadata?.role ||
-        user.user_metadata?.role ||
-        'employee'
-    );
-
-    try {
-      const sb = getServiceClient();
-      const { data: profile } = await sb
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.role) {
-        finalRole = normalizeRole(profile.role);
+    if (!result.ok || !result.access_token) {
+      // JSON-Fehler für AJAX, Redirect für Form
+      if (contentType.includes('application/json')) {
+        return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
       }
-    } catch {
-      // Fallback auf Metadata-Rolle
-    }
-
-    // 3) Admin-Zugriff prüfen
-    if (dashboard === 'admin' && finalRole !== 'superadmin') {
-      return NextResponse.json(
-        { ok: false, error: 'Kein Superadmin-Zugriff' },
-        { status: 403 }
+      const dest = dashboard === 'employee' ? '/employee/works' : '/works';
+      return NextResponse.redirect(
+        new URL(`/login?error=${encodeURIComponent(result.error || 'Fehler')}`, req.url)
       );
     }
 
-    // 4) Cookies setzen — KEINE domain-Angabe (gilt automatisch für aktuelle Host-Domain)
-    //    secure: true nur auf echtem HTTPS (Vercel Production + Preview sind beide HTTPS)
-    const response = NextResponse.json({ ok: true, role: finalRole });
+    const dest = dashboard === 'employee' ? '/employee/works' : '/works';
 
-    const cookieOpts = {
-      httpOnly: true,
-      secure: true,           // Vercel ist immer HTTPS
-      sameSite: 'lax' as const,
-      path: '/',
-      maxAge: MAX_AGE,
-      // Kein domain: — Browser setzt Cookie automatisch für aktuelle Domain
-    };
-
-    response.cookies.set('hui_admin_token', access_token, cookieOpts);
-    response.cookies.set('hui_admin_role', finalRole, {
-      ...cookieOpts,
-      httpOnly: false,         // Middleware + Client müssen Role lesen können
-    });
-
-    return response;
+    if (contentType.includes('application/json')) {
+      // AJAX: JSON zurück + Cookies setzen
+      const res = NextResponse.json({ ok: true, role: result.finalRole });
+      return setCookies(res, result.access_token, result.finalRole!);
+    } else {
+      // Form POST: 302 Redirect + Cookies — Browser setzt Cookies zuverlässig
+      const res = NextResponse.redirect(new URL(dest, req.url));
+      return setCookies(res, result.access_token, result.finalRole!);
+    }
   } catch (err) {
     console.error('[admin-login]', err);
-    return NextResponse.json(
-      { ok: false, error: 'Serverfehler' },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: 'Serverfehler' }, { status: 500 });
   }
 }
