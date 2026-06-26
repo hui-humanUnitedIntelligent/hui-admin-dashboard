@@ -6,7 +6,6 @@ import { useState, useCallback, useEffect } from 'react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
-import { getSessionToken } from '@/lib/session';
 
 interface Ticket {
   id: string;
@@ -43,9 +42,8 @@ export default function EmployeeTicketsPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const token = await getSessionToken();
       const res   = await fetch('/api/tickets', {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       const j = await res.json();
       setTickets(j.data ?? []);
