@@ -47,9 +47,8 @@ export function useProfiles(opts: UseProfilesOptions = {}) {
     setLoading(true); setError(null);
     try {
       // ── Profile über /api/profiles (server-seitig, Service Key) laden ──
-      const token = getSessionToken();
       const apiRes = await globalThis.fetch('/api/profiles', {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       const apiData = apiRes.ok ? await apiRes.json() : { profiles: [] };
       const allRows: HuiProfile[] = (apiData.profiles || []).filter(
