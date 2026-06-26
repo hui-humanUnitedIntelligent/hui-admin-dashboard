@@ -36,7 +36,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (data.ok) {
         // Cookie wurde via AJAX gesetzt — hard redirect
-        const dest = mode === 'employee' ? '/employee/works' : '/works';
+        const dest = mode === 'employee' ? '/employee/dashboard' : '/dashboard';
         window.location.replace(dest);
         return;
       }
