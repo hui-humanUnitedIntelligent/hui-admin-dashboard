@@ -77,6 +77,8 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH: Status ändern (approve/reject/delete/restore/flag/unflag) — Employee+Admin
+
+// PATCH: Alle Button-Aktionen — approve/reject/flag/unflag/delete/restore/clear_sensitive
 export async function PATCH(req: NextRequest) {
   const guard = await guardEmployee(req);
   if (guard) return guard;
@@ -84,90 +86,102 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { id, _action, status: directStatus, rejection_reason, admin_comment, reason } = body;
     if (!id) return NextResponse.json({ ok: false, error: 'id erforderlich' }, { status: 400 });
+
     const sb = getServiceClient();
-
-    // _action-basierte Logik (kommt von WorksView workAction)
-    const action = _action ?? '';
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const action = _action ?? '';
 
-    if (action === 'approve_work') {
+    if (action === 'approve_work' || action === 'publish_work') {
       updates.status          = 'published';
       updates.approval_status = 'approved';
       updates.visibility      = 'public';
       updates.published_at    = new Date().toISOString();
+
     } else if (action === 'reject_work') {
-      const rej = rejection_reason ?? reason ?? 'Nicht genehmigt';
-      updates.status            = 'rejected';
-      updates.approval_status   = 'rejected';
-      updates.visibility        = 'private';
-      updates.rejection_reason  = rej;
-      updates.rejected_at       = new Date().toISOString();
+      const rej = rejection_reason ?? reason ?? body.data?.reason ?? 'Nicht genehmigt';
+      updates.status           = 'rejected';
+      updates.approval_status  = 'rejected';
+      updates.visibility       = 'private';
+      updates.rejection_reason = rej;
+      updates.rejected_at      = new Date().toISOString();
       if (admin_comment) updates.admin_comment = admin_comment;
+
     } else if (action === 'flag_work') {
-      updates.status            = 'flagged';
-      updates.sensitivity_status= 'flagged';
-      updates.visibility        = 'private';
+      updates.status             = 'flagged';
+      updates.sensitivity_status = 'flagged';
+      updates.visibility         = 'private';
+      if (reason ?? body.data?.reason) updates.sensitivity_reason = reason ?? body.data?.reason;
+
     } else if (action === 'unflag_work') {
-      updates.status            = 'published';
-      updates.sensitivity_status= 'cleared';
-      updates.visibility        = 'public';
+      updates.status             = 'published';
+      updates.sensitivity_status = 'cleared';
+      updates.sensitivity_reason = null;
+      updates.visibility         = 'public';
+
     } else if (action === 'delete_work' || action === 'soft_delete_work') {
       updates.status     = 'deleted';
       updates.visibility = 'private';
+
     } else if (action === 'restore_work') {
       updates.status          = 'published';
       updates.approval_status = 'approved';
       updates.visibility      = 'public';
+
     } else if (action === 'unpublish_work') {
       updates.status     = 'draft';
       updates.visibility = 'private';
-    } else if (action === 'publish_work') {
-      updates.status          = 'published';
-      updates.approval_status = 'approved';
-      updates.visibility      = 'public';
-      updates.published_at    = new Date().toISOString();
+
     } else if (action === 'clear_sensitive_work') {
       updates.sensitivity_status = 'cleared';
       updates.sensitivity_reason = null;
+
     } else if (action === 'mark_sensitive_work') {
       updates.sensitivity_status = 'flagged';
-      if (reason) updates.sensitivity_reason = reason;
+      if (reason ?? body.data?.reason) updates.sensitivity_reason = reason ?? body.data?.reason;
+
     } else if (action === 'update_work') {
-      // Direkte Felder aus body
       const allowed = ['title','description','price','price_eur','admin_comment','review_note'];
       for (const k of allowed) { if (body[k] !== undefined) updates[k] = body[k]; }
+
     } else if (directStatus) {
-      // Direkter Status-Override (von /api/works PATCH ohne _action)
+      // Direkter Status-Patch (kein _action)
       updates.status = directStatus;
-      if (directStatus === 'published')  { updates.visibility = 'public'; updates.published_at = new Date().toISOString(); }
-      if (directStatus === 'rejected')   { updates.visibility = 'private'; if (rejection_reason) updates.rejection_reason = rejection_reason; }
-      if (directStatus === 'deleted')    updates.visibility = 'private';
+      if (directStatus === 'published') { updates.visibility = 'public'; updates.published_at = new Date().toISOString(); updates.approval_status = 'approved'; }
+      if (directStatus === 'rejected')  { updates.visibility = 'private'; if (rejection_reason) updates.rejection_reason = rejection_reason; if (rejection_reason) updates.rejected_at = new Date().toISOString(); }
+      if (directStatus === 'deleted')   updates.visibility = 'private';
+      if (directStatus === 'flagged')   { updates.visibility = 'private'; updates.sensitivity_status = 'flagged'; }
+
     } else {
-      return NextResponse.json({ ok: false, error: 'action oder status erforderlich' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: '_action oder status erforderlich' }, { status: 400 });
     }
 
     const { error } = await sb.from('works').update(updates).eq('id', id);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    // Notification an User senden
-    const { data: work } = await sb.from('works').select('user_id,title').eq('id', id).single();
-    if (work?.user_id) {
-      const notifMap: Record<string, { type: string; title: string; body: string } | null> = {
-        approve_work:  { type: 'work_approved', title: '\u2705 Werk freigegeben', body: `\u201e${work.title}\u201c ist jetzt live.` },
-        reject_work:   { type: 'work_rejected', title: '\u274c Werk abgelehnt',  body: `\u201e${work.title}\u201c wurde abgelehnt.` },
-        flag_work:     { type: 'work_flagged',  title: '\u26a0\ufe0f Werk gemeldet', body: `\u201e${work.title}\u201c wurde gemeldet und ist nicht mehr sichtbar.` },
-        delete_work:   { type: 'work_deleted',  title: '\uD83D\uDDD1 Werk gel\u00f6scht', body: `\u201e${work.title}\u201c wurde gel\u00f6scht.` },
-        restore_work:  { type: 'work_approved', title: '\u2705 Werk wiederhergestellt', body: `\u201e${work.title}\u201c ist wieder sichtbar.` },
-      };
-      const notif = notifMap[action];
-      if (notif) {
-        await sb.from('notifications').insert({
-          user_id: work.user_id, type: notif.type, title: notif.title,
-          body: notif.body, is_read: false, read: false, data: {},
-          entity_id: id, entity_type: 'work',
-        }).catch(() => {});
+    // Notification an Nutzer
+    try {
+      const { data: work } = await sb.from('works').select('user_id,title').eq('id', id).single();
+      if (work?.user_id) {
+        const notifMap: Record<string, { type: string; title: string; body: string } | null> = {
+          approve_work:       { type: 'work_approved', title: '\u2705 Werk freigegeben',      body: `\u201e${work.title}\u201c ist jetzt live.` },
+          publish_work:       { type: 'work_approved', title: '\u2705 Werk freigegeben',      body: `\u201e${work.title}\u201c ist jetzt live.` },
+          reject_work:        { type: 'work_rejected', title: '\u274c Werk abgelehnt',        body: `\u201e${work.title}\u201c wurde abgelehnt.` },
+          flag_work:          { type: 'work_flagged',  title: '\u26a0\ufe0f Inhalt gemeldet', body: `\u201e${work.title}\u201c wurde gemeldet.` },
+          delete_work:        { type: 'work_deleted',  title: '\uD83D\uDDD1 Werk gel\u00f6scht', body: `\u201e${work.title}\u201c wurde gel\u00f6scht.` },
+          soft_delete_work:   { type: 'work_deleted',  title: '\uD83D\uDDD1 Werk gel\u00f6scht', body: `\u201e${work.title}\u201c wurde gel\u00f6scht.` },
+          restore_work:       { type: 'work_approved', title: '\u2705 Werk wiederhergestellt', body: `\u201e${work.title}\u201c ist wieder sichtbar.` },
+          unflag_work:        { type: 'work_approved', title: '\u2705 Meldung aufgehoben',    body: `\u201e${work.title}\u201c ist wieder sichtbar.` },
+        };
+        const notif = notifMap[action];
+        if (notif) {
+          await sb.from('notifications').insert({
+            user_id: work.user_id, type: notif.type, title: notif.title,
+            body: notif.body, is_read: false, read: false, data: {},
+            entity_id: id, entity_type: 'work',
+          });
+        }
       }
-    }
+    } catch { /* Notification-Fehler nicht blocken */ }
 
     return NextResponse.json({ ok: true, action, id });
   } catch (err) {
@@ -177,10 +191,9 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-
 // DELETE: Permanent löschen — nur Admin
 export async function DELETE(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
   try {
     const { id } = await req.json();
