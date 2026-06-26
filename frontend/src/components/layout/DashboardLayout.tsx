@@ -23,12 +23,15 @@ export default function DashboardLayout({
 
   useEffect(() => {
     setMounted(true);
-    // Auth-Guard: Cookie prüfen (nicht localStorage — funktioniert in Incognito)
-    // Die Middleware schützt bereits serverseitig, dies ist nur ein Client-Fallback
-    const hasRole = document.cookie.includes('hui_admin_role=');
-    if (!hasRole) {
-      window.location.href = '/login';
-    }
+    // Middleware schützt bereits serverseitig — kein client-side redirect nötig
+    // Nur als letzter Fallback nach kurzem Delay (verhindert false-redirects bei SSR-Hydration)
+    const timer = setTimeout(() => {
+      const hasToken = document.cookie.includes('hui_admin_token=');
+      if (!hasToken) {
+        window.location.href = '/login';
+      }
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   if (!mounted) return null;
