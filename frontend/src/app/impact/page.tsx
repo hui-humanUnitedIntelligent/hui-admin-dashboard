@@ -19,7 +19,7 @@ function calcImpact(totalRevenue: number) {
 }
 
 export default function ImpactPage() {
-  const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
+  const { projects, loading: projLoading, refetch: refetchProjects } = useImpact({ refreshInterval: 30000 });
   const { payments, loading: payLoading } = usePayments({ refreshInterval: 0, limit: 1000 });
 
   const loading = payLoading || projLoading;
