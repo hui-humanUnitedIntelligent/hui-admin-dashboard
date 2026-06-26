@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
-import { getSessionToken } from '@/lib/session';
 
 export interface AdminNotification {
   id:          string;
@@ -42,14 +41,13 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
   const fetchNotifications = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const token = getSessionToken();
       const params = new URLSearchParams({ limit: String(limit) });
       if (userId)    params.set('user_id', userId);
       if (type)      params.set('type', type);
       if (unreadOnly) params.set('unread', 'true');
 
       const res = await fetch(`/api/notifications?${params}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: token ? { } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -90,12 +88,11 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
     try {
-      const token = getSessionToken();
       const res = await fetch(`/api/notifications/${id}`, {
         method:  'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { } : {}),
         },
         body: JSON.stringify({ is_read: true }),
       });
@@ -120,12 +117,11 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
     metadata: Record<string, unknown> = {}
   ): Promise<boolean> => {
     try {
-      const token = getSessionToken();
       const res = await fetch('/api/notifications', {
         method:  'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { } : {}),
         },
         body: JSON.stringify({ user_id: targetUserId, type: notifType, title, body, metadata }),
       });
