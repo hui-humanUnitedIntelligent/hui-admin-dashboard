@@ -523,7 +523,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     const ok = await entryAction('delete_experience', e.id);
     setActionLoading(null);
     if (ok) {
-      showToast(`ð "${e.title || 'Erlebnis'}" wurde geloscht und ist nicht mehr sichtbar.`, 'info');
+      showToast('Geloescht! Dieser Eintrag ist nicht mehr in der App sichtbar.', 'info');
       setLocalDel(new Set());
       await refetchAll();
     } else {
@@ -537,7 +537,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     const ok = await entryAction('restore_experience', e.id);
     setActionLoading(null);
     if (ok) {
-      showToast(`â "${e.title || 'Erlebnis'}" wurde wiederhergestellt und ist wieder live!`, 'success');
+      showToast('Wiederhergestellt! Dieser Eintrag ist jetzt wieder live.', 'success');
       await refetchAll();
     } else {
       showToast('Fehler beim Wiederherstellen.', 'error');
@@ -549,7 +549,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     const ok = await entryAction('hard_delete_experience', e.id);
     setActionLoading(null);
     if (ok) {
-      showToast(`ð "${e.title || 'Erlebnis'}" wurde endgueltig geloscht.`, 'info');
+      showToast('Endgueltig geloescht. Der Eintrag ist unwiderruflich entfernt.', 'info');
       await refetchAll();
     } else {
       showToast('Fehler beim endgueltigen Loeschen.', 'error');
