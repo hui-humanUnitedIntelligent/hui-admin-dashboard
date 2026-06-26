@@ -85,8 +85,13 @@ export async function GET(req: NextRequest) {
 
     const supabase = getServiceClient();
 
-    // 1) Auth-User laden
-    const authUsers = await fetchAuthUsers();
+    // 1) Auth-User laden (Fehler abfangen — bei Fehler weiter mit nur Profiles)
+    let authUsers: Awaited<ReturnType<typeof fetchAuthUsers>> = [];
+    try {
+      authUsers = await fetchAuthUsers();
+    } catch (authErr) {
+      console.error('/api/users — fetchAuthUsers failed, falling back to profiles-only:', authErr);
+    }
 
     // 2) Profile laden
     const { data: profiles, error: profErr } = await supabase
