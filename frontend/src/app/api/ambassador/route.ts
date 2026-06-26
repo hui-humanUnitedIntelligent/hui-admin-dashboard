@@ -1,204 +1,92 @@
 // frontend/src/app/api/ambassador/route.ts
-import { NextRequest } from 'next/server';
-import { guardSuperAdmin } from '@/app/lib/auth-guard';
-import { ok, fail, notFound, serverError, validationError } from '@/app/lib/api-response';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
-import { calcLevel, buildRefCode, buildRefLink, computeAmbassadorMetrics, rewardForLevelUp } from '@/lib/ambassador-engine';
 
-// Helpers: buildRefCode, buildRefLink, calcLevel → @/lib/ambassador-engine
-
-// ── GET ─────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const guard = await guardSuperAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
 
   try {
-    const sb     = getServiceClient();
-    const params = new URL(req.url).searchParams;
-    const action = params.get('action') || 'list';
-    const userId = params.get('userId') || params.get('user_id');
-    const query  = params.get('query');
+    const sb = getServiceClient();
+    const { searchParams } = new URL(req.url);
+    const search = (searchParams.get('search') || '').toLowerCase();
 
-    if (action === 'list') {
-      const [{ data: profiles }, { data: refLinks }] = await Promise.all([
-        sb.from('profiles').select('id,display_name,username,avatar_url,role,is_talent,created_at,profile_modules')
-          .eq('is_ambassador', true).order('created_at', { ascending: false }).limit(500),
-        sb.from('ambassador_ref_links').select('user_id,ref_link,referral_code'),
-      ]);
-      const refMap: Record<string, { ref_link: string; referral_code: string }> = {};
-      for (const r of (refLinks ?? [])) refMap[r.user_id] = r as { ref_link: string; referral_code: string };
+    // Ambassadors = profiles mit is_ambassador=true
+    const { data: profiles } = await sb
+      .from('profiles')
+      .select('id,display_name,username,avatar_url,email,role,is_ambassador,referred_by_ambassador_id,created_at,is_wirker,trust_score,impact_eur')
+      .eq('is_ambassador', true);
 
-      const ambassadors = (profiles ?? []).map(p => {
-        const amb      = ((p.profile_modules as Record<string,unknown>)?.ambassador || {}) as Record<string,unknown>;
-        const refCount = Number(amb.referralCount ?? amb.referral_count) || 0;
-        const ref      = refMap[p.id] ?? {};
-        return {
-          id: p.id, displayName: p.display_name, username: p.username,
-          avatarUrl: p.avatar_url, role: p.role, isTalent: p.is_talent, createdAt: p.created_at,
-          referralCode:          ref.referral_code     ?? amb.referral_code  ?? null,
-          referralLink:          ref.ref_link          ?? amb.referral_link  ?? null,
-          level:                 calcLevel(refCount),
-          status:                'active',
-          activatedAt:           amb.activated_at      ?? null,
-          referralCount:         refCount,
-          activeReferralCount:   Number(amb.active_referral_count)   || 0,
-          sleepingReferralCount: Number(amb.sleeping_referral_count) || 0,
-          revenueGenerated:      Number(amb.revenue_generated)       || 0,
-          linkActive:            amb.link_active !== false,
-        };
-      });
-      return ok(ambassadors);
+    // Ref-Links
+    const { data: refLinks } = await sb
+      .from('ambassador_ref_links')
+      .select('user_id,ref_link,referral_code,created_at');
+
+    // Ambassador Revenue
+    const { data: revenue } = await sb
+      .from('ambassador_revenue')
+      .select('ambassador_id,total_eur,referral_count');
+
+    const refMap = new Map((refLinks ?? []).map(r => [r.user_id, r]));
+    const revMap = new Map((revenue ?? []).map(r => [r.ambassador_id, r]));
+
+    let data = (profiles ?? []).map(p => ({
+      id:             p.id,
+      displayName:    p.display_name ?? p.username ?? p.email ?? '—',
+      username:       p.username ?? '',
+      avatarUrl:      p.avatar_url ?? null,
+      email:          p.email ?? null,
+      role:           p.role ?? 'user',
+      isWirker:       p.is_wirker ?? false,
+      trustScore:     p.trust_score ?? 0,
+      impactEur:      p.impact_eur ?? 0,
+      createdAt:      p.created_at,
+      referralCode:   refMap.get(p.id)?.referral_code ?? null,
+      referralLink:   refMap.get(p.id)?.ref_link ?? null,
+      referralCount:  revMap.get(p.id)?.referral_count ?? 0,
+      revenueEur:     revMap.get(p.id)?.total_eur ?? 0,
+    }));
+
+    if (search) {
+      data = data.filter(a =>
+        a.displayName.toLowerCase().includes(search) ||
+        a.email?.toLowerCase().includes(search) ||
+        a.username?.toLowerCase().includes(search)
+      );
     }
 
-    if (action === 'applications') {
-      const { data, error } = await sb.from('ambassadors_applications')
-        .select('*,profiles!user_id(id,display_name,username,avatar_url,role,is_talent,created_at)')
-        .eq('status', 'offen').order('created_at', { ascending: false }).limit(200);
-      if (error) throw error;
-      const apps = (data ?? []).map(a => {
-        const prof = (a.profiles as Record<string,unknown>) ?? {};
-        return {
-          id: a.id, userId: a.user_id,
-          displayName: prof.display_name ?? `${a.first_name} ${a.last_name}`,
-          username: prof.username ?? null, avatarUrl: prof.avatar_url ?? null,
-          role: prof.role ?? 'user', isTalent: prof.is_talent ?? false,
-          createdAt: prof.created_at ?? a.created_at, appliedAt: a.created_at,
-          firstName: a.first_name, lastName: a.last_name, age: a.age,
-          gender: a.gender, location: a.location, motivationText: a.motivation_text,
-          mediaUrls: a.media_urls ?? [], phone: a.phone, email: a.email, status: a.status,
-        };
-      });
-      return ok(apps);
-    }
-
-    if (action === 'stats') {
-      const [{ data: active }, { data: apps }] = await Promise.all([
-        sb.from('profiles').select('id,profile_modules').eq('is_ambassador', true),
-        sb.from('ambassadors_applications').select('id').eq('status', 'offen'),
-      ]);
-      let totalReferrals = 0, totalRevenue = 0;
-      const levelDist: Record<string,number> = { bronze:0, silver:0, gold:0, platinum:0 };
-      for (const p of (active ?? [])) {
-        const amb = ((p.profile_modules as Record<string,unknown>)?.ambassador || {}) as Record<string,unknown>;
-        const n   = Number(amb.referral_count) || 0;
-        totalReferrals += n; totalRevenue += Number(amb.revenue_generated) || 0;
-        const lvl = calcLevel(n);
-        levelDist[lvl] = (levelDist[lvl] || 0) + 1;
-      }
-      return ok({ activeAmbassadors: (active ?? []).length, pendingApplications: (apps ?? []).length, totalReferrals, totalRevenue, netImpact: totalRevenue * 0.15, levelDistribution: levelDist });
-    }
-
-    if (action === 'search' && query) {
-      const { data, error } = await sb.from('profiles')
-        .select('id,display_name,username,avatar_url,role,is_ambassador,is_talent,created_at')
-        .or(`display_name.ilike.%${query}%,username.ilike.%${query}%`).limit(30);
-      if (error) throw error;
-      return ok((data ?? []).map(p => ({ ...p, ambassadorStatus: p.is_ambassador ? 'active' : null })));
-    }
-
-    if (action === 'detail' && userId) {
-      const [{ data: profiles }, { data: refLinks }, { data: referrals }] = await Promise.all([
-        sb.from('profiles').select('*').eq('id', userId).limit(1),
-        sb.from('ambassador_ref_links').select('*').eq('user_id', userId),
-        sb.from('profiles').select('id,display_name,username,avatar_url,is_talent,created_at')
-          .eq('referred_by_ambassador_id', userId).order('created_at', { ascending: false }).limit(200),
-      ]);
-      const profile = profiles?.[0] ?? null;
-      const refs    = (referrals ?? []).map(p => ({
-        id: p.id, displayName: p.display_name ?? p.username ?? 'Nutzer',
-        username: p.username, avatarUrl: p.avatar_url,
-        isActive: p.is_talent === true || (!!p.display_name && !!p.avatar_url), joinedAt: p.created_at,
-      }));
-      return ok({ profile, refLinks: refLinks ?? [], referrals: refs, stats: { total: refs.length, active: refs.filter(r => r.isActive).length, sleeping: refs.filter(r => !r.isActive).length } });
-    }
-
-    return fail(`Unbekannte Aktion: ${action}`);
-  } catch (err) { return serverError(err, 'ambassador GET'); }
+    return NextResponse.json({ ok: true, data, total: data.length });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
 }
 
-// ── POST ────────────────────────────────────────────────────────────────────
-export async function POST(req: NextRequest) {
-  const guard = await guardSuperAdmin(req);
+// PATCH: Ambassador-Status setzen / entziehen
+export async function PATCH(req: NextRequest) {
+  const guard = await guardEmployee(req);
   if (guard) return guard;
-
   try {
-    const data     = await req.json().catch(() => ({}));
-    const { action, user_id: userId, admin_id: adminId } = data as { action?: string; user_id?: string; admin_id?: string };
+    const { user_id, action } = await req.json();
+    if (!user_id || !action) return NextResponse.json({ ok: false, error: 'Fehlende Parameter' }, { status: 400 });
+    const sb = getServiceClient();
 
-    if (!userId) return validationError({ userId: 'Pflichtfeld' });
-    if (!action) return validationError({ action: 'Pflichtfeld' });
-
-    const sb  = getServiceClient();
-    const now = new Date().toISOString();
-
-    const { data: profiles } = await sb.from('profiles').select('*').eq('id', userId).limit(1);
-    const profile = profiles?.[0] as Record<string,unknown> | undefined;
-    if (!profile) return notFound('Profil');
-
-    const pm  = (profile.profile_modules as Record<string,unknown>) ?? {};
-    const amb = (pm.ambassador as Record<string,unknown>) ?? {};
-
-    const logEvent = async (type: string, meta: Record<string,unknown>, before?: unknown, after?: unknown) => {
-      try {
-        await sb.from('activity_logs').insert({
-          action:     type,
-          target_id:  userId,
-          actor_id:   adminId ?? null,
-          metadata:   { ...meta, before: before ?? null, after: after ?? null },
-          created_at: now,
-        });
-      } catch (_) {}
-    };
-
-    switch (action) {
-      case 'approve':
-      case 'activate': {
-        const refCode = buildRefCode(profile.username as string);
-        const refLink = buildRefLink(profile.username as string, userId);
-        const before  = { is_ambassador: profile.is_ambassador, status: amb.status ?? null };
-        const newAmb  = { ...amb, is_ambassador: true, status: 'active', referral_code: refCode, referral_link: refLink, level: 'bronze', activated_by: adminId ?? 'admin', activated_at: now, link_active: true, referral_count: Number(amb.referral_count)||0, revenue_generated: Number(amb.revenue_generated)||0 };
-        const after   = { is_ambassador: true, status: 'active', level: 'bronze' };
-        await sb.from('profiles').update({ is_ambassador: true, profile_modules: { ...pm, ambassador: newAmb } }).eq('id', userId);
-        await sb.from('ambassador_ref_links').upsert({ user_id: userId, username: profile.username, ref_link: refLink, referral_code: refCode }, { onConflict: 'user_id' });
-        if (action === 'approve') {
-          const appId  = data.application_id as string | undefined;
-          const update = { status: 'angenommen', reviewed_at: now, reviewed_by: adminId ?? 'admin' };
-          if (appId) await sb.from('ambassadors_applications').update(update).eq('id', appId);
-          else       await sb.from('ambassadors_applications').update(update).eq('user_id', userId).eq('status', 'offen');
-        }
-        await logEvent(`ambassador_${action === 'approve' ? 'approved' : 'activated'}`, { referralCode: refCode, referralLink: refLink }, before, after);
-        return ok({ referralCode: refCode, referralLink: refLink });
-      }
-      case 'reject': {
-        const before  = { is_ambassador: profile.is_ambassador, status: amb.status };
-        const newAmb  = { ...amb, is_ambassador: false, status: 'abgelehnt', rejected_at: now, rejected_by: adminId ?? 'admin', reject_reason: data.reason ?? null };
-        const after   = { is_ambassador: false, status: 'abgelehnt' };
-        await sb.from('profiles').update({ is_ambassador: false, profile_modules: { ...pm, ambassador: newAmb } }).eq('id', userId);
-        const appId  = data.application_id as string | undefined;
-        const update = { status: 'abgelehnt', reviewed_at: now, reviewed_by: adminId ?? 'admin' };
-        if (appId) await sb.from('ambassadors_applications').update(update).eq('id', appId);
-        else       await sb.from('ambassadors_applications').update(update).eq('user_id', userId).eq('status', 'offen');
-        await logEvent('ambassador_rejected', { reason: data.reason ?? null }, before, after);
-        return ok({ rejected: true });
-      }
-      case 'revoke': {
-        const before  = { is_ambassador: profile.is_ambassador, status: amb.status, level: amb.level };
-        const newAmb  = { ...amb, is_ambassador: false, status: 'widerrufen', revoked_at: now, revoked_by: adminId ?? 'admin' };
-        const after   = { is_ambassador: false, status: 'widerrufen' };
-        await sb.from('profiles').update({ is_ambassador: false, profile_modules: { ...pm, ambassador: newAmb } }).eq('id', userId);
-        await sb.from('ambassador_ref_links').delete().eq('user_id', userId);
-        await logEvent('ambassador_revoked', { revokedBy: adminId }, before, after);
-        return ok({ revoked: true });
-      }
-      case 'toggle_link': {
-        const newActive = !amb.link_active;
-        const before    = { link_active: amb.link_active };
-        const after     = { link_active: newActive };
-        await sb.from('profiles').update({ profile_modules: { ...pm, ambassador: { ...amb, link_active: newActive } } }).eq('id', userId);
-        await logEvent('ambassador_link_toggled', { linkActive: newActive }, before, after);
-        return ok({ linkActive: newActive });
-      }
-      default: return fail(`Unbekannte Aktion: ${action}`);
+    if (action === 'activate') {
+      await sb.from('profiles').update({ is_ambassador: true }).eq('id', user_id);
+      // Ref-Link anlegen falls nicht vorhanden
+      const { data: prof } = await sb.from('profiles').select('username').eq('id', user_id).single();
+      const username = prof?.username ?? user_id.slice(0,8);
+      const code = `AMB-${username.toUpperCase().slice(0,5)}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
+      await sb.from('ambassador_ref_links').upsert({
+        user_id, username,
+        ref_link: `https://be-hui.com/${username}`,
+        referral_code: code,
+      }, { onConflict: 'user_id' });
+    } else if (action === 'deactivate') {
+      await sb.from('profiles').update({ is_ambassador: false }).eq('id', user_id);
     }
-  } catch (err) { return serverError(err, 'ambassador POST'); }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
 }
