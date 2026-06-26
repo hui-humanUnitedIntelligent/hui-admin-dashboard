@@ -113,7 +113,7 @@ export default function AmbassadorsPage() {
         </div>
       )}
 
-      <PageHeader title="Ambassadors" subtitle="Referral-Partner & Markenbotschafter" actionsRole={userRole} userRole={userRole} />
+      <PageHeader title="Ambassadors" subtitle="Referral-Partner & Markenbotschafter" actionsRole={userRole as "superadmin" | "employee"} userRole={userRole} />
 
       {/* KPI-Kacheln */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12, marginBottom: 20 }}>
