@@ -9,7 +9,6 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import { useMemberships } from '@/lib/hooks/useSupabase';
-import { getSessionToken } from '@/lib/session';
 
 function timeAgo(iso: string) {
   if (!iso) return '—';
@@ -54,10 +53,9 @@ export default function MembershipsPage() {
     if (!confirm('⚠️ Endgültig löschen? Diese Aktion ist irreversibel!')) return;
     setDeletingId(id);
     try {
-      const token = await getSessionToken();
       const res = await fetch(`/api/admin/memberships/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       if (res.ok) { setToast('Endgültig gelöscht.'); refetch(); }
       else setToast('Fehler beim Löschen');
