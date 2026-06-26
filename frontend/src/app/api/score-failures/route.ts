@@ -1,28 +1,22 @@
 // frontend/src/app/api/score-failures/route.ts
-// GET: Alle Score-Failures (read-only, für Employee + Superadmin)
-import { NextRequest } from 'next/server';
-import { guardUser } from '@/app/lib/auth-guard';
-import { ok, serverError } from '@/app/lib/api-response';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardUser(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
-
   try {
+    const { searchParams } = new URL(req.url);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
     const sb = getServiceClient();
-    const params = new URL(req.url).searchParams;
-    const limit  = Math.min(Number(params.get('limit') ?? 200), 500);
-
-    const { data, error } = await sb
+    const { data, count } = await sb
       .from('impact_score_failures')
-      .select('id,user_id,project_name,short_desc,problem,umsetzung,kategorie,funding_goal,ai_score,grund,status,deleted_by,deleted_at,created_at')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(limit);
-
-    if (error) throw error;
-    return ok(data ?? []);
-  } catch (e) {
-    return serverError(e instanceof Error ? e.message : 'Fehler beim Laden');
+    return NextResponse.json({ ok: true, data: data ?? [], total: count ?? 0 });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
