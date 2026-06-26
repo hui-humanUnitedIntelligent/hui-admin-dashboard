@@ -649,11 +649,51 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
           width={700} onClose={()=>setShowDetail(false)}
           footer={selected?(
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-              <Button variant="ghost" onClick={()=>setShowDetail(false)}>Schließen</Button>
-              {isPending(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Freigeben</Button>}
-              {isPending(selected)&&<Button variant="danger"  onClick={()=>{setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}>❌ Ablehnen</Button>}
-              {isRejected(selected)&&<Button variant="primary" onClick={()=>handleApprove(selected)}>✅ Trotzdem freigeben</Button>}
-              {!isDeleted(selected)&&isSuperadmin&&<Button variant="danger" onClick={()=>{setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
+              <Button variant="ghost" onClick={()=>setShowDetail(false)} disabled={actionLoading===selected.id}>Schließen</Button>
+              {isPending(selected)&&(
+                <Button
+                  variant="primary"
+                  disabled={actionLoading===selected.id}
+                  onClick={()=>handleApprove(selected)}
+                  style={actionLoading===selected.id?{opacity:0.6,cursor:'not-allowed'}:{}}
+                >
+                  {actionLoading===selected.id
+                    ? <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{display:'inline-block',width:14,height:14,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>Wird freigegeben…</span>
+                    : '✅ Freigeben'}
+                </Button>
+              )}
+              {isPending(selected)&&(
+                <Button
+                  variant="danger"
+                  disabled={actionLoading===selected.id}
+                  onClick={()=>{if(actionLoading===selected.id)return;setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}
+                  style={actionLoading===selected.id?{opacity:0.6,cursor:'not-allowed'}:{}}
+                >
+                  ❌ Ablehnen
+                </Button>
+              )}
+              {isRejected(selected)&&(
+                <Button
+                  variant="primary"
+                  disabled={actionLoading===selected.id}
+                  onClick={()=>handleApprove(selected)}
+                  style={actionLoading===selected.id?{opacity:0.6,cursor:'not-allowed'}:{}}
+                >
+                  {actionLoading===selected.id
+                    ? <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{display:'inline-block',width:14,height:14,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.7s linear infinite'}}/>Lädt…</span>
+                    : '✅ Trotzdem freigeben'}
+                </Button>
+              )}
+              {!isDeleted(selected)&&isSuperadmin&&(
+                <Button
+                  variant="danger"
+                  disabled={actionLoading===selected.id}
+                  onClick={()=>{if(actionLoading===selected.id)return;setShowDetail(false);setDeleteTarget(selected);}}
+                  style={actionLoading===selected.id?{opacity:0.6,cursor:'not-allowed'}:{}}
+                >
+                  🗑 Löschen
+                </Button>
+              )}
             </div>
           ):undefined}
         >
