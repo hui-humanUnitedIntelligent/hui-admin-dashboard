@@ -39,13 +39,13 @@ export function useWorks(opts: UseWorksOptions = {}): UseWorksReturn {
     setLoading(true);
     setError(null);
     try {
-      const token = await getSessionToken();
+      
       const params = new URLSearchParams({ limit: String(limit) });
       // Nur filtern wenn explizit gesetzt (nicht 'all' oder undefined)
       if (status && status !== 'all') params.set('status', status);
 
       const res = await fetch(`/api/works?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
