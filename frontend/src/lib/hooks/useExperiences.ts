@@ -47,7 +47,8 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       // API gibt Array direkt zurück (kein ok()-wrapper)
-      const arr = Array.isArray(json.experiences) ? json.experiences : (Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : []));
+      // Support beides: 'entries' (neue Route) und 'experiences' (alte Route)
+      const arr = Array.isArray(json.entries) ? json.entries : Array.isArray(json.experiences) ? json.experiences : Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : [];
       setEntries(arr);
       setTotal(json.total ?? arr.length);
     } catch (e: unknown) {
