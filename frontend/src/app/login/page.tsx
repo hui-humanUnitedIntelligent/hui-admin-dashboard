@@ -33,7 +33,9 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        // window.location.href statt router.push — Chrome speichert Cookie vor Navigation
+        // 100ms warten — Chrome schreibt Set-Cookie Header asynchron in den Cookie-Store
+        // Ohne delay navigiert die Middleware bevor der Cookie persistiert ist
+        await new Promise(resolve => setTimeout(resolve, 100));
         if (mode === 'employee') {
           window.location.href = '/employee/works';
         } else {
