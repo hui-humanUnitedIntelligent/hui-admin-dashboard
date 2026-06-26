@@ -106,7 +106,7 @@ export default function ImpactPage() {
                 <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Keine Projekte gefunden.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {projects.map((p: Record<string, unknown>) => (
+                  {(projects as unknown as Record<string, unknown>[]).map((p) => (
                     <div key={String(p.id)} style={{
                       display: 'flex', alignItems: 'center', gap: 14,
                       padding: '12px 16px',
