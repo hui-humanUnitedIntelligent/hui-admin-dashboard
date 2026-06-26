@@ -1,45 +1,42 @@
 // frontend/src/app/api/impact-projects/route.ts
-import { NextRequest } from 'next/server';
-import { guardUser } from '@/app/lib/auth-guard';
-import { ok, serverError } from '@/app/lib/api-response';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(req: NextRequest) {
-  const guard = await guardUser(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
-
   try {
-    const sb     = getServiceClient();
-    const params = new URL(req.url).searchParams;
-    const status = params.get('status');
-    const limit  = Math.min(Number(params.get('limit') ?? 500), 1000);
-    const skip   = Number(params.get('skip') ?? 0);
+    const { searchParams } = new URL(req.url);
+    const limit  = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const status = searchParams.get('status') || '';
+    const sb = getServiceClient();
 
-    let query = sb
-      .from('impact_projects')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(skip, skip + limit - 1);
-
-    if (status && status !== 'all') {
-      query = query.eq('status', status);
-    }
-
-    const { data, error, count } = await query;
-    if (error) throw error;
-
-    const all = data ?? [];
-    const counts = {
-      total:   count ?? 0,
-      active:  all.filter(r => r.status === 'active').length,
-      inactive: all.filter(r => r.status === 'inactive').length,
-      deleted: all.filter(r => r.status === 'deleted').length,
-    };
-
-    return ok({ projects: all, total: count ?? 0, counts });
+    let q = sb.from('impact_projects')
+      .select('id,created_at,updated_at,name,category,description,icon,color,votes,status,month,awarded_eur,website,contact_name,contact_email,impact_report,tags,distributed_at', { count: 'exact' });
+    if (status) q = q.eq('status', status);
+    q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    const { data, count, error } = await q;
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, projects: data ?? [], total: count ?? 0 });
   } catch (err) {
-    return serverError(err, 'impact-projects GET');
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+  try {
+    const { id, ...updates } = await req.json();
+    if (!id) return NextResponse.json({ ok: false, error: 'ID fehlt' }, { status: 400 });
+    const sb = getServiceClient();
+    const { error } = await sb.from('impact_projects').update(updates).eq('id', id);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
