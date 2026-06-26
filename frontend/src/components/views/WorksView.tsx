@@ -922,7 +922,6 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
         </div>
       </div>
 
-      <SpinKeyframes/>
       {/* ── Detail / Edit Modal ─────────────────────────────────────────── */}
       {selected && (
         <Modal
@@ -940,12 +939,8 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                   {/* Status-specific actions */}
                   {selected.status === 'deleted' && (
                     <>
-                      <Button variant="primary" disabled={busy[selected.id]} onClick={() => handleRestore(selected)}>
-                        {busy[selected.id]?<span style={{display:'flex',alignItems:'center',gap:6}}><Spinner/>Wird wiederhergestellt…</span>:'♻️ Wiederherstellen'}
-                      </Button>
-                      {isSuperadmin && <Button variant="danger" disabled={busy[selected.id]} onClick={() => handleHardDelete(selected)}>
-                        {busy[selected.id]?'…':'🗑 Endgültig löschen'}
-                      </Button>}
+                      <Button variant="primary" loading={busy[selected.id]} disabled={!!busy[selected.id]} onClick={() => handleRestore(selected)}>♻️ Wiederherstellen</Button>
+                      {isSuperadmin && <Button variant="danger" disabled={!!busy[selected.id]} onClick={() => handleHardDelete(selected)}>🗑 Endgültig löschen</Button>}
                     </>
                   )}
                   {selected.status === 'flagged' && (
@@ -963,15 +958,8 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                   )}
                   {selected.status === 'draft' && (
                     <>
-                      <Button variant="primary" disabled={busy[selected.id]} onClick={() => handleApprove(selected)}
-                        style={busy[selected.id]?{opacity:0.65,cursor:'not-allowed',minWidth:130}:{minWidth:130}}>
-                        {busy[selected.id]
-                          ? <span style={{display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}><Spinner/>Freigeben…</span>
-                          : '✅ Freigeben'}
-                      </Button>
-                      {isSuperadmin && <Button variant="danger" disabled={busy[selected.id]} onClick={() => handleDelete(selected)}>
-                        {busy[selected.id]?'…':'🗑 Löschen'}
-                      </Button>}
+                      <Button variant="primary" loading={busy[selected.id]} disabled={!!busy[selected.id]} onClick={() => handleApprove(selected)}>✅ Freigeben</Button>
+                      {isSuperadmin && <Button variant="danger" disabled={!!busy[selected.id]} onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
                     </>
                   )}
                 </>
