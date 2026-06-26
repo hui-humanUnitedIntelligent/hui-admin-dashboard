@@ -79,13 +79,13 @@ export async function POST(req: NextRequest) {
       if (contentType.includes('application/json')) {
         return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
       }
-      const dest = dashboard === 'employee' ? '/employee/works' : '/works';
+      const dest = dashboard === 'employee' ? '/employee/dashboard' : '/dashboard';
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(result.error || 'Fehler')}`, req.url)
       );
     }
 
-    const dest = dashboard === 'employee' ? '/employee/works' : '/works';
+    const dest = dashboard === 'employee' ? '/employee/dashboard' : '/dashboard';
 
     if (contentType.includes('application/json')) {
       // AJAX: JSON zurück + Cookies setzen
