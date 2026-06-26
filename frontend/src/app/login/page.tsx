@@ -33,10 +33,9 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        // Nach AJAX-Login: Server-seitiger Bounce via /api/auth/check
-        // Extra Round-Trip gibt Chrome Zeit den Cookie zu persistieren
         const dest = mode === 'employee' ? '/employee/works' : '/works';
-        window.location.href = `/api/auth/check?dest=${dest}`;
+        // Einfacher Hard-Redirect — Cookies sind vom AJAX-Response bereits gesetzt
+        window.location.replace(dest);
       } else {
         setError(data.error || 'Anmeldung fehlgeschlagen');
       }
