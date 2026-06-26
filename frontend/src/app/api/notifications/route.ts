@@ -1,13 +1,13 @@
 // frontend/src/app/api/notifications/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardAdmin, guardEmployee } from '@/app/lib/auth-guard';
 import { ok, created, fail, serverError, validationError } from '@/app/lib/api-response';
 import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
 import { NOTIFICATION_TYPES, isValidNotificationType } from '@/lib/notification-types';
 
 // ── GET: Notifications abrufen (mit Paginierung + Filter) ────────────────────
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
 
   try {
