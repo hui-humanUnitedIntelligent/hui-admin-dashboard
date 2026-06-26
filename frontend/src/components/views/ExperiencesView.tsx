@@ -278,18 +278,12 @@ function MediaDiffBlockExp({ entry, snap }: { entry: HuiEntry; snap: Record<stri
 
 async function entryAction(action: string, id: string, data: Record<string, unknown> = {}): Promise<boolean> {
   try {
-    const res = await fetch('/api/experiences', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, _action: action, ...data }),
+    const res = await fetch('/api/admin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, userId: id, data }),
     });
-    if (!res.ok) { const e = await res.json().catch(()=>({})); console.error('[entryAction]', action, res.status, e); return false; }
-    return true;
-  } catch (e) {
-    console.error('[entryAction] network', e);
-    return false;
-  }
+    return res.ok;
+  } catch { return false; }
 }
 
 function EntryStatus({ entry }: { entry: HuiEntry }) {
@@ -467,19 +461,19 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
 
   const handleApprove = async (e: HuiEntry) => {
     setActionLoading(e.id);
-    const ok = await entryAction('approve_experience', e.id);
+    const ok = await entryAction(e._source==='experiences'?'approve_experience':'approve_project', e.id);
     setActionLoading(null);
     if (ok) {
       // Optimistic update: Status sofort in UI aktualisieren ohne auf refetch zu warten
       setSelected(prev => prev?.id === e.id
         ? { ...prev, status: 'published', approval_status: 'approved', rejection_reason: null }
         : prev);
-      showToast(`✅ ${e.title||'Eintrag'} wurde freigegeben und ist jetzt live!`, 'success');
+      showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success');
       // Sofort refetch ohne Verzögerung
       await refetchAll();
     }
     else {
-      showToast('Fehler beim Freigeben — bitte nochmal versuchen.', 'error');
+      showToast('Fehler beim Freigeben', 'error');
     }
   };
 
@@ -506,7 +500,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     const reason = rejectReason.trim();
     if (!reason) { showToast('Bitte Ablehnungsgrund angeben','error'); return; }
     setRejectLoading(true);
-    const ok = await entryAction('reject_experience', rejectTarget.id, {reason});
+    const ok = await entryAction(rejectTarget._source==='experiences'?'reject_experience':'reject_project', rejectTarget.id, {reason});
     setRejectLoading(false);
     if (ok) {
       setSelected(prev => prev?.id === rejectTarget.id
@@ -523,11 +517,11 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     const ok = await entryAction('delete_experience', e.id);
     setActionLoading(null);
     if (ok) {
-      showToast('Geloescht! Dieser Eintrag ist nicht mehr in der App sichtbar.', 'info');
+      showToast('Geloescht! Der Eintrag ist nicht mehr in der App sichtbar.', 'info');
       setLocalDel(new Set());
       await refetchAll();
     } else {
-      showToast('Fehler beim Loschen — bitte nochmal versuchen.', 'error');
+      showToast('Fehler beim Loeschen.', 'error');
       setLocalDel(p => { const s = new Set(p); s.delete(e.id); return s; });
     }
   };
@@ -536,24 +530,16 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     setActionLoading(e.id);
     const ok = await entryAction('restore_experience', e.id);
     setActionLoading(null);
-    if (ok) {
-      showToast('Wiederhergestellt! Dieser Eintrag ist jetzt wieder live.', 'success');
-      await refetchAll();
-    } else {
-      showToast('Fehler beim Wiederherstellen.', 'error');
-    }
+    if (ok) { showToast('Wiederhergestellt! Der Eintrag ist wieder live.', 'success'); await refetchAll(); }
+    else { showToast('Fehler beim Wiederherstellen.', 'error'); }
   };
 
   const handleHardDelete = async (e: HuiEntry) => {
     setActionLoading(e.id);
     const ok = await entryAction('hard_delete_experience', e.id);
     setActionLoading(null);
-    if (ok) {
-      showToast('Endgueltig geloescht. Der Eintrag ist unwiderruflich entfernt.', 'info');
-      await refetchAll();
-    } else {
-      showToast('Fehler beim endgueltigen Loeschen.', 'error');
-    }
+    if (ok) { showToast('Endgueltig geloescht.', 'info'); await refetchAll(); }
+    else { showToast('Fehler.', 'error'); }
   };
 
   const BANNERS: Partial<Record<TabKey,{bg:string;border:string;color:string;text:string}>> = {
@@ -663,31 +649,10 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                                 style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #22C55E', background:'rgba(34,197,94,0.1)', color:'#22C55E', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)', fontWeight:600 }}>
                                 {actionLoading===entry.id?'…':'✅ Klar'}
                               </button>
+                            )}
                             {isSuperadmin && (
-                              <>
-                                {/* Nicht-Gelöscht: Löschen-Button */}
-                                {!isDeleted(entry) && (
-                                  <button onClick={()=>setDeleteTarget(entry)} title="Loeschen"
-                                    style={{padding:'4px 8px',borderRadius:6,border:'1px solid var(--border)',background:'var(--bg-tertiary)',color:'var(--text-muted)',fontSize:10,cursor:'pointer'}}>
-                                    ð
-                                  </button>
-                                )}
-                                {/* Gelöscht-Tab: Restore + Hard-Delete */}
-                                {isDeleted(entry) && (
-                                  <>
-                                    <button disabled={actionLoading===entry.id} onClick={()=>handleRestore(entry)} title="Wiederherstellen"
-                                      style={{padding:'3px 8px',borderRadius:5,border:'1px solid var(--green)',background:'var(--green-dim)',color:'var(--green)',fontSize:11,cursor:'pointer',fontWeight:600}}>
-                                      {actionLoading===entry.id?'...':'♻️ Restore'}
-                                    </button>
-                                    <button disabled={actionLoading===entry.id}
-                                      onClick={()=>{if(window.confirm('Endgueltig loeschen?'))handleHardDelete(entry);}}
-                                      title="Endgueltig loeschen"
-                                      style={{padding:'3px 8px',borderRadius:5,border:'1px solid var(--red)',background:'var(--red-dim)',color:'var(--red)',fontSize:11,cursor:'pointer',fontWeight:600}}>
-                                      {actionLoading===entry.id?'...':'ð Final'}
-                                    </button>
-                                  </>
-                                )}
-                              </>
+                            <button onClick={()=>setDeleteTarget(entry)} title="Löschen"
+                              style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>🗑</button>
                             )}
                           </div>
                         </td>
@@ -713,9 +678,9 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
               {isPending(selected)&&<Button variant="primary" loading={actionLoading===selected.id} disabled={!!actionLoading} onClick={()=>handleApprove(selected)}>✅ Freigeben</Button>}
               {isPending(selected)&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(actionLoading)return;setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}>❌ Ablehnen</Button>}
               {isRejected(selected)&&<Button variant="primary" loading={actionLoading===selected.id} disabled={!!actionLoading} onClick={()=>handleApprove(selected)}>✅ Trotzdem freigeben</Button>}
-              {!isDeleted(selected)&&isSuperadmin&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(actionLoading)return;setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
-              {isDeleted(selected)&&<Button variant="primary" loading={actionLoading===selected.id} disabled={!!actionLoading} onClick={()=>handleRestore(selected)}>♻️ Wiederherstellen</Button>}
-              {isDeleted(selected)&&isSuperadmin&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(window.confirm('Endgültig löschen?')){setShowDetail(false);handleHardDelete(selected);}}}>🗑 Endgültig löschen</Button>}
+              {!isDeleted(selected)&&isSuperadmin&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(actionLoading)return;setShowDetail(false);setDeleteTarget(selected);}}>Loeschen</Button>}
+              {isDeleted(selected)&&<Button variant="primary" loading={actionLoading===selected.id} disabled={!!actionLoading} onClick={()=>handleRestore(selected)}>Wiederherstellen</Button>}
+              {isDeleted(selected)&&isSuperadmin&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(window.confirm('Endgueltig loeschen?')){setShowDetail(false);handleHardDelete(selected);}}}>Final loeschen</Button>}
             </div>
           ):undefined}
         >
