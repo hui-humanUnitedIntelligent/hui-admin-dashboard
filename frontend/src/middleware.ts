@@ -2,39 +2,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Alle Superadmin-Routen (flach unter /)
 const SUPERADMIN_PATHS = [
-  '/works',
-  '/dashboard',
-  '/users',
-  '/impact',
-  '/transactions',
-  '/admins',
-  '/ambassadors',
-  '/analytics',
-  '/audit',
-  '/bookings',
-  '/broadcast',
-  '/churns',
-  '/exports',
-  '/experiences',
-  '/flags',
-  '/impact-projekte',
-  '/memberships',
-  '/reports',
-  '/reviews',
-  '/score-failures',
-  '/settings',
-  '/system',
-  '/talents',
-  '/tickets',
+  '/works', '/dashboard', '/users', '/impact', '/transactions',
+  '/admins', '/ambassadors', '/analytics', '/audit', '/bookings',
+  '/broadcast', '/churns', '/exports', '/experiences', '/flags',
+  '/impact-projekte', '/memberships', '/reports', '/reviews',
+  '/score-failures', '/settings', '/system', '/talents', '/tickets',
 ];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1) Öffentliche Routen — immer erlauben
-  if (pathname === '/login' || pathname.startsWith('/api/auth')) {
+  // 1) Public — immer erlauben
+  if (pathname === '/login' || pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
@@ -43,8 +23,7 @@ export function middleware(req: NextRequest) {
 
   // 2) Kein Token → Login
   if (!token) {
-    const loginUrl = new URL('/login', req.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
   // 3) Superadmin-Bereiche
@@ -65,8 +44,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // _next/static, _next/image, favicon, und _next/data (RSC) ausschließen
-  matcher: [
-    '/((?!_next/static|_next/image|_next/data|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  // Nur echte Page-Routen matchen — _next/* und statische Dateien komplett ausschließen
+  matcher: ['/((?!_next|api|favicon.ico).*)'],
 };
