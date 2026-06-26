@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
         is_wirker:       p?.is_wirker ?? false,
         is_member:       p?.is_member ?? false,
         blocked:         p?.blocked ?? (!!au.banned_until && new Date(au.banned_until) > new Date()),
-        is_deleted:      false ?? !!au.deleted_at,
+        is_deleted:      false,
         impact_eur:      p?.impact_eur ?? 0,
         trust_score:     p?.trust_score ?? 0,
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
