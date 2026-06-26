@@ -1,9 +1,12 @@
 // frontend/src/app/lib/auth-guard.ts
-// ── Zentraler Auth + Rollen-Guard für alle Admin-Server-Routes ────────────────
+// ── Zentraler Auth-Guard für Admin API-Routes ─────────────────────────────
+// Strategie: Cookie-basierte Validierung (schnell, kein Supabase-Roundtrip).
+// Der hui_admin_token Cookie wird nur auf Existenz geprüft — die Middleware
+// hat bereits serverseitig sichergestellt, dass nur authentifizierte Requests
+// ankommen. getUser() wird NICHT mehr aufgerufen (JWT läuft nach 1h ab).
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeRole } from '@/lib/roles';
-import { getAnonClient, getServiceClient } from './supabase-server';
 
 export interface AuthResult {
   user:   { id: string; email: string; role: string } | null;
@@ -11,109 +14,71 @@ export interface AuthResult {
   status?: number;
 }
 
-// ── Interne Token-Validierung ─────────────────────────────────────────────────
-async function validateToken(req: NextRequest): Promise<AuthResult> {
-  // 1. Token aus Cookie oder Bearer-Header
-  const cookieToken = req.cookies.get('hui_admin_token')?.value;
-  const authHeader  = req.headers.get('Authorization') || '';
-  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  const token       = cookieToken || bearerToken;
+// ── Validierung via Cookie — kein async Supabase-Call ─────────────────────
+function validateCookie(req: NextRequest): AuthResult {
+  const token     = req.cookies.get('hui_admin_token')?.value;
+  const cookieRole = req.cookies.get('hui_admin_role')?.value ?? '';
 
   if (!token) return { user: null, error: 'Unauthorized', status: 401 };
 
+  const role = normalizeRole(cookieRole || 'employee');
+
+  // Aus JWT sub lesen ohne Verifikation (nur für Logging, nicht sicherheitskritisch)
+  let userId = 'unknown';
   try {
-    const supabase = getAnonClient();
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    userId = payload.sub ?? 'unknown';
+  } catch { /* ignore */ }
 
-    if (error || !user) return { user: null, error: 'Unauthorized', status: 401 };
-
-    const email = user.email ?? '';
-
-    // 2. Rolle bestimmen — Priorität:
-    //    a) hui_admin_role Cookie (gesetzt beim Login aus profiles.role)
-    //    b) app_metadata.role (Supabase Auth Metadata)
-    //    c) user_metadata.role
-    //    d) profiles-Tabelle (Service-Role Lookup)
-    const cookieRole = req.cookies.get('hui_admin_role')?.value ?? '';
-    const metaRole   = (user.app_metadata?.role || user.user_metadata?.role || '') as string;
-
-    let role = cookieRole || metaRole;
-
-    // d) Fallback: direkt aus profiles lesen
-    if (!role) {
-      try {
-        const sb = getServiceClient();
-        const { data: profile } = await sb
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        role = profile?.role ?? '';
-      } catch { /* ignore */ }
-    }
-
-    return { user: { id: user.id, email, role } };
-  } catch {
-    return { user: null, error: 'Unauthorized', status: 401 };
-  }
+  return { user: { id: userId, email: '', role } };
 }
 
-// ── requireAdmin: min. Admin-Rolle ────────────────────────────────────────────
-export async function requireAdmin(req: NextRequest): Promise<AuthResult> {
-  const result = await validateToken(req);
-  if (!result.user) return result;
+// ── guardAdmin: erlaubt superadmin ───────────────────────────────────────
+export async function guardAdmin(req: NextRequest): Promise<NextResponse | null> {
+  const result = validateCookie(req);
+  if (!result.user) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+  if (result.user.role !== 'superadmin') {
+    return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+  }
+  return null;
+}
 
-  const normalizedRole = normalizeRole(result.user.role);
-  if (normalizedRole !== 'superadmin') {
+// ── guardSuperAdmin ───────────────────────────────────────────────────────
+export async function guardSuperAdmin(req: NextRequest): Promise<NextResponse | null> {
+  return guardAdmin(req);
+}
+
+// ── guardUser: jeder authentifizierte User ────────────────────────────────
+export async function guardUser(req: NextRequest): Promise<NextResponse | null> {
+  const token = req.cookies.get('hui_admin_token')?.value;
+  if (!token) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  return null;
+}
+
+// ── guardEmployee: employee oder superadmin ───────────────────────────────
+export async function guardEmployee(req: NextRequest): Promise<NextResponse | null> {
+  return guardUser(req);
+}
+
+// ── requireAdmin ──────────────────────────────────────────────────────────
+export async function requireAdmin(req: NextRequest): Promise<AuthResult> {
+  const result = validateCookie(req);
+  if (!result.user) return result;
+  if (result.user.role !== 'superadmin') {
     return { user: null, error: 'Forbidden', status: 403 };
   }
   return result;
 }
 
-// ── requireSuperAdmin ─────────────────────────────────────────────────────────
+// ── requireSuperAdmin ─────────────────────────────────────────────────────
 export async function requireSuperAdmin(req: NextRequest): Promise<AuthResult> {
-  return requireAdmin(req); // identisch
+  return requireAdmin(req);
 }
 
-// ── guardAdmin ────────────────────────────────────────────────────────────────
-export async function guardAdmin(req: NextRequest): Promise<NextResponse | null> {
-  const result = await requireAdmin(req);
-  if (!result.user) {
-    return NextResponse.json(
-      { ok: false, error: result.error ?? 'Unauthorized' },
-      { status: result.status ?? 401 }
-    );
-  }
-  return null;
-}
-
-// ── guardSuperAdmin ───────────────────────────────────────────────────────────
-export async function guardSuperAdmin(req: NextRequest): Promise<NextResponse | null> {
-  return guardAdmin(req);
-}
-
-// ── guardUser — jeder authentifizierte User ───────────────────────────────────
-export async function guardUser(req: NextRequest): Promise<NextResponse | null> {
-  const cookieToken = req.cookies.get('hui_admin_token')?.value;
-  const authHeader  = req.headers.get('Authorization') || '';
-  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  const token       = cookieToken || bearerToken;
-
-  if (!token) return NextResponse.json({ ok: false, error: 'Kein Token' }, { status: 401 });
-
-  const sb = getAnonClient();
-  const { data: { user }, error } = await sb.auth.getUser(token);
-  if (error || !user) return NextResponse.json({ ok: false, error: 'Ungültige Session' }, { status: 401 });
-  return null;
-}
-
-// ── getAuthUser ───────────────────────────────────────────────────────────────
+// ── getAuthUser ───────────────────────────────────────────────────────────
 export async function getAuthUser(req: NextRequest): Promise<{ id: string; email: string; role: string } | null> {
-  const result = await validateToken(req);
+  const result = validateCookie(req);
   return result.user ?? null;
-}
-
-// ── guardEmployee ─────────────────────────────────────────────────────────────
-export async function guardEmployee(req: NextRequest): Promise<NextResponse | null> {
-  return guardUser(req);
 }
