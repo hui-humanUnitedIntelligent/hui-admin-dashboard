@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSessionToken } from '@/lib/session';
 
 // Interface hält snake_case für Backwards-Kompatibilität mit bestehenden Pages
 export interface AmbassadorStats {
@@ -28,9 +27,8 @@ export function useAmbassadorStats(refreshInterval = 60000): AmbassadorStats {
 
   const fetchStats = useCallback(async () => {
     try {
-      const token = getSessionToken();
       const res = await fetch('/api/ambassador?action=stats', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: token ? { } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
