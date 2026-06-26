@@ -6,7 +6,6 @@ import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import { useImpactProjects } from '@/lib/hooks/useSupabase';
-import { getSessionToken } from '@/lib/session';
 
 function fmtEur(n:number|null|undefined){if(!n)return'—';return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
 
@@ -22,9 +21,8 @@ export default function EmployeeImpactPage() {
   async function call(action:string, id:string, data?:Record<string,unknown>) {
     setBusy(id);
     try {
-      const token = await getSessionToken();
       const res = await fetch('/api/employee/content',{
-        method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+        method:'POST',headers:{'Content-Type':'application/json',},
         body:JSON.stringify({action,id,data}),
       });
       if(res.ok){return true;}
