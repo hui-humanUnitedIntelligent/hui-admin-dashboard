@@ -71,7 +71,7 @@ export default function DashboardLayout({
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         <Header
-          title={title}
+          title={title ?? ''}
           actions={headerActions}
           onMenuToggle={() => setMobileOpen(prev => !prev)}
           employeeMode={employeeMode}
