@@ -645,7 +645,7 @@ export function useScoreFailures(opts: { limit?: number } = {}) {
     try {
       const token = await getSessionToken();
       const res   = await fetch(`/api/score-failures?limit=${limit}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       const j = await res.json();
       // ok() wrapper gibt { data: [...] } zurück — Array-Fallback für Abwärtskompatibilität
