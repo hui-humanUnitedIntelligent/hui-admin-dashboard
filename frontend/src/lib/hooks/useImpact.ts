@@ -23,13 +23,13 @@ export function useImpact(opts: UseImpactOptions = {}) {
   const fetchImpact = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from('impact_projects')
-        .select('id,name,category,description,icon,color,votes,status,goal_eur,awarded_eur,month')
-        .order('votes', { ascending: false })
-        .limit(100);
-      if (err) throw err;
-      setProjects((data ?? []) as HuiImpactProject[]);
+      const res = await fetch('/api/impact?type=projects&limit=200', {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const rows = Array.isArray(json.projects) ? json.projects : [];
+      setProjects(rows as HuiImpactProject[]);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -63,15 +63,12 @@ export function useImpact(opts: UseImpactOptions = {}) {
   const updateProject = useCallback(async (
     id: string,
     data: Record<string, unknown>,
-    sessionToken?: string,
   ): Promise<boolean> => {
     try {
       const res = await fetch(`/api/impact-applications/${id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (res.ok) fetchImpact();
