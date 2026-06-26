@@ -33,7 +33,8 @@ export const ADMIN_NAV: NavGroup[] = [
     icon: '◎',
     items: [
       { href: '/users',        label_de: 'User-Management',  label_en: 'User Management',  icon: '👥', roles: ['superadmin'] },
-      { href: '/admins',       label_de: 'Admin-Verwaltung', label_en: 'Admin Management', icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
+      { href: '/employees', label: 'Employees', icon: '👤', roles: ['superadmin'] },
+  { href: '/admins',       label_de: 'Admin-Verwaltung', label_en: 'Admin Management', icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
       { href: '/ambassadors',  label_de: 'Ambassadors',      label_en: 'Ambassadors',      icon: '🤝', roles: ['superadmin'], superadminOnly: true },
       { href: '/talents',      label_de: 'Talent-Pool',      label_en: 'Talent Pool',      icon: '⭐', roles: ['superadmin'] },
       { href: '/transactions', label_de: 'Transaktionen',    label_en: 'Transactions',     icon: '⇄',  roles: ['superadmin'] },
