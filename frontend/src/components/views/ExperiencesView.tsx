@@ -649,10 +649,29 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                                 style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #22C55E', background:'rgba(34,197,94,0.1)', color:'#22C55E', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)', fontWeight:600 }}>
                                 {actionLoading===entry.id?'…':'✅ Klar'}
                               </button>
-                            )}
                             {isSuperadmin && (
-                            <button onClick={()=>setDeleteTarget(entry)} title="Löschen"
-                              style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>🗑</button>
+                              <>
+                                {!isDeleted(entry) && (
+                                  <button onClick={()=>setDeleteTarget(entry)} title="Loeschen"
+                                    style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>
+                                    {'ð'}
+                                  </button>
+                                )}
+                                {isDeleted(entry) && (
+                                  <>
+                                    <button disabled={actionLoading===entry.id} onClick={()=>handleRestore(entry)} title="Restore"
+                                      style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--green)',background:'var(--green-dim)',color:'var(--green)',fontSize:11,cursor:'pointer',fontWeight:600}}>
+                                      {actionLoading===entry.id ? '...' : '♻ Restore'}
+                                    </button>
+                                    <button disabled={actionLoading===entry.id}
+                                      onClick={()=>{if(window.confirm('Endgueltig loeschen?'))handleHardDelete(entry);}}
+                                      style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--red)',background:'var(--red-dim)',color:'var(--red)',fontSize:11,cursor:'pointer',fontWeight:600}}>
+                                      {actionLoading===entry.id ? '...' : 'ð Final'}
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
                             )}
                           </div>
                         </td>
