@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 
 // Pfade die NUR superadmin darf (kein /employee prefix!)
 const SUPERADMIN_PATHS = [
-  '/works', '/dashboard', '/users', '/impact', '/transactions',
+  '/works', '/dashboard', '/employees', '/users', '/impact', '/transactions',
   '/admins', '/ambassadors', '/analytics', '/audit', '/bookings',
   '/broadcast', '/churns', '/exports', '/experiences', '/flags',
   '/impact-projekte', '/memberships', '/reports', '/reviews',
