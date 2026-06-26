@@ -42,24 +42,24 @@ export default function EmployeeUsersPage() {
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState('');
 
-  // Guard: nur superadmin darf /users sehen
-  useEffect(() => {
-    if (currentUser && !isSuperAdmin(currentUser.role)) {
-      router.replace('/employee');
-    }
-  }, [currentUser, router]);
+  // Employee darf Users lesen (read-only)
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const token = await getSessionToken();
+      const token = getSessionToken();
       const res = await fetch('/api/profiles', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const j = await res.json();
-      setProfiles(j.data ?? []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+      setProfiles(j.profiles ?? j.data ?? []);
+    } catch (err) {
+      console.error('employee/users load error:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
