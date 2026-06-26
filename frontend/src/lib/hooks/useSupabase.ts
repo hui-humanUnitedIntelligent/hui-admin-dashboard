@@ -438,12 +438,14 @@ export function useImpactProjects(refreshInterval = 0) {
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      // Lade alle Projects (kein Status-Filter) — UI filtert selbst
-      const rows = await sbQuery<HuiImpactProject>('impact_projects', {}, {
-        select: 'id,name,category,description,icon,color,votes,status,goal_eur,awarded_eur,month,created_at,updated_at',
-        order: 'created_at.desc', limit: 500,
+      const res = await globalThis.fetch('/api/impact-projects?limit=500', {
+        credentials: 'include',
       });
-      setProjects(rows); setError(null);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const rows = json?.data?.projects ?? json?.projects ?? json?.data ?? [];
+      setProjects(Array.isArray(rows) ? rows : []);
+      setError(null);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally { setLoading(false); }
