@@ -49,8 +49,7 @@ async function apiAction(action: string, userId: string, extra: Record<string,un
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { } : {}),
-    },
+      },
     credentials: 'include',
     body: JSON.stringify({ action, ...extra }),
   });
