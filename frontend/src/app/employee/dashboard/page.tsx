@@ -1,13 +1,11 @@
 // frontend/src/app/employee/dashboard/page.tsx
 'use client';
 
-import { useEffect } from 'react';
+import {} from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { useKPIs, useGrowthChart } from '@/lib/hooks/useSupabase';
-import { getStoredUser } from '@/lib/api';
 
 function fmtNum(n: number) { return n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n); }
 function fmtEur(n: number) { return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); }
@@ -15,17 +13,10 @@ function fmtEur(n: number) { return new Intl.NumberFormat('de-DE', { style: 'cur
 export default function EmployeeDashboard() {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
-  const router = useRouter();
   const { totalUsers, activeMembers: activeMemberships, totalWorks, totalPayments, activeBookings, monthlyRevenue, loading } = useKPIs();
   const { labels: chartLabels, newUsers: chartNewUsers } = useGrowthChart();
 
-  // Auth guard
-  useEffect(() => {
-    const user = getStoredUser();
-    const mode = typeof window !== 'undefined' ? localStorage.getItem('hui_dashboard_mode') : null;
-    if (!user) { router.push('/login'); return; }
-    if (mode === 'super') router.push('/dashboard');
-  }, [router]);
+
 
   const card = (icon: string, label: string, value: string | number, sub?: string, color = 'var(--accent)') => (
     <div style={{
