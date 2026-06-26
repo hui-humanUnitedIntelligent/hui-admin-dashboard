@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAnonClient, getServiceClient } from '@/app/lib/supabase-server';
 import { normalizeRole } from '@/lib/roles';
 
-const MAX_AGE = 60 * 60 * 8; // 8 Stunden
+const MAX_AGE = 60 * 60 * 24 * 7; // 7 Tage
 
 async function doLogin(email: string, password: string, dashboard: string) {
   if (!email || !password) {
@@ -47,7 +47,7 @@ function setCookies(response: NextResponse, access_token: string, finalRole: str
     secure: true,
     sameSite: 'lax' as const,
     path: '/',
-    maxAge: 60 * 60 * 8,
+    maxAge: 60 * 60 * 24 * 7,
   };
   response.cookies.set('hui_admin_token', access_token, { ...base, httpOnly: true });
   response.cookies.set('hui_admin_role',  finalRole,    { ...base, httpOnly: false });
