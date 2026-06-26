@@ -4,8 +4,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
-import { sbUpdate } from '../api';
-import { getSessionToken } from '@/lib/session';
 import type { HuiWork } from './useSupabase';
 
 export type { HuiWork };
@@ -52,7 +50,7 @@ export function useWorks(opts: UseWorksOptions = {}): UseWorksReturn {
 
       const json = await res.json();
       // Response ist immer { data: HuiWork[], total: number }
-      const rows = Array.isArray(json.data) ? json.data : [];
+      const rows = Array.isArray(json.works) ? json.works : (Array.isArray(json.data) ? json.data : []);
       setWorks(rows);
       setTotal(json.total ?? rows.length);
     } catch (e: unknown) {
