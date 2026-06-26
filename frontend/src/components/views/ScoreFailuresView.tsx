@@ -54,27 +54,25 @@ function getSessionToken(): string {
 async function fetchFailures(): Promise<ScoreFailure[]> {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/impact_score_failures?select=*&order=created_at.desc&limit=500`,
-    { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
+    { headers: { apikey: SUPABASE_ANON } }
   );
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 async function softDeleteFailure(id: string): Promise<void> {
-  const token = getSessionToken();
   const res = await fetch('/api/employee/reasons/delete', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', },
     body: JSON.stringify({ id }),
   });
   if (!res.ok) throw new Error(await res.text());
 }
 
 async function hardDeleteFailure(id: string): Promise<void> {
-  const token = getSessionToken();
   const res = await fetch(`/api/admin/reasons/${id}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error(await res.text());
 }
