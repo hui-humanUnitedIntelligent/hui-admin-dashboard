@@ -7,7 +7,6 @@ import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import type { HuiEntry } from '@/lib/hooks/useExperiences';
 import { useExperiencesAndProjects } from '@/lib/hooks/useSupabase';
-import { getSessionToken } from '@/lib/session';
 
 type TabKey = 'pending'|'approved'|'rejected'|'deleted'|'all';
 const VARIANT: Record<string,'success'|'warning'|'danger'|'neutral'> = {approved:'success',pending:'warning',rejected:'danger',deleted:'neutral'};
@@ -28,10 +27,9 @@ export default function EmployeeExperiencesPage() {
   async function call(action:string, id:string, data?:Record<string,unknown>) {
     setBusy(id);
     try {
-      const token = await getSessionToken();
       const res = await fetch('/api/employee/content',{
         method:'POST',
-        headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+        headers:{'Content-Type':'application/json',},
         body:JSON.stringify({action,id,data}),
       });
       if(res.ok){refetch();return true;}
