@@ -1,9 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface CurrentUser {
+  role: string;
+  name?: string;
+  email?: string;
+}
 
 export function useAuth() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const cookieRole = document.cookie
@@ -15,8 +23,18 @@ export function useAuth() {
     setLoading(false);
   }, []);
 
-  // currentUser-Kompatibilität für bestehende Seiten
-  const currentUser = role ? { role } : null;
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/admin-logout', { method: 'POST', credentials: 'include' });
+    } catch { /* ignore */ }
+    router.push('/login');
+  }, [router]);
 
-  return { role, loading, currentUser };
+  // Backward compat: currentUser mit role, name, email
+  const currentUser: CurrentUser | null = role ? { role } : null;
+
+  // clearAuth: legacy stub (kein localStorage mehr)
+  const clearAuth = useCallback(() => {}, []);
+
+  return { role, loading, currentUser, logout, clearAuth };
 }
