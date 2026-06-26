@@ -9,7 +9,6 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
 import UserTable from '@/components/users/UserTable';
 import { useUsers, MergedUser, UserFilter } from '@/lib/hooks/useUsers';
-import { getSessionToken } from '@/lib/session';
 
 // ── Typ-Definitionen ────────────────────────────────────────────────────────
 type TabKey = 'active' | 'blocked' | 'deleted' | 'wirker' | 'duplicates';
@@ -46,12 +45,11 @@ function findDuplicates(users: MergedUser[]): MergedUser[] {
 }
 
 async function apiAction(action: string, userId: string, extra: Record<string,unknown> = {}) {
-  const token = getSessionToken();
   const res = await fetch(`/api/users/${userId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token ? { } : {}),
     },
     credentials: 'include',
     body: JSON.stringify({ action, ...extra }),
