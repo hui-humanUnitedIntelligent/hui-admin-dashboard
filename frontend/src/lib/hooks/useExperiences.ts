@@ -38,12 +38,11 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
     setError(null);
     try {
       const { getSessionToken } = await import('@/lib/session');
-      const token = await getSessionToken();
       const params = new URLSearchParams({ limit: String(limit) });
       // Nur filtern wenn explizit gesetzt (nicht 'all')
       if (status && status !== 'all') params.set('status', status);
       const res = await fetch(`/api/experiences?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
