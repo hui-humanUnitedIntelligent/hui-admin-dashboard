@@ -331,6 +331,18 @@ async function workAction(action: string, workId: string, data: Record<string, u
 }
 
 // ── Components ────────────────────────────────────────────────────────────
+// Inline Spinner für Lade-Feedback
+function Spinner() {
+  return (
+    <span style={{
+      display: 'inline-block', width: 14, height: 14,
+      border: '2px solid rgba(255,255,255,0.35)',
+      borderTopColor: '#fff', borderRadius: '50%',
+      animation: 'spin 0.7s linear infinite', flexShrink: 0,
+    }} />
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   if (status === 'published')      return <Badge variant="success" dot>Published</Badge>;
   if (status === 'pending_review') return <Badge variant="warning" dot>⏳ Pending</Badge>;
@@ -910,6 +922,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
         </div>
       </div>
 
+      <SpinKeyframes/>
       {/* ── Detail / Edit Modal ─────────────────────────────────────────── */}
       {selected && (
         <Modal
@@ -927,8 +940,12 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                   {/* Status-specific actions */}
                   {selected.status === 'deleted' && (
                     <>
-                      <Button variant="primary" onClick={() => handleRestore(selected)}>♻️ Wiederherstellen</Button>
-                      {isSuperadmin && <Button variant="danger" onClick={() => handleHardDelete(selected)}>🗑 Endgültig löschen</Button>}
+                      <Button variant="primary" disabled={busy[selected.id]} onClick={() => handleRestore(selected)}>
+                        {busy[selected.id]?<span style={{display:'flex',alignItems:'center',gap:6}}><Spinner/>Wird wiederhergestellt…</span>:'♻️ Wiederherstellen'}
+                      </Button>
+                      {isSuperadmin && <Button variant="danger" disabled={busy[selected.id]} onClick={() => handleHardDelete(selected)}>
+                        {busy[selected.id]?'…':'🗑 Endgültig löschen'}
+                      </Button>}
                     </>
                   )}
                   {selected.status === 'flagged' && (
@@ -946,8 +963,15 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                   )}
                   {selected.status === 'draft' && (
                     <>
-                      <Button variant="primary" onClick={() => handleApprove(selected)}>✅ Freigeben</Button>
-                      {isSuperadmin && <Button variant="danger"  onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
+                      <Button variant="primary" disabled={busy[selected.id]} onClick={() => handleApprove(selected)}
+                        style={busy[selected.id]?{opacity:0.65,cursor:'not-allowed',minWidth:130}:{minWidth:130}}>
+                        {busy[selected.id]
+                          ? <span style={{display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}><Spinner/>Freigeben…</span>
+                          : '✅ Freigeben'}
+                      </Button>
+                      {isSuperadmin && <Button variant="danger" disabled={busy[selected.id]} onClick={() => handleDelete(selected)}>
+                        {busy[selected.id]?'…':'🗑 Löschen'}
+                      </Button>}
                     </>
                   )}
                 </>
