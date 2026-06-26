@@ -73,6 +73,15 @@ export async function PATCH(req: NextRequest) {
       updates.sensitivity_reason = null;
     } else if (action === 'set_comment_experience') {
       if (admin_comment !== undefined) updates.admin_comment = admin_comment;
+    } else if (action === 'restore_experience') {
+      updates.status          = 'published';
+      updates.approval_status = 'approved';
+      updates.visibility      = 'public';
+    } else if (action === 'hard_delete_experience') {
+      // Permanentes Löschen aus DB
+      const { error: delErr } = await sb.from('experiences').delete().eq('id', id);
+      if (delErr) return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
+      return NextResponse.json({ ok: true, action, id, deleted: true });
     } else {
       return NextResponse.json({ ok: false, error: `Unbekannte Aktion: ${action}` }, { status: 400 });
     }
