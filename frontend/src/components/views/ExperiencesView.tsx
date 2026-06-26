@@ -530,6 +530,30 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     setActionLoading(e.id);
     const ok = await entryAction('restore_experience', e.id);
     setActionLoading(null);
+    if (ok) {
+      showToast('Wiederhergestellt! Der Eintrag ist jetzt wieder live.', 'success');
+      await refetchAll();
+    } else {
+      showToast('Fehler beim Wiederherstellen.', 'error');
+    }
+  };
+
+  const handleHardDelete = async (e: HuiEntry) => {
+    setActionLoading(e.id);
+    const ok = await entryAction('hard_delete_experience', e.id);
+    setActionLoading(null);
+    if (ok) {
+      showToast('Endgueltig geloescht.', 'info');
+      await refetchAll();
+    } else {
+      showToast('Fehler beim endgueltigen Loeschen.', 'error');
+    }
+  };
+
+  const handleRestore = async (e: HuiEntry) => {
+    setActionLoading(e.id);
+    const ok = await entryAction('restore_experience', e.id);
+    setActionLoading(null);
     if (ok) { showToast('Wiederhergestellt! Der Eintrag ist wieder live.', 'success'); await refetchAll(); }
     else { showToast('Fehler beim Wiederherstellen.', 'error'); }
   };
@@ -649,29 +673,29 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                                 style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #22C55E', background:'rgba(34,197,94,0.1)', color:'#22C55E', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)', fontWeight:600 }}>
                                 {actionLoading===entry.id?'…':'✅ Klar'}
                               </button>
+                            )}
                             {isSuperadmin && (
                               <>
                                 {!isDeleted(entry) && (
                                   <button onClick={()=>setDeleteTarget(entry)} title="Loeschen"
                                     style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>
-                                    'trash-icon'
+                                    Del
                                   </button>
                                 )}
                                 {isDeleted(entry) && (
                                   <>
-                                    <button disabled={actionLoading===entry.id} onClick={()=>handleRestore(entry)} title="Restore"
-                                      style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--green)',background:'var(--green-dim)',color:'var(--green)',fontSize:11,cursor:'pointer',fontWeight:600}}>
-                                      {actionLoading===entry.id ? '...' : '♻ Restore'}
+                                    <button disabled={actionLoading===entry.id} onClick={()=>handleRestore(entry)}
+                                      style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--green)',background:'rgba(34,197,94,0.1)',color:'#22C55E',fontSize:11,cursor:'pointer',fontWeight:600}}>
+                                      {actionLoading===entry.id ? '...' : 'Restore'}
                                     </button>
                                     <button disabled={actionLoading===entry.id}
-                                      onClick={()=>{if(window.confirm('Endgueltig loeschen?'))handleHardDelete(entry);}}
-                                      style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--red)',background:'var(--red-dim)',color:'var(--red)',fontSize:11,cursor:'pointer',fontWeight:600}}>
-                                      {actionLoading===entry.id ? '...' : 'Final loeschen'}
+                                      onClick={()=>{ if(window.confirm('Endgueltig loeschen?')) handleHardDelete(entry); }}
+                                      style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--red)',background:'rgba(255,107,107,0.1)',color:'var(--red)',fontSize:11,cursor:'pointer',fontWeight:600}}>
+                                      {actionLoading===entry.id ? '...' : 'Endg. loeschen'}
                                     </button>
                                   </>
                                 )}
                               </>
-                            )}
                             )}
                           </div>
                         </td>
