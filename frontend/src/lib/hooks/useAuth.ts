@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface CurrentUser {
@@ -8,33 +8,31 @@ interface CurrentUser {
   email?: string;
 }
 
+function readCookieRole(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('hui_admin_role='));
+  return match ? match.split('=')[1] : null;
+}
+
 export function useAuth() {
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Synchron lesen — kein useEffect, kein loading-State, kein Flackern
+  const role = readCookieRole();
+  const loading = false;
+
   const router = useRouter();
-
-  useEffect(() => {
-    const cookieRole = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('hui_admin_role='))
-      ?.split('=')[1];
-
-    setRole(cookieRole ?? null);
-    setLoading(false);
-  }, []);
 
   const logout = useCallback(async () => {
     try {
       await fetch('/api/auth/admin-logout', { method: 'POST', credentials: 'include' });
     } catch { /* ignore */ }
-    router.push('/login');
-  }, [router]);
+    window.location.href = '/login';
+  }, []);
 
-  // Backward compat: currentUser mit role, name, email
-  const currentUser: CurrentUser | null = role ? { role } : null;
-
-  // clearAuth: legacy stub (kein localStorage mehr)
   const clearAuth = useCallback(() => {}, []);
+
+  const currentUser: CurrentUser | null = role ? { role } : null;
 
   return { role, loading, currentUser, logout, clearAuth };
 }
