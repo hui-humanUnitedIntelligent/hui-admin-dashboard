@@ -204,10 +204,12 @@ export default function UsersPage() {
       {/* Bestätigungs-Modal */}
       {confirmUser && confirmAction && (
         <ConfirmModal
+          open={true}
           title={`${actionLabels[confirmAction]}?`}
           message={`Möchtest du "${confirmUser.display_name || confirmUser.email}" wirklich ${actionLabels[confirmAction].toLowerCase()}?`}
           onConfirm={executeAction}
-          onCancel={() => { setConfirmUser(null); setConfirmAction(null); }}
+          onClose={() => { setConfirmUser(null); setConfirmAction(null); }}
+          confirmVariant="danger"
         />
       )}
 
