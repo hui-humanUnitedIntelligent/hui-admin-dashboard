@@ -3,7 +3,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useImpactProjects, usePayments } from '@/lib/hooks/useSupabase';
+import { useImpact } from '@/lib/hooks/useImpact';
+import { usePayments } from '@/lib/hooks/useSupabase';
 
 function fmtEur(n: number) {
   return `€${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
