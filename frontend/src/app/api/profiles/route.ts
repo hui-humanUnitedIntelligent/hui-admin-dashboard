@@ -1,37 +1,46 @@
 // frontend/src/app/api/profiles/route.ts
-import { NextRequest } from 'next/server';
-import { guardAdmin, guardSuperAdmin } from '@/app/lib/auth-guard';
-import { ok, serverError } from '@/app/lib/api-response';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
 
   try {
-    const supabase = getServiceClient();
+    const sb = getServiceClient();
     const { searchParams } = new URL(req.url);
-    const limit  = parseInt(searchParams.get('limit')  || '1000', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-    const search = searchParams.get('search') || '';
+    const limit     = Math.min(parseInt(searchParams.get('limit')    || '1000', 10), 500);
+    const offset    = parseInt(searchParams.get('offset')   || '0', 10);
+    const search    = searchParams.get('search')    || '';
+    const is_wirker = searchParams.get('is_wirker'); // 'true'|'false'|null
+    const role      = searchParams.get('role')      || '';
+    const blocked   = searchParams.get('blocked')   || '';
 
-    let query = supabase
-      .from('profiles')
-      .select('*', { count: 'exact' })
+    let q = sb.from('profiles')
+      .select('id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,last_seen_at,created_at,updated_at,skills,focus_type,email,phone,full_name,is_talent,talent_since,talent_activated_at,member_since,blocked,blocked_at,blocked_by,is_ambassador', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
+    if (is_wirker === 'true')  q = q.eq('is_wirker', true);
+    if (is_wirker === 'false') q = q.eq('is_wirker', false);
+    if (role && role !== 'all') q = q.eq('role', role);
+    if (blocked === 'true') q = q.eq('blocked', true);
+
     if (search) {
-      query = query.or(
-        `display_name.ilike.%${search}%,username.ilike.%${search}%,email.ilike.%${search}%,id.eq.${search}`
+      q = q.or(
+        `display_name.ilike.%${search}%,username.ilike.%${search}%,email.ilike.%${search}%`
       );
     }
 
-    const { data, error, count } = await query;
+    const { data, error, count } = await q;
     if (error) throw error;
 
-    return ok({ profiles: data ?? [], total: count ?? 0 });
+    // Flache Antwort — kein ok()-Wrapper damit useProfiles direkt lesen kann
+    return NextResponse.json({ profiles: data ?? [], total: count ?? 0 });
   } catch (err) {
-    return serverError(err, 'profiles GET');
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[profiles GET]', msg);
+    return NextResponse.json({ profiles: [], total: 0, error: msg }, { status: 500 });
   }
 }
