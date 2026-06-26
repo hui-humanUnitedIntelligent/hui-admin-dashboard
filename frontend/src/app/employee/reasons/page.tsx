@@ -5,7 +5,6 @@ import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import { useScoreFailures } from '@/lib/hooks/useSupabase';
-import { getSessionToken } from '@/lib/session';
 
 function fmtEur(n:number|null|undefined){if(!n)return'—';return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
 function timeAgo(iso:string|null|undefined){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso).getTime())/86400000);if(d===0)return'Heute';if(d<7)return`${d}d`;return`${Math.floor(d/30)}mo`;}
@@ -24,9 +23,8 @@ export default function EmployeeReasonsPage() {
   async function call(action:string, id:string, data?:Record<string,unknown>) {
     setBusy(id);
     try {
-      const token = await getSessionToken();
       const res = await fetch('/api/employee/content',{
-        method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+        method:'POST',headers:{'Content-Type':'application/json',},
         body:JSON.stringify({action,id,data}),
       });
       if(res.ok){refetch();return true;}
