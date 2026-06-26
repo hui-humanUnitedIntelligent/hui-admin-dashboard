@@ -28,7 +28,7 @@ export function useAmbassadorStats(refreshInterval = 60000): AmbassadorStats {
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch('/api/ambassador?action=stats', {
-        headers: token ? { } : {},
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
