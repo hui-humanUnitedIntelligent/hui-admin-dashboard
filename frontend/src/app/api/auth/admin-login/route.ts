@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       }
       const dest = dashboard === 'employee' ? '/employee/dashboard' : '/dashboard';
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(result.error || 'Fehler')}`, req.url)
+        new URL(`/login?error=${encodeURIComponent(result.error || 'Fehler')}`, req.url), 303
       );
     }
 
@@ -96,8 +96,8 @@ export async function POST(req: NextRequest) {
       const res = NextResponse.json({ ok: true, role: result.finalRole });
       return setCookies(res, result.access_token, result.finalRole!);
     } else {
-      // Form POST: 302 Redirect + Cookies — Browser setzt Cookies zuverlässig
-      const res = NextResponse.redirect(new URL(dest, req.url));
+      // Form POST: 303 See Other — Browser wechselt zu GET (wichtig nach POST)
+      const res = NextResponse.redirect(new URL(dest, req.url), 303);
       return setCookies(res, result.access_token, result.finalRole!);
     }
   } catch (err) {
