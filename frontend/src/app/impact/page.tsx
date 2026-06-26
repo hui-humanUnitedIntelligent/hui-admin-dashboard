@@ -3,117 +3,292 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useImpact } from '@/lib/hooks/useImpact';
-import type { HuiImpactProject } from '@/lib/hooks/useSupabase';
+import PageHeader from '@/components/layout/PageHeader';
+import { useAuth } from '@/lib/hooks/useAuth';
 
-function fmtEur(n: number) {
-  return `€${n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/* ── Typen ── */
+interface ImpactProject {
+  id: string; name: string; category: string | null; description: string | null;
+  icon: string | null; color: string | null; status: string;
+  votes: number; live_votes: number; month: string | null;
+  awarded_eur: number | null; contact_name: string | null;
+  tags: string[] | null; created_at: string; distributed_at: string | null;
+}
+interface PoolData {
+  latest: { state: string; voting_ends_at: string | null; month: string } | null;
+  totalEur: number; distributedEur: number; awardedEur: number;
+  openEur: number; totalVotes: number;
+  bruttoPool: number; nettoImpact: number; firmenanteil: number;
 }
 
-function calcImpact(rev: number) {
-  const brutto = rev * 0.15;
-  return { brutto, netto: brutto * 0.85, firma: brutto * 0.15 };
+/* ── Hilfs-Funktionen ── */
+function fmtEur(n: number | null | undefined): string {
+  const v = n ?? 0;
+  return `\u20ac${v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function fmtTime(iso: string | null | undefined): string {
+  if (!iso) return '\u2014';
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  voting:   { label: 'Voting',    bg: 'rgba(116,192,252,0.15)', color: '#74C0FC' },
+  active:   { label: 'Aktiv',     bg: 'rgba(81,207,102,0.15)',  color: '#51CF66' },
+  won:      { label: 'Gewonnen',  bg: 'rgba(255,212,59,0.15)',  color: '#ffd43b' },
+  archived: { label: 'Archiviert',bg: 'rgba(134,142,150,0.15)',color: 'var(--text-muted)' },
+  rejected: { label: 'Abgelehnt', bg: 'rgba(255,107,107,0.15)',color: '#ff6b6b' },
+};
+
+/* ── Haupt-Komponente ── */
 export default function ImpactPage() {
-  const { projects, loading: projLoading } = useImpact({ refreshInterval: 30000 });
-  const [totalRevenue, setTotalRevenue]    = useState(0);
-  const [payLoading,   setPayLoading]      = useState(true);
+  const { currentUser } = useAuth();
+  const userRole = currentUser?.role ?? 'employee';
 
-  const fetchRevenue = useCallback(async () => {
-    try {
-      const res = await fetch('/api/transactions?limit=5000&status=completed', { credentials: 'include' });
-      if (res.ok) {
-        const j = await res.json();
-        setTotalRevenue(j.totalRevenue ?? 0);
-      }
-    } catch { /* silent */ } finally { setPayLoading(false); }
+  const [projects, setProjects] = useState<ImpactProject[]>([]);
+  const [pool,     setPool]     = useState<PoolData | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [filter,   setFilter]   = useState<string>('all');
+  const [search,   setSearch]   = useState('');
+  const [selected, setSelected] = useState<ImpactProject | null>(null);
+  const [toast,    setToast]    = useState('');
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg); setTimeout(() => setToast(''), 3000);
   }, []);
 
-  useEffect(() => { fetchRevenue(); }, [fetchRevenue]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '200' });
+      if (filter !== 'all') params.set('status', filter);
+      const res = await fetch(`/api/impact?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      setProjects(Array.isArray(d.projects) ? d.projects : []);
+      if (d.pool) setPool(d.pool);
+    } catch (e) {
+      console.error('[impact]', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
 
-  const { brutto, netto, firma } = calcImpact(totalRevenue);
-  const activeProjects = projects.filter(p => p.status === 'active');
+  useEffect(() => { load(); }, [load]);
 
-  const card: React.CSSProperties = {
-    background: 'var(--bg-card)', border: '1px solid var(--border)',
-    borderRadius: 12, padding: '20px 24px',
-  };
+  // Auto-Refresh alle 30s
+  useEffect(() => {
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  async function updateProject(id: string, updates: Record<string, unknown>) {
+    try {
+      const res = await fetch('/api/impact', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: 'project', id, ...updates }),
+      });
+      if (res.ok) { showToast('\u2705 Gespeichert'); load(); setSelected(null); }
+      else          showToast('Fehler beim Speichern');
+    } catch { showToast('Netzwerkfehler'); }
+  }
+
+  const filtered = projects.filter(p => {
+    if (filter !== 'all' && p.status !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return p.name.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  // Status-Counts
+  const counts: Record<string, number> = {};
+  for (const p of projects) counts[p.status] = (counts[p.status] ?? 0) + 1;
+
+  const kpiCard = (label: string, value: string, icon: string, color: string) => (
+    <div key={label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', flex: 1, minWidth: 150 }}>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 6 }}>{icon} {label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
+    </div>
+  );
+
+  const statusBtn = (key: string, label: string) => (
+    <button key={key} onClick={() => setFilter(key)} style={{
+      padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+      border: `1px solid ${filter === key ? 'var(--accent)' : 'var(--border)'}`,
+      background: filter === key ? 'rgba(78,205,196,0.15)' : 'var(--bg-secondary)',
+      color: filter === key ? 'var(--accent)' : 'var(--text-muted)',
+    }}>
+      {label}{key !== 'all' && counts[key] !== undefined ? ` (${counts[key]})` : ` (${projects.length})`}
+    </button>
+  );
 
   return (
     <DashboardLayout title="Impact Pool">
-      <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Impact Pool
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-            15 % jedes Umsatzes gehen in den gemeinsamen Impact-Pool
-          </p>
-        </div>
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: 'var(--accent)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>{toast}</div>
+      )}
 
-        {(payLoading || projLoading) ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Lade Daten…</p>
+      <PageHeader title="Impact Pool" subtitle="15\u00a0% jedes Umsatzes gehen in den gemeinsamen Impact-Pool"
+        actionsRole={userRole as 'superadmin' | 'employee'} userRole={userRole}
+        actions={<button onClick={load} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>\u21ba Refresh</button>}
+      />
+
+      {/* Finanz-KPIs */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+        {pool ? (
+          <>
+            {kpiCard('Gesamtumsatz',    fmtEur(pool.totalEur / 0.15), '\uD83D\uDCB0', 'var(--text-primary)')}
+            {kpiCard('Brutto-Pool (15%)',fmtEur(pool.bruttoPool),      '\uD83C\uDF31', '#74C0FC')}
+            {kpiCard('Netto-Impact (85%)',fmtEur(pool.nettoImpact),    '\uD83C\uDF1F', '#51CF66')}
+            {kpiCard('Firmenanteil (15%)',fmtEur(pool.firmenanteil),   '\uD83C\uDFE2', '#ffd43b')}
+          </>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
-              {[
-                { label: 'Gesamtumsatz',       value: totalRevenue, color: 'var(--accent)' },
-                { label: 'Brutto-Pool (15%)',  value: brutto,       color: '#6366f1' },
-                { label: 'Netto-Impact (85%)', value: netto,        color: '#10b981' },
-                { label: 'Firmenanteil (15%)', value: firma,        color: '#f59e0b' },
-              ].map(k => (
-                <div key={k.label} style={{ ...card, borderLeft: `3px solid ${k.color}` }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</span>
-                  <span style={{ fontSize: 22, fontWeight: 700, color: k.color }}>{fmtEur(k.value)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={card}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                  Impact Projekte ({projects.length})
-                </h2>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{activeProjects.length} aktiv</span>
-              </div>
-
-              {projects.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Keine Projekte gefunden.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {projects.map((p: HuiImpactProject) => (
-                    <div key={p.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px',
-                      background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)',
-                    }}>
-                      {p.icon && (
-                        <span style={{ fontSize: 22 }}>{p.icon}</span>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {p.name}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {p.category ?? ''} · {p.votes ?? 0} Votes
-                          {p.awarded_eur ? ` · ${fmtEur(p.awarded_eur)} vergeben` : ''}
-                        </div>
-                      </div>
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: (p.status === 'active') ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.12)',
-                        color: (p.status === 'active') ? '#10b981' : 'var(--text-muted)',
-                      }}>
-                        {p.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {kpiCard('Gesamtumsatz',    '\u20ac0,00', '\uD83D\uDCB0', 'var(--text-primary)')}
+            {kpiCard('Brutto-Pool (15%)','\u20ac0,00', '\uD83C\uDF31', '#74C0FC')}
+            {kpiCard('Netto-Impact (85%)','\u20ac0,00','\uD83C\uDF1F', '#51CF66')}
+            {kpiCard('Firmenanteil (15%)','\u20ac0,00', '\uD83C\uDFE2', '#ffd43b')}
           </>
         )}
       </div>
+
+      {/* Pool-Details */}
+      {pool && (
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+          {kpiCard('Vergeben',   fmtEur(pool.awardedEur),    '\uD83C\uDFC6', '#51CF66')}
+          {kpiCard('Offen',      fmtEur(pool.openEur),       '\u23F3',        '#F7B731')}
+          {kpiCard('Total Votes',String(pool.totalVotes),    '\uD83D\uDDF3\uFE0F', '#B197FC')}
+          {pool.latest && kpiCard('Pool-Status', pool.latest.state, '\uD83D\uDCCA', 'var(--accent)')}
+        </div>
+      )}
+
+      {/* Filter-Tabs */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {statusBtn('all',      'Alle')}
+        {statusBtn('voting',   'Voting')}
+        {statusBtn('active',   'Aktiv')}
+        {statusBtn('won',      'Gewonnen')}
+        {statusBtn('archived', 'Archiviert')}
+        {statusBtn('rejected', 'Abgelehnt')}
+      </div>
+
+      {/* Suche */}
+      <div style={{ marginBottom: 16 }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="\uD83D\uDD0D Projekt suchen..."
+          style={{ width: '100%', maxWidth: 360, padding: '8px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 13, outline: 'none' }}
+        />
+      </div>
+
+      {/* Projekt-Liste */}
+      <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>Impact Projekte ({projects.length})</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{Object.entries(counts).map(([s,c]) => `${c} ${s}`).join(' · ')}</span>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Lade Impact Pool...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Keine Projekte gefunden.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map(p => {
+            const sc = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.archived;
+            return (
+              <div key={p.id}
+                onClick={() => setSelected(p)}
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'background 0.1s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+              >
+                {/* Icon */}
+                {p.icon ? (
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: p.color ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{p.icon}</div>
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: p.color ?? 'var(--accent)', flexShrink: 0 }} />
+                )}
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {p.category} &middot; {p.live_votes ?? p.votes} Votes
+                    {p.awarded_eur ? ` \u00b7 ${fmtEur(p.awarded_eur)} vergeben` : ''}
+                    {p.month ? ` \u00b7 ${p.month}` : ''}
+                  </div>
+                </div>
+                {/* Status-Badge */}
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color, flexShrink: 0 }}>{sc.label}</span>
+                {userRole === 'superadmin' && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtTime(p.created_at)}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Detail-Modal */}
+      {selected && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setSelected(null)}>
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, maxWidth: 540, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: selected.color ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                {selected.icon ?? '\uD83C\uDF31'}
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{selected.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.category} &middot; {selected.month}</div>
+              </div>
+              <span style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: (STATUS_CONFIG[selected.status] ?? STATUS_CONFIG.archived).bg, color: (STATUS_CONFIG[selected.status] ?? STATUS_CONFIG.archived).color }}>
+                {(STATUS_CONFIG[selected.status] ?? STATUS_CONFIG.archived).label}
+              </span>
+            </div>
+            {selected.description && (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.6 }}>{selected.description}</p>
+            )}
+            {[
+              ['Votes (live)',   String(selected.live_votes ?? selected.votes)],
+              ['Vergeben',       fmtEur(selected.awarded_eur)],
+              ['Kontakt',        selected.contact_name ?? '\u2014'],
+              ['Erstellt',       fmtTime(selected.created_at)],
+              ['Verteilt am',    fmtTime(selected.distributed_at)],
+            ].map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                <span style={{ color: 'var(--text-muted)' }}>{k}</span>
+                <span style={{ fontWeight: 600 }}>{v}</span>
+              </div>
+            ))}
+            {(selected.tags ?? []).length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>TAGS</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(selected.tags ?? []).map(t => (
+                    <span key={t} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {userRole === 'superadmin' && (
+              <div style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['voting','active','won','archived','rejected'].map(s => (
+                  <button key={s} onClick={() => updateProject(selected.id, { status: s })}
+                    disabled={selected.status === s}
+                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: selected.status === s ? 'var(--accent)' : 'var(--bg-tertiary)', color: selected.status === s ? '#fff' : 'var(--text-muted)', cursor: selected.status === s ? 'not-allowed' : 'pointer', opacity: selected.status === s ? 0.7 : 1 }}>
+                    {(STATUS_CONFIG[s] ?? { label: s }).label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setSelected(null)} style={{ marginTop: 16, width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
+              Schlie\u00dfen
+            </button>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
