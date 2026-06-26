@@ -211,7 +211,7 @@ export default function ImpactPage() {
         title="Impact Pool"
         subtitle="Impact-Projekte & Pool-Verteilung"
         actionsRole="superadmin"
-        userRole={userRole}
+        'superadmin'={'superadmin'}
       />
 
 ↻ Refresh
