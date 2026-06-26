@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const sb = getServiceClient();
     let query = sb
       .from('payments')
-      .select('id,user_id,amount_eur,status,created_at,updated_at,currency,payment_method,description')
+      .select('id,user_id,amount_eur,status,created_at,updated_at')
       .order('created_at', { ascending: false })
       .limit(limit);
 
