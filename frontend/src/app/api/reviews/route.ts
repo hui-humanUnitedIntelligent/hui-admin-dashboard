@@ -1,130 +1,50 @@
 // frontend/src/app/api/reviews/route.ts
-// ── HUI Admin — Reviews Proxy ─────────────────────────────────────────────
-// Alle Schreiboperationen direkt via GitHub API (kein CORS-Problem)
-// GET  ?type=published|pending
-// POST { action: 'delete'|'approve'|'reject', id }
-
+// Hinweis: 'reviews' Tabelle existiert nicht in HUI — nutzt 'comments' aus works
 import { NextRequest, NextResponse } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
-import { ok, fail, notFound } from '@/app/lib/api-response';
-
-const GH_TOKEN  = process.env.GH_TOKEN || '';
-const GH_REPO   = 'hui-humanUnitedIntelligent/be-HUI-Website';
-const GH_BRANCH = 'main';
-
-function cors(res: NextResponse) {
-  res.headers.set('Access-Control-Allow-Origin', '*');
-  return res;
-}
-
-async function ghGetFile(path: string): Promise<{ data: unknown[]; sha: string }> {
-  if (!GH_TOKEN) return { data: [], sha: '' };
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}`,
-    { headers: { Authorization: `Bearer ${GH_TOKEN}`, Accept: 'application/vnd.github+json' }, cache: 'no-store' }
-  );
-  if (!r.ok) return { data: [], sha: '' };
-  const d = await r.json();
-  try {
-    const decoded = Buffer.from(d.content.replace(/\n/g,''), 'base64').toString('utf-8');
-    return { data: JSON.parse(decoded), sha: d.sha };
-  } catch { return { data: [], sha: d.sha || '' }; }
-}
-
-async function ghPutFile(path: string, data: unknown[], sha: string, msg: string) {
-  const encoded = Buffer.from(JSON.stringify(data, null, 2), 'utf-8').toString('base64');
-  const body: Record<string,string> = { message: msg, content: encoded, branch: GH_BRANCH };
-  if (sha) body.sha = sha;
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${path}`,
-    { method:'PUT', headers:{ Authorization:`Bearer ${GH_TOKEN}`, 'Content-Type':'application/json', Accept:'application/vnd.github+json' }, body: JSON.stringify(body) }
-  );
-  if (!r.ok) throw new Error(`GitHub ${r.status}: ${await r.text()}`);
-  return r.json();
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status:204, headers:{ 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,POST,OPTIONS', 'Access-Control-Allow-Headers':'Content-Type' } });
-}
+import { guardEmployee } from '@/app/lib/auth-guard';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
+  try {
+    const { searchParams } = new URL(req.url);
+    const limit  = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const sb = getServiceClient();
 
-  const type = req.nextUrl.searchParams.get('type');
+    // comments + work-Titel joinen
+    const { data: comments, count } = await sb
+      .from('comments')
+      .select('id,work_id,user_id,text,created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-  if (type === 'published') {
-    // Direkt public JSON — kein Token nötig
-    try {
-      const r = await fetch(`https://www.be-hui.com/data/reviews.json?t=${Date.now()}`, { cache:'no-store' });
-      const data = r.ok ? await r.json() : [];
-      return cors(NextResponse.json(Array.isArray(data) ? data : []));
-    } catch {
-      // Fallback: GitHub direkt
-      const { data } = await ghGetFile('data/reviews.json');
-      return cors(NextResponse.json(data));
-    }
+    // Works und Profile nachladen für Display
+    const workIds = [...new Set((comments ?? []).map(c => c.work_id).filter(Boolean))];
+    const userIds = [...new Set((comments ?? []).map(c => c.user_id).filter(Boolean))];
+
+    const [worksRes, profilesRes] = await Promise.all([
+      workIds.length ? sb.from('works').select('id,title').in('id', workIds) : Promise.resolve({ data: [] }),
+      userIds.length ? sb.from('profiles').select('id,display_name,avatar_url').in('id', userIds) : Promise.resolve({ data: [] }),
+    ]);
+
+    const workMap = new Map((worksRes.data ?? []).map(w => [w.id, w]));
+    const profMap = new Map((profilesRes.data ?? []).map(p => [p.id, p]));
+
+    const reviews = (comments ?? []).map(c => ({
+      id:          c.id,
+      workId:      c.work_id,
+      workTitle:   workMap.get(c.work_id)?.title ?? '—',
+      userId:      c.user_id,
+      userName:    profMap.get(c.user_id)?.display_name ?? '—',
+      userAvatar:  profMap.get(c.user_id)?.avatar_url ?? null,
+      text:        c.text,
+      createdAt:   c.created_at,
+    }));
+
+    return NextResponse.json({ reviews, total: count ?? 0 });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
-
-  if (type === 'pending') {
-    if (!GH_TOKEN) return cors(NextResponse.json([]));
-    const { data } = await ghGetFile('data/pending_reviews.json');
-    return cors(NextResponse.json(data));
-  }
-
-  return cors(fail('Missing type'));
-}
-
-export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
-  if (guard) return guard;
-
-  if (!GH_TOKEN) {
-    return cors(NextResponse.json({
-      error: 'GH_TOKEN fehlt in Vercel ENV. Bitte unter Settings → Environment Variables setzen.'
-    }, { status: 503 }));
-  }
-
-  const { action, id } = await req.json();
-  if (!id) return cors(fail('Missing id'));
-
-  // ── LÖSCHEN (veröffentlicht) ────────────────────────────────────────────
-  if (action === 'delete') {
-    const { data, sha } = await ghGetFile('data/reviews.json');
-    const arr = data as Record<string,unknown>[];
-    const filtered = arr.filter(r => r.id !== id);
-    if (filtered.length === arr.length) return cors(notFound('Review'));
-    await ghPutFile('data/reviews.json', filtered, sha, `review: delete ${id}`);
-    return cors(ok({ success: true }));
-  }
-
-  // ── VERÖFFENTLICHEN (pending → published) ───────────────────────────────
-  if (action === 'approve') {
-    const { data: pending, sha: pendingSha } = await ghGetFile('data/pending_reviews.json');
-    const pArr = pending as Record<string,unknown>[];
-    const review = pArr.find(r => r.id === id);
-    if (!review) return cors(notFound('Review'));
-
-    await ghPutFile('data/pending_reviews.json', pArr.filter(r => r.id !== id), pendingSha, `review: approve ${id}`);
-
-    const { data: published, sha: pubSha } = await ghGetFile('data/reviews.json');
-    const newPub = [
-      ...(published as Record<string,unknown>[]),
-      { id: review.id, name: review.name, stars: review.stars, message: review.message, date: review.date, approvedAt: new Date().toISOString() }
-    ];
-    await ghPutFile('data/reviews.json', newPub, pubSha, `review: publish by ${review.name}`);
-    return cors(ok({ success: true, name: review.name }));
-  }
-
-  // ── ABLEHNEN (pending löschen) ──────────────────────────────────────────
-  if (action === 'reject') {
-    const { data, sha } = await ghGetFile('data/pending_reviews.json');
-    const arr = data as Record<string,unknown>[];
-    const filtered = arr.filter(r => r.id !== id);
-    if (filtered.length === arr.length) return cors(notFound('Review'));
-    await ghPutFile('data/pending_reviews.json', filtered, sha, `review: reject ${id}`);
-    return cors(ok({ success: true }));
-  }
-
-  return cors(fail('Unbekannte Aktion'));
 }
