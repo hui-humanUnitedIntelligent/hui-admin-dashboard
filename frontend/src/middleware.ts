@@ -2,14 +2,26 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth/admin-login',
+  '/api/auth/admin-logout',
+];
+
+// Alle Superadmin-Routen (flach unter /)
+const SUPERADMIN_PATHS = [
+  '/works',
+  '/dashboard',
+  '/users',
+  '/impact',
+  '/transactions',
+];
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Public: Login + ALLE Auth-API-Routen (egal ob Query, RSC, Next.js intern)
-  if (
-    pathname === '/login' ||
-    pathname.startsWith('/api/auth')
-  ) {
+  // Public Routen immer erlauben
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
@@ -22,7 +34,7 @@ export function middleware(req: NextRequest) {
   }
 
   // SUPERADMIN-BEREICHE
-  if (pathname.startsWith('/works') || pathname.startsWith('/dashboard')) {
+  if (SUPERADMIN_PATHS.some(p => pathname.startsWith(p))) {
     if (role !== 'superadmin') {
       return NextResponse.redirect(new URL('/employee/works', req.url));
     }
