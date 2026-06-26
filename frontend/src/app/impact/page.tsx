@@ -1,11 +1,7 @@
-'use client';
-import { useRouter } from 'next/navigation';
 // frontend/src/app/impact/page.tsx
-
-import { isSuperAdmin } from '@/lib/roles';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import KPICard from '@/components/ui/KPICard';
@@ -82,9 +78,7 @@ function buildMonthlyBuckets(
 // Works werden nicht mehr für Impact-Berechnung verwendet
 
 export default function ImpactPage() {
-  const { currentUser } = useAuth();
-  const router = useRouter();
-  if (!isSuperAdmin(currentUser?.role)) return null;
+if (!isSuperAdmin(currentUser?.role)) return null;
 
   const userRole = currentUser?.role;
   const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
