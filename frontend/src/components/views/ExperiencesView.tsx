@@ -468,12 +468,12 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
       setSelected(prev => prev?.id === e.id
         ? { ...prev, status: 'published', approval_status: 'approved', rejection_reason: null }
         : prev);
-      showToast(`✅ Freigegeben: ${e.title||'Eintrag'}`, 'success');
+      showToast(`✅ ${e.title||'Eintrag'} wurde freigegeben und ist jetzt live!`, 'success');
       // Sofort refetch ohne Verzögerung
       await refetchAll();
     }
     else {
-      showToast('Fehler beim Freigeben', 'error');
+      showToast('Fehler beim Freigeben — bitte nochmal versuchen.', 'error');
     }
   };
 
