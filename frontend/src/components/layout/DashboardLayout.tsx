@@ -2,12 +2,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import EmployeeSidebar from './EmployeeSidebar';
 import Header from './Header';
-import { getStoredUser } from '@/lib/api';
-
 interface DashboardLayoutProps {
   children:       React.ReactNode;
   title:          string;
@@ -21,16 +18,18 @@ export default function DashboardLayout({
   headerActions,
   employeeMode = false,
 }: DashboardLayoutProps) {
-  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted,    setMounted]    = useState(false);
-  const user = getStoredUser() as { role?: string } | null;
 
   useEffect(() => {
     setMounted(true);
-    const stored = getStoredUser();
-    if (!stored) router.push('/login');
-  }, [router]);
+    // Auth-Guard: Cookie prüfen (nicht localStorage — funktioniert in Incognito)
+    // Die Middleware schützt bereits serverseitig, dies ist nur ein Client-Fallback
+    const hasRole = document.cookie.includes('hui_admin_role=');
+    if (!hasRole) {
+      window.location.href = '/login';
+    }
+  }, []);
 
   if (!mounted) return null;
 
