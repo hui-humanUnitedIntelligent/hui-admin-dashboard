@@ -7,7 +7,7 @@ import EmployeeSidebar from './EmployeeSidebar';
 import Header from './Header';
 interface DashboardLayoutProps {
   children:       React.ReactNode;
-  title:          string;
+  title?:         string;
   headerActions?: React.ReactNode;
   employeeMode?:  boolean;
 }
