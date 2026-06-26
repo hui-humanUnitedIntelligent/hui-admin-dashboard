@@ -654,7 +654,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                                 {!isDeleted(entry) && (
                                   <button onClick={()=>setDeleteTarget(entry)} title="Loeschen"
                                     style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>
-                                    {'ð'}
+                                    'trash-icon'
                                   </button>
                                 )}
                                 {isDeleted(entry) && (
@@ -666,7 +666,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                                     <button disabled={actionLoading===entry.id}
                                       onClick={()=>{if(window.confirm('Endgueltig loeschen?'))handleHardDelete(entry);}}
                                       style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--red)',background:'var(--red-dim)',color:'var(--red)',fontSize:11,cursor:'pointer',fontWeight:600}}>
-                                      {actionLoading===entry.id ? '...' : 'ð Final'}
+                                      {actionLoading===entry.id ? '...' : 'Final loeschen'}
                                     </button>
                                   </>
                                 )}
