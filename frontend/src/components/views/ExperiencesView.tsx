@@ -278,12 +278,18 @@ function MediaDiffBlockExp({ entry, snap }: { entry: HuiEntry; snap: Record<stri
 
 async function entryAction(action: string, id: string, data: Record<string, unknown> = {}): Promise<boolean> {
   try {
-    const res = await fetch('/api/admin', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, userId: id, data }),
+    const res = await fetch('/api/experiences', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, _action: action, ...data }),
     });
-    return res.ok;
-  } catch { return false; }
+    if (!res.ok) { const e = await res.json().catch(()=>({})); console.error('[entryAction]', action, res.status, e); return false; }
+    return true;
+  } catch (e) {
+    console.error('[entryAction] network', e);
+    return false;
+  }
 }
 
 function EntryStatus({ entry }: { entry: HuiEntry }) {
