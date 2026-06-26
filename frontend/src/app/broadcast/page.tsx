@@ -86,7 +86,7 @@ export default function BroadcastPage() {
     try {
     const res = await fetch('/api/broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
+        headers: { 'Content-Type': 'application/json', },
         body: JSON.stringify({ title, body, target_group: targetGroup }),
       });
       const data = await res.json();
