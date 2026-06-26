@@ -861,13 +861,45 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                           </>
                         )}
 
-                        {/* ALL / PUBLISHED / DRAFT / SENSITIVE tabs */}
+                        {/* ALL / PUBLISHED / DRAFT / SENSITIVE tabs — Status-aware Buttons */}
                         {tab !== 'deleted' && tab !== 'flagged' && (tab as string) !== 'pending' && (tab as string) !== 'rejected' && (
                           <>
-                            {w.status === 'draft' && (
-                              <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
-                                style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', cursor:'pointer', fontSize:12 }}>✓</button>
+                            {/* pending_review im Alle-Tab: Freigeben + Ablehnen */}
+                            {(w.status === 'pending_review' || w.status === 'draft') && (
+                              <>
+                                <button title="Freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
+                                  style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+                                  {isBusy ? '…' : '✅'}
+                                </button>
+                                <button title="Ablehnen" disabled={isBusy} onClick={() => handleReject(w)}
+                                  style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+                                  {isBusy ? '…' : '❌'}
+                                </button>
+                              </>
                             )}
+                            {/* rejected im Alle-Tab: Doch freigeben */}
+                            {w.status === 'rejected' && (
+                              <button title="Doch freigeben" disabled={isBusy} onClick={() => handleApprove(w)}
+                                style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--green)', background:'var(--green-dim)', color:'var(--green)', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+                                {isBusy ? '…' : '✅'}
+                              </button>
+                            )}
+                            {/* published: Melden */}
+                            {w.status === 'published' && isSuperadmin && (
+                              <button title="Melden" disabled={isBusy} onClick={() => handleFlag(w)}
+                                style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--gold)', background:'var(--gold-dim)', color:'var(--gold)', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+                                {isBusy ? '…' : '⚑'}
+                              </button>
+                            )}
+                            {/* Löschen — immer (außer deleted) */}
+                            {isSuperadmin && (
+                              <button title="Löschen" disabled={isBusy} onClick={() => handleDelete(w)}
+                                style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--red)', background:'var(--red-dim)', color:'var(--red)', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+                                {isBusy ? '…' : '🗑'}
+                              </button>
+                            )}
+                          </>
+                        )}
                             {w.status === 'published' && isSuperadmin && (
                               <button title="Melden" disabled={isBusy} onClick={() => handleFlag(w)}
                                 style={{ padding:'3px 7px', borderRadius:5, border:'1px solid var(--gold)', background:'var(--gold-dim)', color:'var(--gold)', cursor:'pointer', fontSize:12 }}>⚑</button>
