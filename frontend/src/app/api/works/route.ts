@@ -44,10 +44,11 @@ export async function GET(req: NextRequest) {
       author: profMap.get(w.user_id as string) ?? null,
     }));
     if (search) {
-      works = works.filter(w =>
-        (w['title'] as string | undefined)?.toLowerCase().includes(search) ||
-        (w.author as Record<string,unknown> | null)?.['display_name']?.toString().toLowerCase().includes(search)
-      );
+      works = works.filter(w => {
+        const title   = String((w as Record<string,unknown>)['title']   ?? '').toLowerCase();
+        const dname   = String(((w as Record<string,unknown>)['author'] as Record<string,unknown> | null)?.['display_name'] ?? '').toLowerCase();
+        return title.includes(search) || dname.includes(search);
+      });
     }
 
     // Counts für alle Status
