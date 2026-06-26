@@ -33,12 +33,11 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        // Cookie ist gesetzt — direkt routen
-        localStorage.setItem('hui_dashboard_mode', mode);
+        // window.location.href statt router.push — Chrome speichert Cookie vor Navigation
         if (mode === 'employee') {
-          router.push('/employee/works');
+          window.location.href = '/employee/works';
         } else {
-          router.push('/works');
+          window.location.href = '/works';
         }
       } else {
         setError(data.error || 'Anmeldung fehlgeschlagen');
