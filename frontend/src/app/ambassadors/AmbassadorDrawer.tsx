@@ -67,9 +67,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
     setActing(true);
     try {
       const body  = JSON.stringify({ action, user_id: ambId, data: payload });
-      const hdrs: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (token) hdrs['Authorization'] = 'Bearer ' + token;
-      const res = await fetch('/api/ambassador', { method: 'POST', headers: hdrs, body });
+      const res = await fetch('/api/ambassador', { method: 'POST', credentials: 'include', body });
       if (res.ok) {
         showToast('Erfolgreich', 'success');
         onRefresh();
