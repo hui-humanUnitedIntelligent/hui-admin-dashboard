@@ -53,8 +53,12 @@ export function useUsers(opts: UseUsersOptions = {}) {
         limit:  String(limit),
         offset: String(offset),
       });
+      // Cookie (hui_admin_token) wird automatisch via credentials:'include' mitgesendet
+      // Token-Header nur als Fallback wenn localStorage verfügbar (nicht Incognito)
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`/api/users?${params}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers,
         credentials: 'include',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
