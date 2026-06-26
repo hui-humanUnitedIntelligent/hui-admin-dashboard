@@ -91,14 +91,12 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
     // Optimistic update
     setEntries(prev => prev.map(e => e.id === id ? { ...e, approval_status: newStatus } : e));
     try {
-      const action = table === 'projects'
-        ? (newStatus === 'approved' ? 'approve_project'    : 'reject_project')
-        : (newStatus === 'approved' ? 'approve_experience' : 'reject_experience');
-
-      const res = await fetch('/api/admin', {
-        method: 'POST',
+      const endpoint = table === 'projects' ? '/api/impact' : '/api/experiences';
+      const res = await fetch(endpoint, {
+        method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, userId: id }),
+        body: JSON.stringify({ id, status: newStatus, type: table === 'projects' ? 'projects' : undefined }),
       });
       if (!res.ok) { fetchEntries(); return false; }
       return true;
