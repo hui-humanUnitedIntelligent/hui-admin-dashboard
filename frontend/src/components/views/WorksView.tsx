@@ -307,12 +307,27 @@ function buildForm(w: WorkWithMeta): EditForm {
 
 // ── API call ──────────────────────────────────────────────────────────────
 async function workAction(action: string, workId: string, data: Record<string, unknown> = {}): Promise<boolean> {
-  try {
-    const res = await fetch('/api/admin', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, userId: workId, data }),
-    });
-    return res.ok;
+    try {
+      // Flatten data into body for PATCH
+      const body: Record<string, unknown> = { id: workId, _action: action };
+      for (const [k, v] of Object.entries(data)) body[k] = v;
+
+      const res = await fetch('/api/works', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('[workAction]', action, res.status, err);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[workAction] network', e);
+      return false;
+    }
   } catch { return false; }
 }
 
