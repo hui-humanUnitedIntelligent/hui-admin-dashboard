@@ -21,18 +21,7 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted,    setMounted]    = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    // Middleware schützt bereits serverseitig — kein client-side redirect nötig
-    // Nur als letzter Fallback nach kurzem Delay (verhindert false-redirects bei SSR-Hydration)
-    const timer = setTimeout(() => {
-      const hasToken = document.cookie.includes('hui_admin_token=');
-      if (!hasToken) {
-        window.location.href = '/login';
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   if (!mounted) return null;
 
