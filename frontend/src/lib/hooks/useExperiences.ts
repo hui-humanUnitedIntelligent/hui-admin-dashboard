@@ -47,9 +47,9 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       // API gibt Array direkt zurück (kein ok()-wrapper)
-      const arr = Array.isArray(json) ? json : [];
+      const arr = Array.isArray(json.experiences) ? json.experiences : (Array.isArray(json) ? json : (Array.isArray(json.data) ? json.data : []));
       setEntries(arr);
-      setTotal(arr.length);
+      setTotal(json.total ?? arr.length);
     } catch (e: unknown) {
       setError((e as Error).message);
       console.error('[useExperiences]', e);
