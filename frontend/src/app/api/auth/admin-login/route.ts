@@ -39,7 +39,11 @@ async function doLogin(email: string, password: string, dashboard: string) {
     return { ok: false, error: 'Kein Superadmin-Zugriff', status: 403 };
   }
 
-  return { ok: true, finalRole, access_token, status: 200 };
+  // Wenn Employee-Portal gewählt: Cookie-Rolle auf 'employee' begrenzen
+  // (auch Superadmins bekommen employee-Scope für das EDB)
+  const cookieRole = dashboard === 'employee' ? 'employee' : finalRole;
+
+  return { ok: true, finalRole: cookieRole, access_token, status: 200 };
 }
 
 function setCookies(response: NextResponse, access_token: string, finalRole: string) {
