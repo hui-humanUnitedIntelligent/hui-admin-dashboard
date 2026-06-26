@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Pfade die NUR superadmin darf (kein /employee prefix!)
 const SUPERADMIN_PATHS = [
   '/works', '/dashboard', '/users', '/impact', '/transactions',
   '/admins', '/ambassadors', '/analytics', '/audit', '/bookings',
@@ -19,24 +20,28 @@ export function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get('hui_admin_token')?.value;
-  const role  = req.cookies.get('hui_admin_role')?.value;
+  const role  = req.cookies.get('hui_admin_role')?.value ?? '';
 
   // 2) Kein Token → Login
   if (!token) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // 3) Superadmin-Bereiche
-  if (SUPERADMIN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
-    if (role !== 'superadmin') {
-      return NextResponse.redirect(new URL('/employee/works', req.url));
-    }
-  }
-
-  // 4) Employee-Bereiche
+  // 3) Employee-Bereiche — zuerst prüfen (vor SUPERADMIN_PATHS!)
+  //    Sowohl 'employee' als auch 'superadmin' dürfen /employee/*
   if (pathname.startsWith('/employee')) {
     if (role !== 'employee' && role !== 'superadmin') {
       return NextResponse.redirect(new URL('/login', req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 4) Superadmin-Bereiche — nur superadmin
+  const isSuperAdminPath = SUPERADMIN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+  if (isSuperAdminPath) {
+    if (role !== 'superadmin') {
+      // Employee → weiterleiten zu /employee/dashboard
+      return NextResponse.redirect(new URL('/employee/dashboard', req.url));
     }
   }
 
@@ -44,6 +49,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Nur echte Page-Routen matchen — _next/* und statische Dateien komplett ausschließen
   matcher: ['/((?!_next|api|favicon.ico).*)'],
 };
