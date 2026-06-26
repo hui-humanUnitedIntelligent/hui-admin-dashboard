@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     // ── 2) profiles ────────────────────────────────────────────────
     const { data: profiles, error: profErr } = await supabase
       .from('profiles')
-      .select('id,display_name,username,full_name,avatar_url,role,membership_type,is_wirker,is_member,blocked,is_deleted,impact_eur,trust_score,last_seen_at,email,created_at');
+      .select('id,display_name,username,full_name,avatar_url,role,membership_type,is_wirker,is_member,blocked,impact_eur,trust_score,last_seen_at,email,created_at');
     if (profErr) throw profErr;
 
     // ── 3) Maps ────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
         is_wirker:       p?.is_wirker ?? false,
         is_member:       p?.is_member ?? false,
         blocked:         p?.blocked ?? (!!au.banned_until && new Date(au.banned_until) > new Date()),
-        is_deleted:      p?.is_deleted ?? !!au.deleted_at,
+        is_deleted:      false ?? !!au.deleted_at,
         impact_eur:      p?.impact_eur ?? 0,
         trust_score:     p?.trust_score ?? 0,
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
@@ -133,9 +133,9 @@ export async function GET(req: NextRequest) {
       u.username?.toLowerCase().includes(search) ||
       u.id.toLowerCase().includes(search)
     );
-    if (filter === 'active')  filtered = filtered.filter(u => !u.blocked && !u.is_deleted);
-    if (filter === 'blocked') filtered = filtered.filter(u => u.blocked && !u.is_deleted);
-    if (filter === 'deleted') filtered = filtered.filter(u => u.is_deleted);
+    if (filter === 'active')  filtered = filtered.filter(u => !u.blocked && !false);
+    if (filter === 'blocked') filtered = filtered.filter(u => u.blocked && !false);
+    if (filter === 'deleted') filtered = filtered.filter(u => false);
     if (filter === 'wirker')  filtered = filtered.filter(u => u.is_wirker);
 
     filtered.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -144,9 +144,9 @@ export async function GET(req: NextRequest) {
 
     const counts = {
       total:   merged.length,
-      active:  merged.filter(u => !u.blocked && !u.is_deleted).length,
-      blocked: merged.filter(u => u.blocked  && !u.is_deleted).length,
-      deleted: merged.filter(u => u.is_deleted).length,
+      active:  merged.filter(u => !u.blocked && !false).length,
+      blocked: merged.filter(u => u.blocked  && !false).length,
+      deleted: merged.filter(u => false).length,
       wirker:  merged.filter(u => u.is_wirker).length,
     };
 
