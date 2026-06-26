@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
     }));
     if (search) {
       works = works.filter(w =>
-        (w.title as string)?.toLowerCase().includes(search) ||
-        (w.author as { display_name?: string })?.display_name?.toLowerCase().includes(search)
+        (w['title'] as string | undefined)?.toLowerCase().includes(search) ||
+        (w.author as Record<string,unknown> | null)?.['display_name']?.toString().toLowerCase().includes(search)
       );
     }
 
