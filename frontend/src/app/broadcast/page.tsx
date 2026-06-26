@@ -84,7 +84,6 @@ export default function BroadcastPage() {
     if (!confirm(`Broadcast an ${estimated} User senden?`)) return;
     setSending(true);
     try {
-      const token = getSessionToken();
     const res = await fetch('/api/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') },
