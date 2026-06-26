@@ -20,6 +20,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // AJAX-Versuch zuerst (für Error-Handling)
     try {
       const res = await fetch('/api/auth/admin-login', {
         method:      'POST',
@@ -33,14 +35,25 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        // 100ms warten — Chrome schreibt Set-Cookie Header asynchron in den Cookie-Store
-        // Ohne delay navigiert die Middleware bevor der Cookie persistiert ist
-        await new Promise(resolve => setTimeout(resolve, 100));
-        if (mode === 'employee') {
-          window.location.href = '/employee/works';
-        } else {
-          window.location.href = '/works';
-        }
+        // Form-basierter POST für Chrome-Cookie-Kompatibilität
+        // Cookie + Redirect in einem HTTP-Response — kein clientseitiger Timing-Bug
+        const form = document.createElement('form');
+        form.method  = 'POST';
+        form.action  = '/api/auth/admin-login-form';
+        form.style.display = 'none';
+        const fields = {
+          email,
+          password,
+          dashboard: mode === 'super' ? 'admin' : 'employee',
+        };
+        Object.entries(fields).forEach(([k, v]) => {
+          const input = document.createElement('input');
+          input.name = k; input.value = v;
+          form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit(); // Browser-nativer POST → 302 → Cookie garantiert gesetzt
+        return;
       } else {
         setError(data.error || 'Anmeldung fehlgeschlagen');
       }
