@@ -328,7 +328,6 @@ async function workAction(action: string, workId: string, data: Record<string, u
       console.error('[workAction] network', e);
       return false;
     }
-  } catch { return false; }
 }
 
 // ── Components ────────────────────────────────────────────────────────────
