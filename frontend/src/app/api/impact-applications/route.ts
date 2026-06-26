@@ -1,97 +1,64 @@
 // frontend/src/app/api/impact-applications/route.ts
-// GET: Liste aller Impact-Bewerbungen (mit Filterung)
-// POST: Bulk-Status-Update
-
-import { NextRequest } from 'next/server';
-import { guardSuperAdmin, guardUser } from '@/app/lib/auth-guard';
-import { ok, serverError, validationError, created } from '@/app/lib/api-response';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-import { APPLICATION_STATUS } from '@/lib/impact-status';
+const SUBMITTED = ['submitted','pending','pending_review','review','waiting_for_approval'];
 
 export async function GET(req: NextRequest) {
-  const guard = await guardUser(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
-
   try {
-    const sb     = getServiceClient();
-    const params = new URL(req.url).searchParams;
-    const status = params.get('status');  // pending | approved | rejected | all
-    const limit  = Math.min(Number(params.get('limit') ?? 500), 500);
-    const skip   = Number(params.get('skip') ?? 0);
+    const { searchParams } = new URL(req.url);
+    const limit  = Math.min(parseInt(searchParams.get('limit') || '100'), 500);
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const filter = searchParams.get('filter') || 'all';
+    const sb = getServiceClient();
 
-    let query = sb
-      .from('impact_applications')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(skip, skip + limit - 1);
+    let q = sb.from('impact_applications')
+      .select('*', { count: 'exact' });
 
-    // Echte DB-Status: approved | rejected (kein pending in DB)
-    if (status && status !== 'all') {
-      query = query.eq('status', status);
-    }
+    if (filter === 'submitted') q = q.in('status', SUBMITTED);
+    else if (filter === 'approved') q = q.eq('status', 'published');
+    else if (filter === 'rejected') q = q.eq('status', 'rejected');
+    else if (filter === 'draft') q = q.eq('status', 'draft');
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+    q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    const { data, count, error } = await q;
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    // Statistiken
-    const { data: counts } = await sb
-      .from('impact_applications')
-      .select('status');
-    // Echte DB-Status: approved | rejected
-    const stats = {
-      total:    counts?.length ?? 0,
-      approved: counts?.filter(r => r.status === 'approved').length ?? 0,
-      rejected: counts?.filter(r => r.status === 'rejected').length ?? 0,
-    };
+    // Profile nachladen
+    const userIds = [...new Set((data ?? []).map((a: { user_id: string }) => a.user_id).filter(Boolean))];
+    const { data: profiles } = userIds.length
+      ? await sb.from('profiles').select('id,display_name,avatar_url,email').in('id', userIds)
+      : { data: [] };
+    const profMap = new Map((profiles ?? []).map(p => [p.id, p]));
 
-    return ok({ applications: data ?? [], total: count ?? 0, stats, hasMore: (skip + limit) < (count ?? 0) });
+    const enriched = (data ?? []).map((a: Record<string, unknown>) => ({
+      ...a,
+      applicant: profMap.get(a.user_id as string) ?? null,
+    }));
+
+    return NextResponse.json({ ok: true, applications: enriched, total: count ?? 0 });
   } catch (err) {
-    return serverError(err, 'impact-applications GET');
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
 
-// POST: Neue Impact-Bewerbung anlegen
-export async function POST(req: NextRequest) {
-  const guard = await guardSuperAdmin(req);
+export async function PATCH(req: NextRequest) {
+  const guard = await guardAdmin(req);
   if (guard) return guard;
-
   try {
-    const body = await req.json().catch(() => ({}));
-    const { project_name, user_id } = body as { project_name?: string; user_id?: string };
-
-    if (!project_name?.trim()) return validationError({ project_name: 'Pflichtfeld' });
-    if (!user_id?.trim())      return validationError({ user_id: 'Pflichtfeld' });
-
-    const sb  = getServiceClient();
-    const now = new Date().toISOString();
-
-    const { data, error } = await sb
-      .from('impact_applications')
-      .insert({
-        ...body,
-        status:       'pending',
-        submitted_at: now,
-        created_at:   now,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Activity Log
-    try {
-      await sb.from('activity_logs').insert({
-        action:    'impact_application_created',
-        actor_id:  user_id,
-        target_id: data.id,
-        metadata:  { project_name: data.project_name },
-        created_at: now,
-      });
-    } catch (_) {}
-
-    return created(data);
+    const { id, status, admin_comment } = await req.json();
+    if (!id || !status) return NextResponse.json({ ok: false, error: 'Fehlende Parameter' }, { status: 400 });
+    const sb = getServiceClient();
+    const updates: Record<string,unknown> = { status };
+    if (admin_comment) updates.admin_comment = admin_comment;
+    const { error } = await sb.from('impact_applications').update(updates).eq('id', id);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   } catch (err) {
-    return serverError(err, 'impact-applications POST');
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
