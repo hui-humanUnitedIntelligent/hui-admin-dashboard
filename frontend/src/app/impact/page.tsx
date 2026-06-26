@@ -78,9 +78,6 @@ function buildMonthlyBuckets(
 // Works werden nicht mehr für Impact-Berechnung verwendet
 
 export default function ImpactPage() {
-if (!true) return null;
-
-  const userRole = currentUser?.role;
   const { projects, loading: projLoading, refetch: refetchProjects } = useImpactProjects(30000);
   const { payments, loading: payLoading } = usePayments({ refreshInterval: 0, limit: 1000 });
 
