@@ -467,7 +467,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
 
   const handleApprove = async (e: HuiEntry) => {
     setActionLoading(e.id);
-    const ok = await entryAction(e._source==='experiences'?'approve_experience':'approve_project', e.id);
+    const ok = await entryAction('approve_experience', e.id);
     setActionLoading(null);
     if (ok) {
       // Optimistic update: Status sofort in UI aktualisieren ohne auf refetch zu warten
@@ -506,7 +506,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     const reason = rejectReason.trim();
     if (!reason) { showToast('Bitte Ablehnungsgrund angeben','error'); return; }
     setRejectLoading(true);
-    const ok = await entryAction(rejectTarget._source==='experiences'?'reject_experience':'reject_project', rejectTarget.id, {reason});
+    const ok = await entryAction('reject_experience', rejectTarget.id, {reason});
     setRejectLoading(false);
     if (ok) {
       setSelected(prev => prev?.id === rejectTarget.id
@@ -518,7 +518,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
 
   const handleDelete = async (e: HuiEntry) => {
     setLocalDel(p=>new Set([...p,e.id])); setDeleteTarget(null);
-    const ok = await entryAction(e._source==='experiences'?'delete_experience':'delete_project', e.id);
+    const ok = await entryAction('delete_experience', e.id);
     if (ok) { showToast('🗑 Gelöscht','info'); setTimeout(()=>setLocalDel(new Set()),3000); }
     else { showToast('Fehler','error'); setLocalDel(p=>{const s=new Set(p);s.delete(e.id);return s;}); }
   };
