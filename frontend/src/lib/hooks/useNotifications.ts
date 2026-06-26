@@ -47,7 +47,7 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
       if (unreadOnly) params.set('unread', 'true');
 
       const res = await fetch(`/api/notifications?${params}`, {
-        headers: token ? { } : {},
+        credentials: 'include',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -92,7 +92,7 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
         method:  'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { } : {}),
+          
         },
         body: JSON.stringify({ is_read: true }),
       });
@@ -121,7 +121,7 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
         method:  'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { } : {}),
+          
         },
         body: JSON.stringify({ user_id: targetUserId, type: notifType, title, body, metadata }),
       });
