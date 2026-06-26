@@ -633,7 +633,22 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                             )}
                             {isSuperadmin && (
                             <button onClick={()=>setDeleteTarget(entry)} title="Löschen"
-                              style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>🗑</button>
+                              style={{ padding:'4px 8px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', fontSize:10, cursor:'pointer', fontFamily:'var(--font-body)' }}>🗑</button>}
+                            {/* Gelöscht-Tab: Restore + Hard-Delete */}
+                            {tab==='deleted' && (
+                              <>
+                                <button disabled={actionLoading===entry.id} onClick={()=>handleRestore(entry)} title="Wiederherstellen"
+                                  style={{padding:'3px 8px',borderRadius:5,border:'1px solid var(--green)',background:'var(--green-dim)',color:'var(--green)',fontSize:11,cursor:'pointer',fontWeight:600}}>
+                                  {actionLoading===entry.id?'…':'♻️ Restore'}
+                                </button>
+                                {isSuperadmin&&<button disabled={actionLoading===entry.id}
+                                  onClick={()=>{if(window.confirm('Endgültig löschen?'))handleHardDelete(entry);}}
+                                  title="Endgültig löschen"
+                                  style={{padding:'3px 8px',borderRadius:5,border:'1px solid var(--red)',background:'var(--red-dim)',color:'var(--red)',fontSize:11,cursor:'pointer',fontWeight:600}}>
+                                  {actionLoading===entry.id?'…':'🗑 Final'}
+                                </button>}
+                              </>
+                            )}
                             )}
                           </div>
                         </td>
@@ -660,6 +675,8 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
               {isPending(selected)&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(actionLoading)return;setShowDetail(false);setRejectTarget(selected);setRejectReason('');}}>❌ Ablehnen</Button>}
               {isRejected(selected)&&<Button variant="primary" loading={actionLoading===selected.id} disabled={!!actionLoading} onClick={()=>handleApprove(selected)}>✅ Trotzdem freigeben</Button>}
               {!isDeleted(selected)&&isSuperadmin&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(actionLoading)return;setShowDetail(false);setDeleteTarget(selected);}}>🗑 Löschen</Button>}
+              {isDeleted(selected)&&<Button variant="primary" loading={actionLoading===selected.id} disabled={!!actionLoading} onClick={()=>handleRestore(selected)}>♻️ Wiederherstellen</Button>}
+              {isDeleted(selected)&&isSuperadmin&&<Button variant="danger" disabled={!!actionLoading} onClick={()=>{if(window.confirm('Endgültig löschen?')){setShowDetail(false);handleHardDelete(selected);}}}>🗑 Endgültig löschen</Button>}
             </div>
           ):undefined}
         >
