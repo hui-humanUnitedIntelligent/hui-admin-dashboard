@@ -209,9 +209,7 @@ export default function DashboardPage() {
                       {fmtEur(Number(p.amount_eur) || 0)}
                     </td>
                     <td style={{ padding: '6px 0', textAlign: 'center' }}>
-                      <span style={statusToBadge(String(p.status))}>
-                        {String(p.status)}
-                      </span>
+                      {statusToBadge(String(p.status))}
                     </td>
                     <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-secondary)' }}>
                       {timeAgo(String(p.created_at))}
