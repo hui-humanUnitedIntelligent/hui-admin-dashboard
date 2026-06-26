@@ -76,40 +76,107 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH: Status ändern (approve/reject/delete/restore) — nur Admin
+// PATCH: Status ändern (approve/reject/delete/restore/flag/unflag) — Employee+Admin
 export async function PATCH(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
   try {
-    const { id, status, rejection_reason, admin_comment } = await req.json();
-    if (!id || !status) return NextResponse.json({ ok: false, error: 'id und status erforderlich' }, { status: 400 });
+    const body = await req.json();
+    const { id, _action, status: directStatus, rejection_reason, admin_comment, reason } = body;
+    if (!id) return NextResponse.json({ ok: false, error: 'id erforderlich' }, { status: 400 });
     const sb = getServiceClient();
 
-    const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
-    if (status === 'published')  { updates.visibility = 'public'; updates.published_at = new Date().toISOString(); }
-    if (status === 'rejected')   { updates.visibility = 'private'; if (rejection_reason) updates.rejection_reason = rejection_reason; if (admin_comment) updates.admin_comment = admin_comment; updates.rejected_at = new Date().toISOString(); }
-    if (status === 'deleted')    { updates.visibility = 'private'; }
+    // _action-basierte Logik (kommt von WorksView workAction)
+    const action = _action ?? '';
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+    if (action === 'approve_work') {
+      updates.status          = 'published';
+      updates.approval_status = 'approved';
+      updates.visibility      = 'public';
+      updates.published_at    = new Date().toISOString();
+    } else if (action === 'reject_work') {
+      const rej = rejection_reason ?? reason ?? 'Nicht genehmigt';
+      updates.status            = 'rejected';
+      updates.approval_status   = 'rejected';
+      updates.visibility        = 'private';
+      updates.rejection_reason  = rej;
+      updates.rejected_at       = new Date().toISOString();
+      if (admin_comment) updates.admin_comment = admin_comment;
+    } else if (action === 'flag_work') {
+      updates.status            = 'flagged';
+      updates.sensitivity_status= 'flagged';
+      updates.visibility        = 'private';
+    } else if (action === 'unflag_work') {
+      updates.status            = 'published';
+      updates.sensitivity_status= 'cleared';
+      updates.visibility        = 'public';
+    } else if (action === 'delete_work' || action === 'soft_delete_work') {
+      updates.status     = 'deleted';
+      updates.visibility = 'private';
+    } else if (action === 'restore_work') {
+      updates.status          = 'published';
+      updates.approval_status = 'approved';
+      updates.visibility      = 'public';
+    } else if (action === 'unpublish_work') {
+      updates.status     = 'draft';
+      updates.visibility = 'private';
+    } else if (action === 'publish_work') {
+      updates.status          = 'published';
+      updates.approval_status = 'approved';
+      updates.visibility      = 'public';
+      updates.published_at    = new Date().toISOString();
+    } else if (action === 'clear_sensitive_work') {
+      updates.sensitivity_status = 'cleared';
+      updates.sensitivity_reason = null;
+    } else if (action === 'mark_sensitive_work') {
+      updates.sensitivity_status = 'flagged';
+      if (reason) updates.sensitivity_reason = reason;
+    } else if (action === 'update_work') {
+      // Direkte Felder aus body
+      const allowed = ['title','description','price','price_eur','admin_comment','review_note'];
+      for (const k of allowed) { if (body[k] !== undefined) updates[k] = body[k]; }
+    } else if (directStatus) {
+      // Direkter Status-Override (von /api/works PATCH ohne _action)
+      updates.status = directStatus;
+      if (directStatus === 'published')  { updates.visibility = 'public'; updates.published_at = new Date().toISOString(); }
+      if (directStatus === 'rejected')   { updates.visibility = 'private'; if (rejection_reason) updates.rejection_reason = rejection_reason; }
+      if (directStatus === 'deleted')    updates.visibility = 'private';
+    } else {
+      return NextResponse.json({ ok: false, error: 'action oder status erforderlich' }, { status: 400 });
+    }
 
     const { error } = await sb.from('works').update(updates).eq('id', id);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    // Notification an User
+    // Notification an User senden
     const { data: work } = await sb.from('works').select('user_id,title').eq('id', id).single();
     if (work?.user_id) {
-      const notifMap: Record<string, { type: string; title: string; body: string }> = {
-        published: { type: 'work_approved', title: '✅ Werk freigegeben', body: `„${work.title}" ist jetzt öffentlich sichtbar.` },
-        rejected:  { type: 'work_rejected', title: '❌ Werk abgelehnt',  body: `„${work.title}" wurde abgelehnt.${rejection_reason ? ' Grund: ' + rejection_reason : ''}` },
+      const notifMap: Record<string, { type: string; title: string; body: string } | null> = {
+        approve_work:  { type: 'work_approved', title: '\u2705 Werk freigegeben', body: `\u201e${work.title}\u201c ist jetzt live.` },
+        reject_work:   { type: 'work_rejected', title: '\u274c Werk abgelehnt',  body: `\u201e${work.title}\u201c wurde abgelehnt.` },
+        flag_work:     { type: 'work_flagged',  title: '\u26a0\ufe0f Werk gemeldet', body: `\u201e${work.title}\u201c wurde gemeldet und ist nicht mehr sichtbar.` },
+        delete_work:   { type: 'work_deleted',  title: '\uD83D\uDDD1 Werk gel\u00f6scht', body: `\u201e${work.title}\u201c wurde gel\u00f6scht.` },
+        restore_work:  { type: 'work_approved', title: '\u2705 Werk wiederhergestellt', body: `\u201e${work.title}\u201c ist wieder sichtbar.` },
       };
-      const notif = notifMap[status];
+      const notif = notifMap[action];
       if (notif) {
-        await sb.from('notifications').insert({ user_id: work.user_id, ...notif, is_read: false, read: false, data: {}, entity_id: id, entity_type: 'work' });
+        await sb.from('notifications').insert({
+          user_id: work.user_id, type: notif.type, title: notif.title,
+          body: notif.body, is_read: false, read: false, data: {},
+          entity_id: id, entity_type: 'work',
+        }).catch(() => {});
       }
     }
-    return NextResponse.json({ ok: true });
+
+    return NextResponse.json({ ok: true, action, id });
   } catch (err) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[works PATCH]', msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }
+
 
 // DELETE: Permanent löschen — nur Admin
 export async function DELETE(req: NextRequest) {
