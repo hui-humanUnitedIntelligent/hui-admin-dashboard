@@ -51,9 +51,8 @@ type TabKey = 'all' | 'approved' | 'rejected';
 
 
 async function fetchApplications(): Promise<ImpactApplication[]> {
-  const token = getSessionToken();
   const res = await fetch('/api/impact-applications?limit=500', {
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
   });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
   const j = await res.json();
@@ -80,7 +79,6 @@ async function updateStatus(
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Authorization:  `Bearer ${getSessionToken()}`,
     },
     body: JSON.stringify(body),
   });
@@ -120,7 +118,7 @@ async function sendResonanzNotification(
 
     const res = await fetch(`/api/notifications`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getSessionToken()}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notification: payload }),
     });
 
