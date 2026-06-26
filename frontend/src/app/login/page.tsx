@@ -1,54 +1,21 @@
 // frontend/src/app/login/page.tsx
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { SUPABASE_URL } from '@/lib/api';
 
 type DashboardMode = 'super' | 'employee';
 
-export default function LoginPage() {
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [showPw,   setShowPw]   = useState(false);
-  const [mode,     setMode]     = useState<DashboardMode>('super');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const errorParam   = searchParams.get('error');
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/auth/admin-login', {
-        method:      'POST',
-        headers:     { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email,
-          password,
-          dashboard: mode === 'super' ? 'admin' : 'employee',
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.ok) {
-        // Cookies sind gesetzt — hard redirect zur richtigen Seite
-        const dest = mode === 'employee' ? '/employee/dashboard' : '/dashboard';
-        window.location.replace(dest);
-        return;
-      }
-
-      // Fehler anzeigen — KEIN Redirect, KEIN Form-POST-Fallback
-      setError(data.error || 'Anmeldung fehlgeschlagen');
-
-    } catch {
-      setError('Netzwerkfehler — bitte erneut versuchen');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [mode,   setMode]   = useState<DashboardMode>('super');
+  const [showPw, setShowPw] = useState(false);
+  const [email,  setEmail]  = useState('');
+  const [pw,     setPw]     = useState('');
 
   const isLive = !!SUPABASE_URL;
 
@@ -59,7 +26,6 @@ export default function LoginPage() {
     borderRadius: 8, fontSize: 13,
     color: 'var(--text-primary)',
     outline: 'none', boxSizing: 'border-box',
-    transition: 'border-color 0.15s',
   };
 
   return (
@@ -88,16 +54,15 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Mode selector */}
+        {/* Mode-Selector */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
           {([
-            { key: 'super',    label: 'Admin Dashboard',    icon: '🛡️', desc: 'Vollzugriff' },
-            { key: 'employee', label: 'Employee Dashboard',  icon: '👤', desc: 'Eingeschränkt' },
+            { key: 'super',    label: 'Admin Dashboard',   icon: '🛡️', desc: 'Vollzugriff' },
+            { key: 'employee', label: 'Employee Dashboard', icon: '👤', desc: 'Eingeschränkt' },
           ] as { key: DashboardMode; label: string; icon: string; desc: string }[]).map(opt => (
             <button
-              key={opt.key}
-              type="button"
-              onClick={() => { setMode(opt.key); setError(null); }}
+              key={opt.key} type="button"
+              onClick={() => setMode(opt.key)}
               style={{
                 padding: '14px 12px',
                 background: mode === opt.key ? 'var(--accent-dim)' : 'var(--bg-secondary)',
@@ -116,18 +81,24 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* Form — kein action/method, nur AJAX */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Natives Form — POST direkt an API, 302 Redirect zuverlässig */}
+        <form
+          action="/api/auth/admin-login"
+          method="POST"
+          style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+        >
+          {/* Dashboard-Modus als hidden field — wird durch JS aktuell gehalten */}
+          <input type="hidden" name="dashboard" value={mode === 'super' ? 'admin' : 'employee'} />
 
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               E-Mail
             </label>
             <input
-              type="email" autoComplete="email"
+              type="email" name="email" required autoComplete="email"
               value={email} onChange={e => setEmail(e.target.value)}
               style={{ ...inputStyle, marginTop: 6 }}
-              placeholder="deine@email.de" required
+              placeholder="deine@email.de"
             />
           </div>
 
@@ -137,11 +108,11 @@ export default function LoginPage() {
             </label>
             <div style={{ position: 'relative', marginTop: 6 }}>
               <input
-                type={showPw ? 'text' : 'password'}
+                type={showPw ? 'text' : 'password'} name="password" required
                 autoComplete="current-password"
-                value={password} onChange={e => setPassword(e.target.value)}
+                value={pw} onChange={e => setPw(e.target.value)}
                 style={{ ...inputStyle, paddingRight: 40 }}
-                placeholder="••••••••" required
+                placeholder="••••••••"
               />
               <button
                 type="button"
@@ -157,18 +128,18 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Fehleranzeige — kein Redirect */}
-          {error && (
+          {/* Fehler aus ?error= Query-Param */}
+          {errorParam && (
             <div style={{
               padding: '10px 14px',
               background: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.3)',
               borderRadius: 8, fontSize: 13, color: '#f87171',
             }}>
-              ⚠️ {error}
-              {error.includes('Superadmin') && (
-                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
-                  → Bitte wechsle zu &quot;Employee Dashboard&quot;
+              ⚠️ {decodeURIComponent(errorParam)}
+              {errorParam.includes('Superadmin') && (
+                <div style={{ marginTop: 5, fontSize: 12, opacity: 0.8 }}>
+                  → Bitte wähle &quot;Employee Dashboard&quot;
                 </div>
               )}
             </div>
@@ -176,25 +147,26 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
             style={{
               padding: '12px',
-              background: loading ? 'var(--bg-tertiary)' : 'var(--accent)',
-              color: loading ? 'var(--text-muted)' : '#0F1117',
+              background: 'var(--accent)',
+              color: '#0F1117',
               border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14,
-              cursor: loading ? 'not-allowed' : 'pointer', marginTop: 4,
-              transition: 'all 0.15s',
+              cursor: 'pointer', marginTop: 4,
             }}
           >
-            {loading
-              ? 'Anmelden…'
-              : mode === 'employee'
-                ? '👤 Employee Login'
-                : '🛡️ Admin Login'
-            }
+            {mode === 'employee' ? '👤 Employee Login' : '🛡️ Admin Login'}
           </button>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} />}>
+      <LoginForm />
+    </Suspense>
   );
 }
