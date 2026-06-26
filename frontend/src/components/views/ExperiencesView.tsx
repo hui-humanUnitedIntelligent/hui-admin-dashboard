@@ -517,10 +517,43 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   };
 
   const handleDelete = async (e: HuiEntry) => {
-    setLocalDel(p=>new Set([...p,e.id])); setDeleteTarget(null);
+    setLocalDel(p => new Set([...p, e.id]));
+    setDeleteTarget(null);
+    setActionLoading(e.id);
     const ok = await entryAction('delete_experience', e.id);
-    if (ok) { showToast('🗑 Gelöscht','info'); setTimeout(()=>setLocalDel(new Set()),3000); }
-    else { showToast('Fehler','error'); setLocalDel(p=>{const s=new Set(p);s.delete(e.id);return s;}); }
+    setActionLoading(null);
+    if (ok) {
+      showToast(`ð "${e.title || 'Erlebnis'}" wurde geloscht und ist nicht mehr sichtbar.`, 'info');
+      setLocalDel(new Set());
+      await refetchAll();
+    } else {
+      showToast('Fehler beim Loschen — bitte nochmal versuchen.', 'error');
+      setLocalDel(p => { const s = new Set(p); s.delete(e.id); return s; });
+    }
+  };
+
+  const handleRestore = async (e: HuiEntry) => {
+    setActionLoading(e.id);
+    const ok = await entryAction('restore_experience', e.id);
+    setActionLoading(null);
+    if (ok) {
+      showToast(`â "${e.title || 'Erlebnis'}" wurde wiederhergestellt und ist wieder live!`, 'success');
+      await refetchAll();
+    } else {
+      showToast('Fehler beim Wiederherstellen.', 'error');
+    }
+  };
+
+  const handleHardDelete = async (e: HuiEntry) => {
+    setActionLoading(e.id);
+    const ok = await entryAction('hard_delete_experience', e.id);
+    setActionLoading(null);
+    if (ok) {
+      showToast(`ð "${e.title || 'Erlebnis'}" wurde endgueltig geloscht.`, 'info');
+      await refetchAll();
+    } else {
+      showToast('Fehler beim endgueltigen Loeschen.', 'error');
+    }
   };
 
   const BANNERS: Partial<Record<TabKey,{bg:string;border:string;color:string;text:string}>> = {
