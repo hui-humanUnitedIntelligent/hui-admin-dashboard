@@ -15,5 +15,8 @@ export function useAuth() {
     setLoading(false);
   }, []);
 
-  return { role, loading };
+  // currentUser-Kompatibilität für bestehende Seiten
+  const currentUser = role ? { role } : null;
+
+  return { role, loading, currentUser };
 }
