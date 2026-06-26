@@ -1,6 +1,5 @@
 'use client';
 import { useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface CurrentUser {
   role: string;
@@ -17,11 +16,8 @@ function readCookieRole(): string | null {
 }
 
 export function useAuth() {
-  // Synchron lesen — kein useEffect, kein loading-State, kein Flackern
+  // Synchron aus Cookie lesen — kein useEffect, kein Flash, kein Redirect-Bug
   const role = readCookieRole();
-  const loading = false;
-
-  const router = useRouter();
 
   const logout = useCallback(async () => {
     try {
@@ -31,8 +27,7 @@ export function useAuth() {
   }, []);
 
   const clearAuth = useCallback(() => {}, []);
-
   const currentUser: CurrentUser | null = role ? { role } : null;
 
-  return { role, loading, currentUser, logout, clearAuth };
+  return { role, loading: false, currentUser, logout, clearAuth };
 }
