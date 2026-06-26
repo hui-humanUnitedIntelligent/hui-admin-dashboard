@@ -84,10 +84,6 @@ function buildMonthlyBuckets(
 export default function ImpactPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  useEffect(() => {
-    if (!isSuperAdmin(currentUser?.role)) router.replace("/employee/impact");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.role]);
   if (!isSuperAdmin(currentUser?.role)) return null;
 
   const userRole = currentUser?.role;
