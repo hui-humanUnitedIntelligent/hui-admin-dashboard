@@ -94,9 +94,16 @@ export function useWorks(opts: UseWorksOptions = {}): UseWorksReturn {
     extra: Record<string, unknown> = {}
   ): Promise<boolean> => {
     setWorks(prev => prev.map(w => w.id === id ? { ...w, status: newStatus, ...extra } : w));
-    const ok = await sbUpdate('works', id, { status: newStatus, ...extra });
-    if (!ok) fetchWorks();
-    return ok;
+    try {
+      const res = await fetch('/api/works', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus, ...extra }),
+      });
+      if (!res.ok) { fetchWorks(); return false; }
+      return true;
+    } catch { fetchWorks(); return false; }
   }, [fetchWorks]);
 
   return { works, total, loading, error, refetch: fetchWorks, updateStatus };
