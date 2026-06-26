@@ -1,51 +1,57 @@
 // frontend/src/app/api/experiences/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { guardAdmin, guardEmployee } from '@/app/lib/auth-guard';
+import { guardEmployee, guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
+
+const SUBMITTED_STATES = ['submitted', 'pending', 'pending_review', 'review', 'waiting_for_approval'];
 
 export async function GET(req: NextRequest) {
   const guard = await guardEmployee(req);
   if (guard) return guard;
-
   try {
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || 'all';
-    const search = (searchParams.get('search') || '').toLowerCase();
-    const limit  = Math.min(parseInt(searchParams.get('limit')  || '200'), 500);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-
+    const filter  = searchParams.get('filter') || 'all';
+    const limit   = Math.min(parseInt(searchParams.get('limit')  || '100'), 500);
+    const offset  = parseInt(searchParams.get('offset') || '0');
     const sb = getServiceClient();
 
-    let query = sb
-      .from('experiences')
-      .select('id,user_id,title,description,category,price,status,cover_url,visibility,created_at,updated_at,approval_status,sensitivity_status,sensitivity_reason,admin_comment,review_note,rejection_reason,rejected_at,reviewed_at,reviewed_by,last_submitted_at,tags,experience_type,duration,participant_limit,language,location_text,mood_tags')
-      .order('created_at', { ascending: false });
+    let q = sb.from('experiences').select('*', { count: 'exact' });
+    if (filter === 'active')         q = q.eq('status', 'published');
+    else if (filter === 'submitted') q = q.in('status', SUBMITTED_STATES);
+    else if (filter === 'rejected')  q = q.eq('status', 'rejected');
+    else if (filter === 'deleted')   q = q.eq('status', 'deleted');
+    else                             q = q.neq('status', 'deleted');
 
-    if (status !== 'all') query = query.eq('status', status);
-    if (search)           query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
-
-    const { data, error } = await query.range(offset, offset + limit - 1);
+    q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    const { data, count, error } = await q;
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    return NextResponse.json({ experiences: data ?? [], total: data?.length ?? 0 });
+    const userIds = [...new Set((data ?? []).map((e: { user_id: string }) => e.user_id).filter(Boolean))];
+    const { data: profiles } = userIds.length
+      ? await sb.from('profiles').select('id,display_name,avatar_url,email').in('id', userIds)
+      : { data: [] };
+    const profMap = new Map((profiles ?? []).map(p => [p.id, p]));
+    const experiences = (data ?? []).map((e: Record<string,unknown>) => ({ ...e, author: profMap.get(e.user_id as string) ?? null }));
+
+    return NextResponse.json({ experiences, total: count ?? 0 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : JSON.stringify(err);
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
-
   try {
-    const { id, ...updates } = await req.json();
-    if (!id) return NextResponse.json({ ok: false, error: 'id fehlt' }, { status: 400 });
-
+    const { id, status, rejection_reason } = await req.json();
+    if (!id || !status) return NextResponse.json({ ok: false, error: 'id und status erforderlich' }, { status: 400 });
     const sb = getServiceClient();
+    const updates: Record<string,unknown> = { status };
+    if (status === 'published') updates.visibility = 'public';
+    if (status === 'rejected')  { updates.visibility = 'private'; if (rejection_reason) updates.rejection_reason = rejection_reason; }
+    if (status === 'deleted')   updates.visibility = 'private';
     const { error } = await sb.from('experiences').update(updates).eq('id', id);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
