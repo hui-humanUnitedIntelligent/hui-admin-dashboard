@@ -643,7 +643,7 @@ export function useScoreFailures(opts: { limit?: number } = {}) {
   const fetchData = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const token = await getSessionToken();
+      
       const res   = await fetch(`/api/score-failures?limit=${limit}`, {
         credentials: 'include',
       });
