@@ -8,7 +8,6 @@ import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import type { HuiWork } from '@/lib/hooks/useWorks';
 import { useWorks } from '@/lib/hooks/useSupabase';
-import { getSessionToken } from '@/lib/session';
 
 type TabKey = 'pending' | 'published' | 'rejected' | 'flagged' | 'deleted' | 'all';
 
@@ -35,10 +34,9 @@ export default function EmployeeWorksPage() {
   async function call(action: string, id: string, data?: Record<string,unknown>) {
     setBusy(id);
     try {
-      const token = await getSessionToken();
       const res = await fetch('/api/employee/content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', },
         body: JSON.stringify({ action, id, data }),
       });
       if (res.ok) { refetch(); return true; }
