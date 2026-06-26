@@ -82,6 +82,7 @@ export default function EmployeesPage() {
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
+  const [showPw,     setShowPw]     = useState(false);
   const [creating,   setCreating]   = useState(false);
   const [form, setForm] = useState({ email: '', password: '', display_name: '', username: '' });
   const [formErr, setFormErr] = useState('');
@@ -90,6 +91,7 @@ export default function EmployeesPage() {
   const [editTarget, setEditTarget] = useState<Employee | null>(null);
   const [editName,   setEditName]   = useState('');
   const [editPw,     setEditPw]     = useState('');
+  const [showEditPw, setShowEditPw] = useState(false);
   const [editing,    setEditing]    = useState(false);
 
   // Delete confirm
@@ -148,6 +150,7 @@ export default function EmployeesPage() {
     setEditTarget(e);
     setEditName(e.display_name ?? '');
     setEditPw('');
+    setShowEditPw(false);
   }
   async function handleEdit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -231,11 +234,18 @@ export default function EmployeesPage() {
                 <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                   Passwort * (min. 8 Zeichen)
                 </label>
-                <input
-                  type="password" required minLength={8} placeholder="••••••••"
-                  value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  style={input}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPw ? 'text' : 'password'} required minLength={8} placeholder="••••••••"
+                    value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                    style={{ ...input, paddingRight: 36 }}
+                  />
+                  <button type="button" onClick={() => setShowPw(v => !v)} style={{
+                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 15,
+                    color: 'var(--text-secondary)', padding: 2,
+                  }}>{showPw ? '🙈' : '👁️'}</button>
+                </div>
               </div>
               <div>
                 <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
@@ -363,8 +373,18 @@ export default function EmployeesPage() {
                 <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                   Neues Passwort (leer lassen = unverändert)
                 </label>
-                <input type="password" value={editPw} onChange={e => setEditPw(e.target.value)}
-                  style={input} placeholder="••••••••" minLength={8} />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showEditPw ? 'text' : 'password'}
+                    value={editPw} onChange={e => setEditPw(e.target.value)}
+                    style={{ ...input, paddingRight: 36 }} placeholder="••••••••" minLength={8}
+                  />
+                  <button type="button" onClick={() => setShowEditPw(v => !v)} style={{
+                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 15,
+                    color: 'var(--text-secondary)', padding: 2,
+                  }}>{showEditPw ? '🙈' : '👁️'}</button>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="submit" style={{ ...btnPrimary, opacity: editing ? 0.6 : 1 }} disabled={editing}>
