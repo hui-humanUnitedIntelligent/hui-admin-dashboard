@@ -215,7 +215,7 @@ export default function UsersPage() {
 
       {/* User-Detail-Modal */}
       {viewUser && (
-        <Modal title="User Details" onClose={() => setViewUser(null)}>
+        <Modal open={true} title="User Details" onClose={() => setViewUser(null)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
             {viewUser.avatar_url && (
               <img src={viewUser.avatar_url} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }} />
