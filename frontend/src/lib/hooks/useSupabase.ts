@@ -325,9 +325,8 @@ export function useProfiles(opts: {
     setLoading(true);
     try {
       // ── Profile über /api/profiles laden (server-seitiger Service Key, kein RLS) ──
-      const token = getSessionToken();
-      const apiRes = await globalThis.fetch('/api/profiles', {
-        headers: { Authorization: `Bearer ${token}` },
+      const apiRes = await globalThis.fetch('/api/profiles?limit=1000', {
+        credentials: 'include',
       });
       const apiData = apiRes.ok ? await apiRes.json() : { profiles: [] };
       const rows: HuiProfile[] = apiData.profiles || [];
