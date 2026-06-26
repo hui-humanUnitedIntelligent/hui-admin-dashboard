@@ -87,24 +87,24 @@ export default function ImpactPage() {
                       display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px',
                       background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)',
                     }}>
-                      {(p as unknown as {icon?: string}).icon && (
-                        <span style={{ fontSize: 22 }}>{(p as unknown as {icon?: string}).icon}</span>
+                      {p.icon && (
+                        <span style={{ fontSize: 22 }}>{p.icon}</span>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                           {p.name}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {p.category} · {p.votes ?? 0} Votes
+                          {p.category ?? ''} · {p.votes ?? 0} Votes
                           {p.awarded_eur ? ` · ${fmtEur(p.awarded_eur)} vergeben` : ''}
                         </div>
                       </div>
                       <span style={{
                         fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: p.status === 'active' ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.12)',
-                        color: p.status === 'active' ? '#10b981' : 'var(--text-muted)',
+                        background: (p.status === 'active') ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.12)',
+                        color: (p.status === 'active') ? '#10b981' : 'var(--text-muted)',
                       }}>
-                        {p.status ?? 'draft'}
+                        {p.status}
                       </span>
                     </div>
                   ))}
