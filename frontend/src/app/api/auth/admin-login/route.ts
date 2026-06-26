@@ -6,11 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAnonClient, getServiceClient } from '@/app/lib/supabase-server';
 import { normalizeRole } from '@/lib/roles';
 
-const IS_PROD = process.env.NODE_ENV === 'production';
 const MAX_AGE = 60 * 60 * 8; // 8 Stunden
-
-// Wichtig: Für Vercel Preview Domains MUSS die Domain gesetzt werden
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'hui-admin-dashboard.vercel.app';
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,23 +66,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4) Cookies via response.cookies.set() — kompatibel mit Next.js Middleware
+    // 4) Cookies setzen — KEINE domain-Angabe (gilt automatisch für aktuelle Host-Domain)
+    //    secure: true nur auf echtem HTTPS (Vercel Production + Preview sind beide HTTPS)
     const response = NextResponse.json({ ok: true, role: finalRole });
 
-    response.cookies.set('hui_admin_token', access_token, {
+    const cookieOpts = {
       httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
+      secure: true,           // Vercel ist immer HTTPS
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: MAX_AGE,
-    });
+      // Kein domain: — Browser setzt Cookie automatisch für aktuelle Domain
+    };
 
+    response.cookies.set('hui_admin_token', access_token, cookieOpts);
     response.cookies.set('hui_admin_role', finalRole, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: MAX_AGE,
+      ...cookieOpts,
+      httpOnly: false,         // Middleware + Client müssen Role lesen können
     });
 
     return response;
