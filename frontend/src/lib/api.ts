@@ -25,7 +25,6 @@ export async function sbQuery<T = unknown>(
   const res = await fetch(url.toString(), {
     headers: {
       apikey:         SUPABASE_ANON,
-      Authorization:  `Bearer ${SUPABASE_ANON}`,
       'Content-Type': 'application/json',
       Prefer:         'count=exact',
     },
@@ -49,7 +48,6 @@ export async function sbCount(table: string, params: Record<string, string> = {}
   const res = await fetch(url.toString(), {
     headers: {
       apikey:        SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_ANON}`,
       Prefer:        'count=exact',
       'Range-Unit':  'items',
       Range:         '0-0',
@@ -75,7 +73,6 @@ export async function sbUpdate(
     method: 'PATCH',
     headers: {
       apikey:         SUPABASE_ANON,
-      Authorization:  `Bearer ${SUPABASE_ANON}`,
       'Content-Type': 'application/json',
       Prefer:         'return=minimal',
     },
@@ -91,7 +88,6 @@ export async function sbDelete(table: string, id: string): Promise<boolean> {
     method: 'DELETE',
     headers: {
       apikey:        SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_ANON}`,
       Prefer:        'return=minimal',
     },
   });
