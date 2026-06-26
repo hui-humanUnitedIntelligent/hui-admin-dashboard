@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '@/components/ui/Toast';
-import { getSessionToken } from '@/lib/session';
 import { AMBASSADOR_LEVELS } from '@/lib/ambassador-levels';
 import type { AmbLevel } from '@/lib/ambassador-levels';
 
@@ -54,9 +53,8 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
   const loadDetail = useCallback(async () => {
     setLoading(true);
     try {
-      const token = getSessionToken();
       const url = '/api/ambassador?action=detail&user_id=' + encodeURIComponent(ambId);
-      const res = await fetch(url, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+      const res = await fetch(url, { credentials: 'include', });
       const json = await res.json().catch(() => null);
       setDetail(json?.data ?? json ?? null);
     } catch { setDetail(null); }
@@ -68,7 +66,6 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
   const act = async (action: string, payload: AmbActionPayload = {}) => {
     setActing(true);
     try {
-      const token = getSessionToken();
       const body  = JSON.stringify({ action, user_id: ambId, data: payload });
       const hdrs: Record<string,string> = { 'Content-Type': 'application/json' };
       if (token) hdrs['Authorization'] = 'Bearer ' + token;
