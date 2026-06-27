@@ -648,7 +648,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                             {detectSensitiveExp(entry).flagged&&<span title={detectSensitiveExp(entry).reasons.join('\n')} style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:'rgba(255,107,107,0.12)', color:'var(--red)', fontWeight:700, cursor:'help' }}>⚠️</span>}
                           </div>
                         </td>
-                        <td style={{ padding:'10px 12px' }}><SourceBadge source={entry._source||'experiences'} experienceType={entry.experience_type}/></td>
+                        <td style={{ padding:'10px 12px' }}><SourceBadge source={entry._source||'experiences'} experienceType={entry.experience_type as string | null | undefined}/></td>
                         <td style={{ padding:'10px 12px' }}><EntryStatus entry={entry}/></td>
                         <td style={{ padding:'10px 12px', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{entry.price?`€${Number(entry.price).toLocaleString('de-DE')}`:'—'}</td>
                         <td style={{ padding:'10px 12px', color:'var(--text-secondary)' }}>{str(entry.category)}</td>
