@@ -1,5 +1,5 @@
 // frontend/src/app/api/users/[id]/route.ts
-// PATCH /api/users/:id — block (mit Grund), unblock, delete, restore, update_block_reason
+// PATCH /api/users/:id — block, unblock, delete, restore
 import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, serverError } from '@/app/lib/api-response';
@@ -14,46 +14,50 @@ export async function PATCH(
 
   try {
     const { id } = params;
-    const body   = await req.json() as { action: string; reason?: string; admin_note?: string };
-    const { action, reason, admin_note } = body;
+    const body   = await req.json() as { action: string; reason?: string };
+    const { action, reason } = body;
     const supabase = getServiceClient();
     const now = new Date().toISOString();
 
+    // blocked_by = Admin-Blockiergrund (einzige existierende Text-Spalte für Grund)
     let profileUpdate: Record<string, unknown> = {};
 
     if (action === 'block') {
       profileUpdate = {
-        blocked:       true,
-        blocked_at:    now,
-        blocked_by:    'admin',
-        blocked_reason: reason || null,
+        blocked:    true,
+        blocked_at: now,
+        blocked_by: reason || 'Admin-Entscheidung',
       };
-    } else if (action === 'unblock') {
+    } else if (action === 'unblock' || action === 'restore') {
       profileUpdate = {
-        blocked:        false,
-        blocked_at:     null,
-        blocked_by:     null,
-        blocked_reason: null,
+        blocked:    false,
+        blocked_at: null,
+        blocked_by: null,
       };
     } else if (action === 'delete') {
-      profileUpdate = { blocked: true, blocked_at: now, blocked_reason: reason || 'Konto gelöscht' };
-    } else if (action === 'restore') {
-      profileUpdate = { blocked: false, blocked_at: null, blocked_by: null, blocked_reason: null };
+      profileUpdate = {
+        blocked:    true,
+        blocked_at: now,
+        blocked_by: reason || 'Konto gelöscht',
+      };
     } else if (action === 'update_block_reason') {
-      if (!reason && !admin_note) return ok({ ok: false, error: 'Kein Grund angegeben' });
-      profileUpdate = { blocked_reason: reason || admin_note || null };
+      if (!reason) return ok({ ok: false, error: 'Kein Grund angegeben' });
+      profileUpdate = { blocked_by: reason };
     } else {
       return ok({ ok: false, error: 'Unbekannte Aktion' });
     }
 
     const { error } = await supabase.from('profiles').update(profileUpdate).eq('id', id);
-    if (error) throw error;
+    if (error) {
+      console.error('[PATCH users] DB error:', error.message, '| update:', profileUpdate);
+      throw error;
+    }
 
-    // Bei Block: Supabase Auth User sperren (verhindert Login)
-    if (action === 'block' || action === 'delete') {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-      const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-      if (supabaseUrl && serviceKey) {
+    // Auth-User sperren (verhindert Login-Token-Refresh)
+    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+    if (supabaseUrl && serviceKey) {
+      if (action === 'block' || action === 'delete') {
         try {
           await fetch(`${supabaseUrl}/auth/v1/admin/users/${id}`, {
             method: 'PUT',
@@ -62,17 +66,11 @@ export async function PATCH(
               'apikey': serviceKey,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ban_duration: '87600h' }), // 10 Jahre = effektiv dauerhaft
+            body: JSON.stringify({ ban_duration: '87600h' }),
           });
-        } catch { /* ignore auth ban error */ }
+        } catch (e) { console.warn('[PATCH] auth ban failed:', e); }
       }
-    }
-
-    // Bei Unblock/Restore: Auth Ban aufheben
-    if (action === 'unblock' || action === 'restore') {
-      const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-      const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-      if (supabaseUrl && serviceKey) {
+      if (action === 'unblock' || action === 'restore') {
         try {
           await fetch(`${supabaseUrl}/auth/v1/admin/users/${id}`, {
             method: 'PUT',
@@ -83,13 +81,15 @@ export async function PATCH(
             },
             body: JSON.stringify({ ban_duration: 'none' }),
           });
-        } catch { /* ignore */ }
+        } catch (e) { console.warn('[PATCH] auth unban failed:', e); }
       }
     }
 
     return ok({ ok: true, action, id });
+
   } catch (err) {
-    return serverError(err, 'users PATCH');
+    console.error('[PATCH users]', err);
+    return serverError(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -99,22 +99,27 @@ export async function DELETE(
 ) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
+
   try {
     const { id } = params;
-    const supabase = getServiceClient();
+    const supabase   = getServiceClient();
     const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-    // Aus Auth löschen
+
+    // Profil löschen
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (error) throw error;
+
+    // Auth-User löschen
     if (supabaseUrl && serviceKey) {
       await fetch(`${supabaseUrl}/auth/v1/admin/users/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
       });
     }
-    // Profile löschen
-    await supabase.from('profiles').delete().eq('id', id);
+
     return ok({ ok: true, deleted: id });
   } catch (err) {
-    return serverError(err, 'users DELETE');
+    return serverError(err instanceof Error ? err.message : String(err));
   }
 }
