@@ -34,6 +34,7 @@ interface Application {
   status: string;
   submitted_at: string | null;
   created_at: string;
+  reviewed_at: string | null;
   admin_comment: string | null;
   rejection_reason: string | null;
   applicant: { display_name?: string; username?: string; avatar_url?: string } | null;
