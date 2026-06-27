@@ -381,12 +381,7 @@ function UserDetailModal({
                 <p style={{ fontSize:13, color:'var(--text-secondary)', margin:0 }}>{user.blocked_reason}</p>
               </div>
             )}
-            <div style={{ marginTop:8, padding:'10px 14px', borderRadius:8,
-              background:'var(--bg-secondary)', border:'1px solid var(--border)' }}>
-              <p style={{ fontSize:11, color:'var(--text-muted)', margin:'0 0 2px' }}>Support-Kontakt</p>
-              <a href="mailto:support@be-hui.com" style={{ fontSize:13, color:'var(--accent)',
-                textDecoration:'none', fontWeight:500 }}>support@be-hui.com</a>
-            </div>
+
           </div>
         )}
 
