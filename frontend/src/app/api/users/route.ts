@@ -10,26 +10,16 @@ type AuthUser = {
   app_metadata?:  Record<string, unknown>;
 };
 
-// Explizites Profile-Interface — alle Felder die wir brauchen
 interface Profile {
-  id:              string;
-  email:           string | null;
-  created_at:      string;
-  display_name:    string | null;
-  username:        string | null;
-  full_name:       string | null;
-  avatar_url:      string | null;
-  role:            string | null;
-  membership_type: string | null;
-  is_wirker:       boolean | null;
-  is_member:       boolean | null;
-  blocked:         boolean | null;
-  blocked_reason:  string | null;
-  blocked_at:      string | null;
-  phone:           string | null;
-  impact_eur:      number | null;
-  trust_score:     number | null;
-  last_seen_at:    string | null;
+  id: string; email: string | null; created_at: string;
+  display_name: string | null; username: string | null;
+  full_name: string | null; avatar_url: string | null;
+  role: string | null; membership_type: string | null;
+  is_wirker: boolean | null; is_member: boolean | null;
+  blocked: boolean | null; blocked_reason: string | null;
+  blocked_at: string | null; phone: string | null;
+  impact_eur: number | null; trust_score: number | null;
+  last_seen_at: string | null;
 }
 
 interface MergedUser {
@@ -44,12 +34,7 @@ interface MergedUser {
   source: string;
 }
 
-const PROFILE_COLS = [
-  'id','display_name','username','full_name','avatar_url','role',
-  'membership_type','is_wirker','is_member',
-  'blocked','blocked_reason','blocked_at','phone',
-  'impact_eur','trust_score','last_seen_at','email','created_at',
-].join(',');
+const PROFILE_COLS = 'id,display_name,username,full_name,avatar_url,role,membership_type,is_wirker,is_member,blocked,blocked_reason,blocked_at,phone,impact_eur,trust_score,last_seen_at,email,created_at';
 
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
@@ -59,14 +44,14 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const filter = searchParams.get('filter') || 'all';
     const search = (searchParams.get('search') || '').toLowerCase().trim();
-    const limit  = Math.min(parseInt(searchParams.get('limit')  || '1000'), 2000);
+    const limit  = Math.min(parseInt(searchParams.get('limit') || '1000'), 2000);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     const supabase    = getServiceClient();
     const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
-    // 1) Auth Users — alle Seiten laden
+    // 1) Auth Users
     let authUsers: AuthUser[] = [];
     if (supabaseUrl && serviceKey) {
       try {
@@ -74,32 +59,29 @@ export async function GET(req: NextRequest) {
         while (true) {
           const res = await fetch(
             `${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=1000`,
-            { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
-              cache: 'no-store' }
+            { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey }, cache: 'no-store' }
           );
           if (!res.ok) break;
           const body = await res.json() as { users?: AuthUser[] } | AuthUser[];
-          const users: AuthUser[] = Array.isArray(body)
-            ? body
-            : (body as { users?: AuthUser[] }).users ?? [];
+          const users: AuthUser[] = Array.isArray(body) ? body : ((body as { users?: AuthUser[] }).users ?? []);
           authUsers.push(...users);
           if (users.length < 1000) break;
           page++;
         }
-      } catch(e) { console.error('[users] auth fetch error:', e); }
+      } catch(e) { console.error('[users] auth error:', e); }
     }
 
-    // 2) Profiles
+    // 2) Profiles — doppelter Cast um Supabase-GenericStringError zu umgehen
     const { data: rawProfiles, error: profErr } = await supabase
       .from('profiles')
       .select(PROFILE_COLS);
 
     if (profErr) {
-      console.error('[users GET] profiles error:', profErr.message);
       return NextResponse.json({ ok: false, error: profErr.message }, { status: 500 });
     }
 
-    const profiles = (rawProfiles ?? []) as Profile[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profiles = ((rawProfiles ?? []) as unknown as Profile[]);
 
     // 3) Maps
     const profileMap = new Map<string, Profile>();
@@ -138,7 +120,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Nur-Profile (kein Auth-Account)
     for (const p of profiles) {
       if (!authMap.has(p.id)) {
         merged.push({
@@ -157,7 +138,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Neueste zuerst
     merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // 5) Filter
@@ -174,9 +154,6 @@ export async function GET(req: NextRequest) {
     if (filter === 'deleted') filtered = filtered.filter(u =>  u.is_deleted);
     if (filter === 'wirker')  filtered = filtered.filter(u =>  u.is_wirker);
 
-    const total     = filtered.length;
-    const paginated = filtered.slice(offset, offset + limit);
-
     const counts = {
       total:   merged.length,
       active:  merged.filter(u => !u.blocked && !u.is_deleted).length,
@@ -185,11 +162,14 @@ export async function GET(req: NextRequest) {
       wirker:  merged.filter(u =>  u.is_wirker).length,
     };
 
-    return NextResponse.json({ users: paginated, total, counts }, { status: 200 });
+    return NextResponse.json({
+      users:  filtered.slice(offset, offset + limit),
+      total:  filtered.length,
+      counts,
+    }, { status: 200 });
 
   } catch (err) {
-    const msg = err instanceof Error ? err.message : JSON.stringify(err);
-    console.error('[users GET]', msg);
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    console.error('[users GET]', err);
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
