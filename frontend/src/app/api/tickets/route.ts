@@ -1,184 +1,168 @@
 // frontend/src/app/api/tickets/route.ts
-// Support tickets — gespeichert in 'invitations' table
-// Marker: title startet mit "[TICKET]"
-// Metadata (status, priority, category, reply) in 'text'-Feld als JSON
-
+// Support-Tickets gespeichert in notifications (type='support_ticket')
 import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
-import { ok, fail, serverError, validationError } from '@/app/lib/api-response';
-import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
-import { NOTIFICATION_TYPES } from '@/lib/notification-types';
+import { ok, fail, serverError } from '@/app/lib/api-response';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
-type TicketMeta = {
-  status?:     string;
-  priority?:   string;
-  category?:   string;
-  reply?:      string;
-  repliedAt?:  string;
-  adminId?:    string;
-};
-
-function parseMeta(text: string | null): TicketMeta {
-  try { return JSON.parse(text || '{}'); } catch { return {}; }
+function parseTicket(row: Record<string, unknown>) {
+  const raw  = row.data as Record<string, unknown> ?? {};
+  return {
+    id:            row.id,
+    created_at:    row.created_at,
+    ticket_number: raw.ticket_number ?? 'HUI-????',
+    name:          raw.name          ?? '',
+    email:         raw.email         ?? '',
+    phone:         raw.phone         ?? '',
+    category:      raw.category      ?? 'sonstiges',
+    priority:      raw.priority      ?? 'normal',
+    subject:       raw.subject       ?? (row.title as string ?? '').replace(/^\[HUI-[^\]]+\]\s*/, ''),
+    message:       raw.message       ?? (row.body as string ?? ''),
+    status:        raw.status        ?? 'open',
+    attachments:   raw.attachments   ?? [],
+    admin_reply:   raw.admin_reply   ?? null,
+    replied_at:    raw.replied_at    ?? null,
+    read_by_admin: raw.read_by_admin ?? false,
+    user_id:       row.user_id,
+  };
 }
 
-// ── GET ──────────────────────────────────────────────────────────────────────
+// ── GET /api/tickets ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
-  try {
-    const sb     = getServiceClient();
-    const params = new URL(req.url).searchParams;
-    const status   = params.get('status');
-    const ticketId = params.get('id');
+  const { searchParams } = new URL(req.url);
+  const status  = searchParams.get('status');
+  const id      = searchParams.get('id');
+  const search  = searchParams.get('search') ?? '';
+  const limit   = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
 
-    if (ticketId) {
-      const { data, error } = await sb
-        .from('invitations').select('*').eq('id', ticketId).limit(1).single();
-      if (error) throw error;
-      if (!data) return (await import('@/app/lib/api-response')).notFound('Ticket');
-      const meta = parseMeta(data.text as string);
-      return ok({ ...data, _status: meta.status ?? 'open', _priority: meta.priority ?? 'normal', _category: meta.category ?? 'general', _reply: meta.reply ?? null });
+  try {
+    const sb = getServiceClient();
+
+    // Einzelticket
+    if (id) {
+      const { data, error } = await sb.from('notifications')
+        .select('*').eq('id', id).eq('type', 'support_ticket').single();
+      if (error || !data) return fail('Ticket nicht gefunden');
+      // Als gelesen markieren
+      await sb.from('notifications').update({
+        data: { ...(data.data as object ?? {}), read_by_admin: true }
+      }).eq('id', id);
+      return ok(parseTicket(data as Record<string, unknown>));
     }
 
-    const { data, error } = await sb
-      .from('invitations')
-      .select('*')
-      .like('title', '[TICKET]%')
+    // Liste
+    let q = sb.from('notifications')
+      .select('*', { count: 'exact' })
+      .eq('type', 'support_ticket')
       .order('created_at', { ascending: false })
-      .limit(200);
-    if (error) throw error;
+      .limit(limit);
 
-    const tickets = (data ?? []).map(r => {
-      const meta = parseMeta(r.text as string);
-      return { ...r, _status: meta.status ?? 'open', _priority: meta.priority ?? 'normal', _category: meta.category ?? 'general', _reply: meta.reply ?? null, _repliedAt: meta.repliedAt ?? null };
-    });
+    const { data, error, count } = await q;
+    if (error) return serverError(error, 'tickets GET');
 
-    const filtered = (status && status !== 'all')
-      ? tickets.filter(t => t._status === status)
-      : tickets;
+    let tickets = (data ?? []).map(r => parseTicket(r as Record<string, unknown>));
 
-    return ok(filtered);
+    // Status-Filter client-seitig (da status im JSON-data liegt)
+    if (status && status !== 'all') {
+      tickets = tickets.filter(t => t.status === status);
+    }
+    if (search) {
+      const s = search.toLowerCase();
+      tickets = tickets.filter(t =>
+        t.ticket_number.toLowerCase().includes(s) ||
+        t.name.toLowerCase().includes(s) ||
+        t.email.toLowerCase().includes(s) ||
+        t.subject.toLowerCase().includes(s)
+      );
+    }
+
+    const stats = {
+      open:     tickets.filter(t => t.status === 'open').length,
+      replied:  tickets.filter(t => t.status === 'replied').length,
+      closed:   tickets.filter(t => t.status === 'closed').length,
+      total:    tickets.length,
+      unread:   tickets.filter(t => !t.read_by_admin).length,
+    };
+
+    return ok({ tickets, stats, total: count ?? 0 });
   } catch (err) {
     return serverError(err, 'tickets GET');
   }
 }
 
-// ── POST ─────────────────────────────────────────────────────────────────────
-export async function POST(req: NextRequest) {
+// ── PATCH /api/tickets — Status ändern, Reply, Als gelesen markieren ─────────
+export async function PATCH(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const { action, ticketId, userId, subject, message, category, priority, reply, adminId } = body as {
-      action?: string; ticketId?: string; userId?: string; subject?: string;
-      message?: string; category?: string; priority?: string; reply?: string; adminId?: string;
+    const body = await req.json() as {
+      id?: string;
+      action?: string;
+      status?: string;
+      reply?: string;
+      priority?: string;
     };
-    if (!action) return validationError({ action: 'Pflichtfeld' });
+    if (!body.id) return fail('id erforderlich');
 
-    const sb  = getServiceClient();
-    const now = new Date().toISOString();
-
-    if (action === 'create') {
-      if (!subject?.trim() || !message?.trim()) {
-        return validationError({ subject: 'Pflichtfeld', message: 'Pflichtfeld' });
-      }
-      const meta: TicketMeta = { status: 'open', priority: priority ?? 'normal', category: category ?? 'general' };
-      const { data, error } = await sb.from('invitations').insert({
-        user_id:    userId ?? null,
-        title:      `[TICKET] ${subject.trim()}`,
-        body:       message.trim(),
-        text:       JSON.stringify(meta),
-        created_at: now,
-      }).select().single();
-      if (error) throw error;
-      return (await import('@/app/lib/api-response')).created(data);
-    }
-
-    if (!ticketId) return validationError({ ticketId: 'Pflichtfeld' });
-
+    const sb = getServiceClient();
     const { data: existing, error: fetchErr } = await sb
-      .from('invitations').select('*').eq('id', ticketId).limit(1).single();
-    if (fetchErr || !existing) return (await import('@/app/lib/api-response')).notFound('Ticket');
+      .from('notifications').select('*').eq('id', body.id).single();
+    if (fetchErr || !existing) return fail('Ticket nicht gefunden');
 
-    const meta = parseMeta(existing.text as string);
+    const currentData = (existing.data as Record<string, unknown>) ?? {};
+    const update: Record<string, unknown> = { ...currentData };
 
-    if (action === 'reply') {
-      if (!reply?.trim()) return validationError({ reply: 'Pflichtfeld' });
-      meta.reply     = reply.trim();
-      meta.repliedAt = now;
-      meta.status    = 'replied';
-      meta.adminId   = adminId;
-
-      const { error } = await sb.from('invitations').update({ text: JSON.stringify(meta) }).eq('id', ticketId);
-      if (error) throw error;
-
-      // Nutzer benachrichtigen
-      if (existing.user_id) {
-        try {
-        await sb.from('notifications').insert({
-          user_id: existing.user_id, type: NOTIFICATION_TYPES.TICKET_REPLY,
-          title: 'Support hat geantwortet', message: reply.trim(),
-          is_read: false, read: false, created_at: now,
-        });
-        } catch (_) {}
-      }
-      // Activity Log
-      try {
-        const authH = req.headers.get('Authorization') ?? '';
-        const tok   = authH.replace('Bearer ', '');
-        const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
-        await sb.from('activity_logs').insert({
-          action:    'ticket_reply',
-          actor_id:  adminUser?.id ?? adminId ?? null,
-          target_id: ticketId,
-          metadata:  { before: { status: meta.status }, after: { status: 'replied' }, reply_excerpt: (reply ?? '').slice(0, 100) },
-          created_at: now,
-        });
-      } catch (_) {}
-      return ok({ replied: true });
+    if (body.action === 'reply' && body.reply) {
+      update.admin_reply  = body.reply;
+      update.replied_at   = new Date().toISOString();
+      update.status       = 'replied';
+      update.read_by_admin = true;
+    }
+    if (body.action === 'close') {
+      update.status = 'closed';
+    }
+    if (body.action === 'reopen') {
+      update.status = 'open';
+    }
+    if (body.action === 'read') {
+      update.read_by_admin = true;
+    }
+    if (body.status) {
+      update.status = body.status;
+    }
+    if (body.priority) {
+      update.priority = body.priority;
     }
 
-    if (action === 'close' || action === 'reopen') {
-      meta.status = action === 'close' ? 'closed' : 'open';
-      const { error } = await sb.from('invitations').update({ text: JSON.stringify(meta) }).eq('id', ticketId);
-      if (error) throw error;
-      // Activity Log
-      try {
-        const authH = req.headers.get('Authorization') ?? '';
-        const tok   = authH.replace('Bearer ', '');
-        const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
-        await sb.from('activity_logs').insert({
-          action:    `ticket_${meta.status}`,
-          actor_id:  adminUser?.id ?? adminId ?? null,
-          target_id: ticketId,
-          metadata:  { status: meta.status },
-          created_at: now,
-        });
-      } catch (_) {}
-      return ok({ status: meta.status });
-    }
+    const { error } = await sb.from('notifications')
+      .update({ data: update }).eq('id', body.id);
+    if (error) return serverError(error, 'tickets PATCH');
 
-    if (action === 'delete') {
-      const { error } = await sb.from('invitations').delete().eq('id', ticketId);
-      if (error) throw error;
-      // Activity Log
-      try {
-        const authH = req.headers.get('Authorization') ?? '';
-        const tok   = authH.replace('Bearer ', '');
-        const { data: { user: adminUser } } = await getAnonClient().auth.getUser(tok);
-        await sb.from('activity_logs').insert({
-          action: 'ticket_deleted', actor_id: adminUser?.id ?? adminId ?? null,
-          target_id: ticketId, metadata: { before: existing }, created_at: now,
-        });
-      } catch (_) {}
-      return ok({ deleted: true, ticketId });
-    }
-
-    return fail(`Unbekannte Aktion: ${action}`);
+    return ok({ id: body.id, updated: update });
   } catch (err) {
-    return serverError(err, 'tickets POST');
+    return serverError(err, 'tickets PATCH');
+  }
+}
+
+// ── DELETE /api/tickets ────────────────────────────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
+  try {
+    const { id } = await req.json() as { id?: string };
+    if (!id) return fail('id erforderlich');
+
+    const sb = getServiceClient();
+    const { error } = await sb.from('notifications').delete().eq('id', id).eq('type', 'support_ticket');
+    if (error) return serverError(error, 'tickets DELETE');
+
+    return ok({ deleted: id });
+  } catch (err) {
+    return serverError(err, 'tickets DELETE');
   }
 }
