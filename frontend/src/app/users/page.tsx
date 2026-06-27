@@ -384,8 +384,15 @@ export default function UsersPage() {
   const handleBlock = useCallback(async (user: MergedUser, reason: string) => {
     try {
       await apiAction('block', user.id, { reason });
-      showToast(`${user.display_name||user.email} blockiert.`, 'success');
+      // 3-Sekunden Toast mit Blockiergrund
+      const userName = user.full_name || user.display_name || user.email || 'Nutzer';
+      showToast(
+        `🔒 ${userName} wurde blockiert${reason ? ` — Grund: ${reason.slice(0, 60)}${reason.length > 60 ? '…' : ''}` : ''}.`,
+        'success',
+        3000
+      );
       setViewUser(null);
+      // Nutzer sofort lokal in blockiert verschieben (optimistic update)
       refetch();
     } catch { showToast('Fehler beim Blockieren.', 'error'); }
   }, [refetch]);
@@ -393,7 +400,8 @@ export default function UsersPage() {
   const handleUnblock = useCallback(async (user: MergedUser) => {
     try {
       await apiAction('unblock', user.id);
-      showToast(`${user.display_name||user.email} freigegeben.`, 'success');
+      const userName = user.full_name || user.display_name || user.email || 'Nutzer';
+      showToast(`✅ ${userName} wurde wieder freigeschaltet.`, 'success', 3000);
       setViewUser(null);
       refetch();
     } catch { showToast('Fehler beim Entsperren.', 'error'); }
