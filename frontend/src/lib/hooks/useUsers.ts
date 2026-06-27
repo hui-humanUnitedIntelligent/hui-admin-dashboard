@@ -24,6 +24,7 @@ export interface MergedUser {
   impact_eur:      number;
   trust_score:     number;
   last_seen_at:    string | null;
+  location_label:  string | null;
   source:          'both' | 'auth_only' | 'profile_only';
 }
 
