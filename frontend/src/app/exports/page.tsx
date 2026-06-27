@@ -163,9 +163,11 @@ export default function ExportsPage() {
   const clearAll    = () => setSelected(new Set());
 
   const fetchData = useCallback(async (keys: string[]): Promise<Record<string, Record<string, unknown>[]>> => {
-    const res = await fetch(`/api/export?tables=${keys.join(',')}&format=json`);
-    if (!res.ok) throw new Error('Export fehlgeschlagen');
-    return res.json();
+    const res = await fetch(`/api/export?tables=${keys.join(',')}&format=json`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Export fehlgeschlagen: ' + res.status);
+    const json = await res.json();
+    // API gibt { data: { table: [...] } } zurück (ok-wrapper) — entpacken
+    return (json?.data ?? json) as Record<string, Record<string, unknown>[]>;
   }, []);
 
   const doExport = useCallback(async (format: ExportFormat) => {
