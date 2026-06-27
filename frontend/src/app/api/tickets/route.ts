@@ -195,23 +195,25 @@ export async function PATCH(req: NextRequest) {
 
       // Resonanzzentrum Notification
       if (latest.user_id) {
-        await sb.from('notifications').insert({
-          user_id:     latest.user_id,
-          type:        'support_ticket_reply',
-          title:       `Dein Ticket ${body.ticket_number} wurde beantwortet`,
-          body:        body.reply.slice(0, 200),
-          data: {
-            ticket_number:    body.ticket_number,
-            subject:          String(currentData.subject ?? ''),
-            reply:            body.reply,
-            original_message: String(currentData.message ?? ''),
-            notification_id:  latest.id,
-          },
-          is_read:    false,
-          action_url: '/studio?section=tickets',
-          entity_type:'support_ticket',
-          entity_id:  latest.id as string,
-        }).catch(() => {});
+        try {
+          await sb.from('notifications').insert({
+            user_id:     latest.user_id,
+            type:        'support_ticket_reply',
+            title:       `Dein Ticket ${body.ticket_number} wurde beantwortet`,
+            body:        body.reply.slice(0, 200),
+            data: {
+              ticket_number:    body.ticket_number,
+              subject:          String(currentData.subject ?? ''),
+              reply:            body.reply,
+              original_message: String(currentData.message ?? ''),
+              notification_id:  latest.id,
+            },
+            is_read:    false,
+            action_url: '/studio?section=tickets',
+            entity_type:'support_ticket',
+            entity_id:  latest.id as string,
+          });
+        } catch { /* ignore */ }
       }
 
       return ok({ ticket_number: body.ticket_number, status: 'replied' });
