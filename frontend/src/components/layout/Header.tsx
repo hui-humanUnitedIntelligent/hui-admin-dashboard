@@ -91,7 +91,7 @@ export default function Header({ title, actions, onMenuToggle, employeeMode }: H
         </h1>
 
         {/* Desktop: clock + switch + app-link */}
-        <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 8, height: 52, overflow: 'hidden' }}>
           <div className="header-clock" style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '4px 10px',
