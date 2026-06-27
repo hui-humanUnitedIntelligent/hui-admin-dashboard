@@ -1,0 +1,98 @@
+{
+  "new_payment_page": {
+    "label": "Neue Zahlungsseite",
+    "description": "Aktiviert die überarbeitete Checkout-UI mit verbesserter UX und Stripe-Integration",
+    "enabled": false,
+    "target": "all",
+    "category": "Zahlung",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "wirker_marketplace": {
+    "label": "Wirker-Marketplace Beta",
+    "description": "Zeigt den neuen Wirker-Marktplatz für Wirker-Accounts in der Navigation",
+    "enabled": false,
+    "target": "wirker",
+    "category": "Features",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "impact_voting_v2": {
+    "label": "Impact-Voting V2",
+    "description": "Neues gewichtetes Abstimmungssystem mit visuellen Slidern für Members",
+    "enabled": false,
+    "target": "members",
+    "category": "Impact",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "stories_feature": {
+    "label": "Stories-Funktion",
+    "description": "Kurzvideos & Stories in der App aktivieren — sichtbar im Feed",
+    "enabled": false,
+    "target": "all",
+    "category": "Content",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "ki_empfehlungen": {
+    "label": "KI-Empfehlungen",
+    "description": "Personalisierte Inhaltsempfehlungen via KI-Algorithmus im Entdecken-Bereich",
+    "enabled": false,
+    "target": "all",
+    "category": "KI",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "dark_mode_v2": {
+    "label": "Dark Mode V2",
+    "description": "Überarbeitetes Dark-Mode-Farbschema mit besseren Kontrasten",
+    "enabled": true,
+    "target": "all",
+    "category": "UX",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "impact_pool_live": {
+    "label": "Impact Pool Live-Anzeige",
+    "description": "Echtzeit-Anzeige des aktuellen Impact-Pools für Members",
+    "enabled": true,
+    "target": "members",
+    "category": "Impact",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "ambassador_program": {
+    "label": "Ambassador-Programm",
+    "description": "Freischalten des Ambassador-Bereichs inkl. Referral-Links",
+    "enabled": false,
+    "target": "all",
+    "category": "Features",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "booking_system_v2": {
+    "label": "Buchungssystem V2",
+    "description": "Neues Buchungssystem mit Kalenderintegration und automatischen Erinnerungen",
+    "enabled": false,
+    "target": "wirker",
+    "category": "Features",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "notifications_push": {
+    "label": "Push-Benachrichtigungen",
+    "description": "Browser/Mobile Push-Benachrichtigungen für neue Aktivitäten",
+    "enabled": false,
+    "target": "all",
+    "category": "System",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "maintenance_mode": {
+    "label": "Wartungsmodus",
+    "description": "Zeigt allen Nutzern eine Wartungsseite — nur Admins können sich einloggen",
+    "enabled": false,
+    "target": "all",
+    "category": "System",
+    "created_at": "2026-06-27T00:00:00Z"
+  },
+  "new_profile_v2": {
+    "label": "Profil V2",
+    "description": "Überarbeitetes Nutzerprofil mit Portfolio-Ansicht und erweitertem Bio-Editor",
+    "enabled": false,
+    "target": "all",
+    "category": "UX",
+    "created_at": "2026-06-27T00:00:00Z"
+  }
+}
