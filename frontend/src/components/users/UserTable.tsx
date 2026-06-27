@@ -157,7 +157,7 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
                           <span title="Wirker" style={{ color: '#d69e2e', fontSize: 11 }}>★</span>
                         )}
                         {user.source === 'auth_only' && (
-                          <span title="Nur in Auth — kein Profil" style={{ color: '#718096', fontSize: 10 }}>⚡</span></span>
+                          <span title="Nur in Auth — kein Profil" style={{ color: '#718096', fontSize: 10 }}>⚡</span>
                         )}
                         {user.blocked && user.blocked_reason && (
                           <span
@@ -172,8 +172,13 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
                         fontSize: 11, color: 'var(--text-secondary)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        {user.email ?? '—'}
+                        {user.username ? `@${user.username}` : (user.email ?? '—')}
                       </div>
+                      {user.username && user.email && (
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {user.email}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
