@@ -352,7 +352,7 @@ export default function UsersPage() {
   const [viewUser,     setViewUser]     = useState<MergedUser | null>(null);
 
   const { users: allUsers, counts, loading, error, refetch } = useUsers({
-    filter: 'all', search, limit: 1000,
+    filter: 'all', search, limit: 1000, refreshInterval: 30_000,
   });
 
   const displayUsers = useMemo<MergedUser[]>(() => {
