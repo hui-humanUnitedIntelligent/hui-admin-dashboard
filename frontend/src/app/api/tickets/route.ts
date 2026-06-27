@@ -216,6 +216,26 @@ export async function PATCH(req: NextRequest) {
         } catch { /* ignore */ }
       }
 
+      // E-Mail an Nutzer senden
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://hui-admin-dashboard.vercel.app';
+        await fetch(`${appUrl}/api/send-email`, {
+          method:  'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie':       req.headers.get('cookie') ?? '',
+          },
+          body: JSON.stringify({
+            to:               String(currentData.email ?? ''),
+            name:             String(currentData.name  ?? 'Nutzer'),
+            subject:          String(currentData.subject ?? '').replace(/^RE:\s*/i,'').replace(/^\[HUI-[^\]]+\]\s*/,''),
+            reply:            body.reply,
+            ticket_number:    body.ticket_number,
+            original_message: String(currentData.message ?? ''),
+          }),
+        }).catch(() => {});
+      } catch { /* E-Mail-Fehler nicht kritisch */ }
+
       return ok({ ticket_number: body.ticket_number, status: 'replied' });
     }
 
