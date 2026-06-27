@@ -1,6 +1,5 @@
-import React from 'react';
-// frontend/src/app/users/page.tsx
 'use client';
+// frontend/src/app/users/page.tsx
 
 import { useState, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -58,43 +57,25 @@ async function apiDelete(userId: string) {
 }
 
 // ── ActivityTab: Bio + Werke + Erlebnisse + Projekte ─────────────────────────
-const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
 
 function ActivityTab({ userId }: { userId: string }) {
   const [data, setData] = React.useState<{
     bio: string | null;
+    location: string | null;
+    tags: string[];
     works: Array<Record<string,unknown>>;
     experiences: Array<Record<string,unknown>>;
     projects: Array<Record<string,unknown>>;
-  }>({ bio: null, works: [], experiences: [], projects: [] });
+  }>({ bio: null, location: null, tags: [], works: [], experiences: [], projects: [] });
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const h = { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` };
-        const qs = (table: string, filter: string, fields: string) =>
-          fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}&select=${fields}&limit=50`, { headers: h })
-            .then(r => r.json()).catch(() => []);
-
-        const [profile, works, experiences, projects] = await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=bio`, { headers: h }).then(r=>r.json()).catch(()=>[]),
-          qs('works',       `user_id=eq.${userId}`, 'id,title,status,price,category,created_at'),
-          qs('experiences', `user_id=eq.${userId}`, 'id,title,status,price,experience_type,category,created_at'),
-          qs('projects',    `user_id=eq.${userId}`, 'id,title,status,category,created_at'),
-        ]);
-
-        setData({
-          bio:         Array.isArray(profile) && profile[0] ? (profile[0] as Record<string,unknown>).bio as string | null : null,
-          works:       Array.isArray(works)       ? works as Array<Record<string,unknown>>       : [],
-          experiences: Array.isArray(experiences) ? experiences as Array<Record<string,unknown>> : [],
-          projects:    Array.isArray(projects)    ? projects as Array<Record<string,unknown>>    : [],
-        });
-      } finally { setLoading(false); }
-    }
-    load();
+    fetch(`/api/users/${userId}/activity`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setData(d))
+      .catch(() => {/* ignore */})
+      .finally(() => setLoading(false));
   }, [userId]);
 
   if (loading) return (
@@ -110,7 +91,7 @@ function ActivityTab({ userId }: { userId: string }) {
     renderRow: (item: Record<string,unknown>, i: number) => React.ReactNode;
   }) {
     return (
-      <div style={{ marginBottom:18 }}>
+      <div style={{ marginBottom:16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
           <span>{icon}</span>
           <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em',
@@ -118,13 +99,12 @@ function ActivityTab({ userId }: { userId: string }) {
           <span style={{ fontSize:11, background:'var(--bg-tertiary)', padding:'1px 6px',
             borderRadius:10, color:'var(--text-muted)' }}>{items.length}</span>
         </div>
-        {items.length === 0 ? (
-          <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:'4px 0' }}>{emptyMsg}</p>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            {items.map((item, i) => renderRow(item, i))}
-          </div>
-        )}
+        {items.length === 0
+          ? <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:'4px 0' }}>{emptyMsg}</p>
+          : <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {items.map((item, i) => renderRow(item, i))}
+            </div>
+        }
       </div>
     );
   }
@@ -132,18 +112,17 @@ function ActivityTab({ userId }: { userId: string }) {
   function ItemRow({ item, typeField }: { item: Record<string,unknown>; typeField?: string }) {
     const s = String(item.status ?? '—');
     const statusColor: Record<string,string> = {
-      published: '#4ECDC4', pending_review: '#F59E0B', submitted: '#F59E0B',
-      draft: '#9CA3AF', deleted: '#F87171', rejected: '#F87171', sensitive: '#F59E0B',
+      published:'#4ECDC4', pending_review:'#F59E0B', submitted:'#F59E0B',
+      draft:'#9CA3AF', deleted:'#F87171', rejected:'#F87171', sensitive:'#F59E0B',
     };
     const color = statusColor[s] ?? '#9CA3AF';
     const typeVal = typeField ? String(item[typeField] ?? '') : '';
     return (
       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px',
-        background:'var(--bg-secondary)', borderRadius:7,
-        border:'1px solid var(--border)' }}>
+        background:'var(--bg-secondary)', borderRadius:7, border:'1px solid var(--border)' }}>
         {typeVal && (
           <span style={{ fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3,
-            textTransform:'uppercase', background:'var(--bg-tertiary)',
+            textTransform:'uppercase' as const, background:'var(--bg-tertiary)',
             color:'var(--text-secondary)', flexShrink:0 }}>{typeVal}</span>
         )}
         <span style={{ flex:1, fontSize:12, color:'var(--text-primary)',
@@ -156,49 +135,56 @@ function ActivityTab({ userId }: { userId: string }) {
           </span>
         )}
         <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:600,
-          background:`${color}18`, color, flexShrink:0 }}>
-          {s}
-        </span>
+          background:`${color}18`, color, flexShrink:0 }}>{s}</span>
       </div>
     );
   }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-
       {/* Bio */}
-      <div style={{ marginBottom:18, padding:'12px 14px', borderRadius:8,
+      <div style={{ marginBottom:16, padding:'12px 14px', borderRadius:8,
         background:'var(--bg-secondary)', border:'1px solid var(--border)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
           <span>💬</span>
-          <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase',
+          <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase' as const,
             letterSpacing:'0.06em', color:'var(--text-muted)' }}>Bio</span>
+          {data.location && (
+            <span style={{ fontSize:11, color:'var(--text-muted)', marginLeft:'auto' }}>
+              📍 {data.location}
+            </span>
+          )}
         </div>
-        {data.bio ? (
-          <p style={{ fontSize:13, color:'var(--text-primary)', margin:0,
-            lineHeight:1.5, whiteSpace:'pre-wrap' }}>{data.bio}</p>
-        ) : (
-          <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:0 }}>
-            Keine Bio eingetragen.
-          </p>
+        {data.bio
+          ? <p style={{ fontSize:13, color:'var(--text-primary)', margin:0,
+              lineHeight:1.5, whiteSpace:'pre-wrap' }}>{data.bio}</p>
+          : <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:0 }}>Keine Bio eingetragen.</p>
+        }
+        {data.tags && data.tags.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:8 }}>
+            {(data.tags as string[]).map((t,i) => (
+              <span key={i} style={{ fontSize:10, padding:'2px 7px', borderRadius:10,
+                background:'var(--bg-tertiary)', color:'var(--text-muted)',
+                border:'1px solid var(--border)' }}>{t}</span>
+            ))}
+          </div>
         )}
       </div>
 
       <Section title="Werke" icon="🎨" items={data.works} emptyMsg="Keine Werke vorhanden."
         renderRow={(item, i) => <ItemRow key={i} item={item} typeField="category" />}
       />
-
       <Section title="Erlebnisse & Projekte" icon="🌿" items={data.experiences} emptyMsg="Keine Erlebnisse vorhanden."
         renderRow={(item, i) => <ItemRow key={i} item={item} typeField="experience_type" />}
       />
-
-      <Section title="Projekte (Impact)" icon="📌" items={data.projects} emptyMsg="Keine Impact-Projekte."
+      <Section title="Impact-Projekte" icon="📌" items={data.projects} emptyMsg="Keine Impact-Projekte."
         renderRow={(item, i) => <ItemRow key={i} item={item} />}
       />
-
     </div>
   );
 }
+
+
 
 // ── User-Detail-Modal ────────────────────────────────────────────────────────
 function UserDetailModal({
