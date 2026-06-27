@@ -56,8 +56,8 @@ export default function BroadcastPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [s, h] = await Promise.all([
-      fetch('/api/broadcast?action=stats', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r => r.json()).catch(() => null),
-      fetch('/api/broadcast?action=list', { headers: { Authorization: 'Bearer ' + (getSessionToken() || '') } }).then(r => r.json()).catch(() => []),
+      fetch('/api/broadcast?action=stats', { credentials: 'include' }).then(r => r.json()).catch(() => null),
+      fetch('/api/broadcast?action=list', { credentials: 'include' }).then(r => r.json()).catch(() => []),
     ]);
     setStats(s);
     setHistory(Array.isArray(h) ? h : []);
@@ -86,7 +86,8 @@ export default function BroadcastPage() {
     try {
     const res = await fetch('/api/broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, body, target_group: targetGroup }),
       });
       const data = await res.json();
@@ -107,7 +108,7 @@ export default function BroadcastPage() {
       const dToken = getSessionToken();
     const res = await fetch(`/api/broadcast?broadcast_id=${encodeURIComponent(broadcastId)}`, {
         method: 'DELETE',
-      headers: { Authorization: 'Bearer ' + (dToken || '') },
+        credentials: 'include',
       });
       const data = await res.json();
       if (res.ok) {
