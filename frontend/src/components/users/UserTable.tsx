@@ -228,16 +228,18 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
                       </button>
                     )}
                     {user.is_deleted && (
-                      <button onClick={() => onAction('restore', user)} title="Wiederherstellen"
-                        style={{ background: 'none', border: '1px solid #3182ce', borderRadius: 4,
-                          color: '#3182ce', padding: '3px 8px', cursor: 'pointer', fontSize: 11 }}>
-                        ↺
-                      </button>
-                      <button onClick={() => onAction('permanent_delete', user)} title="Endgültig löschen"
-                        style={{ background: 'rgba(252,129,129,0.10)', border: '1px solid #fc8181', borderRadius: 4,
-                          color: '#fc8181', padding: '3px 8px', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                        🗑
-                      </button>
+                      <>
+                        <button onClick={() => onAction('restore', user)} title="Wiederherstellen"
+                          style={{ background: 'none', border: '1px solid #3182ce', borderRadius: 4,
+                            color: '#3182ce', padding: '3px 8px', cursor: 'pointer', fontSize: 11, marginRight: 4 }}>
+                          ↺
+                        </button>
+                        <button onClick={() => onAction('permanent_delete', user)} title="Endgültig löschen"
+                          style={{ background: 'rgba(252,129,129,0.10)', border: '1px solid #fc8181', borderRadius: 4,
+                            color: '#fc8181', padding: '3px 8px', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                          🗑
+                        </button>
+                      </>
                     )}
                   </div>
                 </td>
