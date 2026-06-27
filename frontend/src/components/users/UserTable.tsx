@@ -130,7 +130,7 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
         </thead>
         <tbody>
           {users.map(user => {
-            const name    = user.display_name || user.full_name || user.username || '—';
+            const name    = user.full_name || user.display_name || user.username || '—';
             const isAdmin = ['admin','superadmin'].includes(user.role?.toLowerCase());
             const rowBg   = selected.has(user.id) ? 'var(--accent)' : user.is_deleted
               ? 'rgba(252,129,129,0.04)' : user.blocked
@@ -157,7 +157,15 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
                           <span title="Wirker" style={{ color: '#d69e2e', fontSize: 11 }}>★</span>
                         )}
                         {user.source === 'auth_only' && (
-                          <span title="Nur in Auth — kein Profil" style={{ color: '#718096', fontSize: 10 }}>⚡</span>
+                          <span title="Nur in Auth — kein Profil" style={{ color: '#718096', fontSize: 10 }}>⚡</span></span>
+                        )}
+                        {user.blocked && user.blocked_reason && (
+                          <span
+                            title={`Blockiergrund: ${user.blocked_reason}`}
+                            onClick={e => { e.stopPropagation(); alert(`Blockiergrund:\n${user.blocked_reason}`); }}
+                            style={{ cursor:'pointer', fontSize:12, color:'#f6ad55', padding:'0 2px' }}>
+                            ⚠️
+                          </span>
                         )}
                       </div>
                       <div style={{
