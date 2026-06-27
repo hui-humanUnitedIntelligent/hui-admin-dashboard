@@ -309,6 +309,21 @@ function UserDetailModal({
             <Row label="Registriert"  val={new Date(user.created_at).toLocaleDateString('de-DE')} />
             <Row label="Letzter Login" val={user.last_seen_at ? new Date(user.last_seen_at).toLocaleDateString('de-DE') : null} />
             <Row label="Quelle"       val={user.source} />
+            {/* Bio & Tagline */}
+            {(user as unknown as Record<string,string|null>).tagline && (
+              <Row label="Tagline" val={(user as unknown as Record<string,string|null>).tagline} />
+            )}
+            {(user as unknown as Record<string,string|null>).bio && (
+              <div style={{ borderBottom:'1px solid var(--border)', paddingBottom:10 }}>
+                <div style={{ display:'flex', gap:12 }}>
+                  <span style={{ width:130, color:'var(--text-secondary)', flexShrink:0, fontSize:12 }}>Bio</span>
+                  <span style={{ color:'var(--text-primary)', fontSize:13, lineHeight:1.5,
+                    whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                    {(user as unknown as Record<string,string|null>).bio}
+                  </span>
+                </div>
+              </div>
+            )}
             {isBlocked && user.blocked_reason && (
               <div style={{ marginTop:4, padding:'10px 14px', borderRadius:8,
                 background:'rgba(246,173,85,0.08)', border:'1px solid rgba(246,173,85,0.3)' }}>
