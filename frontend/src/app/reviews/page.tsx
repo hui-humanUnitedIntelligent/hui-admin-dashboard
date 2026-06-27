@@ -2,68 +2,62 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import PageHeader from '@/components/layout/PageHeader';
-import Modal from '@/components/ui/Modal';
-import ConfirmModal from '@/components/ui/ConfirmModal';
-import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { getStoredUser } from '@/lib/api';
 
 interface Review {
   id: string;
-  name: string;
-  stars: number;
-  message: string;
-  date: string;
-  submitted_at?: string;
-  approvedAt?: string;
+  workId?: string;
+  workTitle?: string;
+  userId?: string;
+  userName?: string;
+  userAvatar?: string | null;
+  text: string;
+  createdAt: string;
 }
 
-function StarDisplay({ stars, size = 14 }: { stars: number; size?: number }) {
-  const n = Math.min(5, Math.max(0, Number(stars) || 0));
-  return (
-    <span style={{ letterSpacing: 2, fontSize: size }}>
-      <span style={{ color: '#F59E0B' }}>{'★'.repeat(n)}</span>
-      <span style={{ color: '#CBD5E1' }}>{'★'.repeat(5 - n)}</span>
-    </span>
-  );
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'gerade eben';
+  if (mins < 60) return `vor ${mins} Min`;
+  const h = Math.floor(mins / 60);
+  if (h < 24)   return `vor ${h} Std`;
+  return `vor ${Math.floor(h / 24)} Tagen`;
 }
+
+const cardStyle: React.CSSProperties = {
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+  padding: '14px 16px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+};
 
 export default function ReviewsPage() {
-  const { currentUser } = useAuth();
-  const userRole = currentUser?.role;
-  const router  = useRouter();
-  const [tab,        setTab]        = useState<'published' | 'pending'>('published');
-  const [published,  setPublished]  = useState<Review[]>([]);
-  const [pending,    setPending]    = useState<Review[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [busy,       setBusy]       = useState<string | null>(null);
-  const [confirmId,  setConfirmId]  = useState<string | null>(null);
-  const [detailReview, setDetailReview] = useState<Review | null>(null);
-  const [error,      setError]      = useState<string | null>(null);
-
-  useEffect(() => {
-    const user = getStoredUser();
-    if (!user) router.replace('/dashboard');
-  }, [router]);
+  const [reviews, setReviews]   = useState<Review[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error,   setError]     = useState<string | null>(null);
+  const [search,  setSearch]    = useState('');
+  const [delId,   setDelId]     = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [pubRes, penRes] = await Promise.all([
-        fetch(`/api/reviews?type=published&t=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`/api/reviews?type=pending&t=${Date.now()}`,   { cache: 'no-store' }),
-      ]);
-      const pubData: Review[] = pubRes.ok ? await pubRes.json() : [];
-      const penData: Review[] = penRes.ok ? await penRes.json() : [];
-      setPublished(Array.isArray(pubData) ? [...pubData].reverse() : []);
-      setPending(Array.isArray(penData)   ? [...penData].reverse()  : []);
+      const res = await fetch('/api/reviews?limit=200', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const arr: Review[] = Array.isArray(data.reviews) ? data.reviews
+                          : Array.isArray(data) ? data : [];
+      setReviews(arr);
     } catch (e) {
-      setError('Verbindungsfehler: ' + (e instanceof Error ? e.message : String(e)));
+      setError('Fehler beim Laden: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
     }
@@ -71,218 +65,148 @@ export default function ReviewsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const apiPost = async (action: string, id: string) => {
-    const res = await fetch('/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, id }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
-    return data;
-  };
-
   const handleDelete = async (id: string) => {
-    setBusy(id); setConfirmId(null);
+    if (!window.confirm('Kommentar endgueltig loeschen?')) return;
+    setDelId(id);
     try {
-      await apiPost('delete', id);
-      showToast('🗑️ Review gelöscht', 'info');
-      await load();
-    } catch (e) { showToast('❌ ' + (e instanceof Error ? e.message : 'Unbekannt'), 'error'); }
-    finally { setBusy(null); }
+      const res = await fetch('/api/reviews', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast('Kommentar geloescht.', 'info');
+        setReviews(prev => prev.filter(r => r.id !== id));
+      } else {
+        showToast('Fehler: ' + (data.error || 'Unbekannt'), 'error');
+      }
+    } catch {
+      showToast('Netzwerkfehler.', 'error');
+    } finally {
+      setDelId(null);
+    }
   };
 
-  const handlePublish = async (id: string) => {
-    setBusy(id);
-    try {
-      const d = await apiPost('approve', id);
-      showToast(`✅ Review von ${d.name || 'Nutzer'} veröffentlicht`, 'success');
-      await load();
-    } catch (e) { showToast('❌ ' + (e instanceof Error ? e.message : 'Unbekannt'), 'error'); }
-    finally { setBusy(null); }
-  };
-
-  const handleReject = async (id: string) => {
-    setBusy(id);
-    try {
-      await apiPost('reject', id);
-      showToast('🗑️ Abgelehnt & entfernt', 'info');
-      await load();
-    } catch (e) { showToast('❌ ' + (e instanceof Error ? e.message : 'Unbekannt'), 'error'); }
-    finally { setBusy(null); }
-  };
-
-  const reviews = tab === 'published' ? published : pending;
-
-  // Farbe für Avatar
-  const avatarColor = (id: string) => {
-    const colors = ['#4ECDC4','#F7B731','#B197FC','#74C0FC','#51CF66','#FF6B6B','#1ED8C8'];
-    let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffffffff;
-    return colors[Math.abs(h) % colors.length];
-  };
+  const filtered = search.trim()
+    ? reviews.filter(r =>
+        [r.text, r.userName, r.workTitle].some(v =>
+          (v || '').toLowerCase().includes(search.toLowerCase())))
+    : reviews;
 
   return (
-    <DashboardLayout title="Review-Verwaltung">
+    <DashboardLayout title="Reviews & Kommentare">
+      <div style={{ padding: '24px 28px', maxWidth: 1100, margin: '0 auto' }}>
 
-      
-      <PageHeader
-        title="Reviews"
-        subtitle="Bewertungen & Feedback verwalten"
-        actionsRole="admin"
-        userRole={userRole}
-      />
-
-{/* ── Detail Modal ─────────────────────────────────────────────────── */}
-      {/* ── Detail Modal ──────────────────────────────────────────────────── */}
-      {detailReview && (
-        <Modal
-          open={!!detailReview}
-          onClose={() => setDetailReview(null)}
-          title={`Review — ${detailReview.name}`}
-          width={520}
-          footer={
-            <>
-              {tab === 'pending' && (
-                <Button variant="primary" onClick={() => { setDetailReview(null); handlePublish(detailReview.id); }}>
-                  ✅ Veröffentlichen
-                </Button>
-              )}
-              <Button
-                variant="danger"
-                onClick={() => { setDetailReview(null); tab === 'published' ? setConfirmId(detailReview.id) : handleReject(detailReview.id); }}
-              >
-                🗑️ {tab === 'published' ? 'Löschen' : 'Ablehnen'}
-              </Button>
-              <Button variant="ghost" onClick={() => setDetailReview(null)}>Schließen</Button>
-            </>
-          }
-        >
-          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
-            <div style={{ width:44, height:44, borderRadius:'50%', background:avatarColor(detailReview.id), display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:'#0F1117', flexShrink:0 }}>
-              {(detailReview.name||'?').charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style={{ fontSize:15, fontWeight:700, color:'var(--text-primary)', marginBottom:3 }}>{detailReview.name}</div>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <StarDisplay stars={detailReview.stars} size={15} />
-                <span style={{ fontSize:11, color:'var(--text-muted)' }}>{detailReview.date}</span>
-              </div>
-            </div>
-          </div>
-          <div style={{ background:'var(--bg-tertiary)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 16px', marginBottom:14 }}>
-            <p style={{ color:'var(--text-secondary)', fontSize:13.5, lineHeight:1.7, margin:0, whiteSpace:'pre-wrap' }}>
-              „{detailReview.message}"
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              Reviews & Kommentare
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+              Alle Nutzer-Kommentare auf Werke &mdash; {loading ? '...' : `${reviews.length} gesamt`}
             </p>
           </div>
-          <div style={{ fontSize:11, color:'var(--text-muted)' }}>
-            ID: <code style={{ fontSize:10 }}>{detailReview.id}</code>
-            {detailReview.submitted_at && <span style={{ marginLeft:8 }}>· {new Date(detailReview.submitted_at).toLocaleString('de-DE')}</span>}
-          </div>
-        </Modal>
-      )}
-
-      {/* ── Confirm Modal ────────────────────────────────────────────────── */}
-      {/* ── Confirm Modal ─────────────────────────────────────────────────── */}
-      <ConfirmModal
-        open={!!confirmId}
-        onClose={() => setConfirmId(null)}
-        onConfirm={() => { if (confirmId) handleDelete(confirmId); }}
-        title="Review löschen?"
-        message="Dieser Review wird sofort und dauerhaft von be-hui.com entfernt."
-        confirmLabel="Ja, löschen"
-        cancelLabel="Abbrechen"
-        confirmVariant="danger"
-      />
-
-
-      {/* ── Stats ── */}
-      <div style={{ display:'flex', gap:12, marginBottom:28, flexWrap:'wrap' }}>
-        {[
-          { icon:'✅', label:'Live auf Website',  value:published.length, accent:'var(--accent)',          bg:'rgba(30,216,200,0.08)' },
-          { icon:'⏳', label:'Ausstehend',         value:pending.length,   accent:'#FBBF24',                bg:'rgba(251,191,36,0.08)' },
-          { icon:'💬', label:'Gesamt',             value:published.length+pending.length, accent:'var(--text-secondary)', bg:'var(--bg-card)' },
-        ].map(s => (
-          <div key={s.label} style={{ background:s.bg, border:'1px solid var(--border)', borderRadius:12, padding:'14px 20px', display:'flex', alignItems:'center', gap:14, minWidth:160 }}>
-            <span style={{ fontSize:22 }}>{s.icon}</span>
-            <div>
-              <div style={{ fontSize:26, fontWeight:700, color:s.accent, lineHeight:1 }}>{s.value}</div>
-              <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:3 }}>{s.label}</div>
-            </div>
-          </div>
-        ))}
-        <button onClick={load} disabled={loading} style={{ marginLeft:'auto', padding:'10px 18px', borderRadius:10, background:'var(--bg-hover)', border:'1px solid var(--border)', color:'var(--text-secondary)', cursor:'pointer', fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:7, fontFamily:'var(--font-body)', opacity:loading?0.6:1 }}>
-          🔄 {loading ? 'Lädt…' : 'Aktualisieren'}
-        </button>
-      </div>
-
-      {/* ── Tabs ── */}
-      <div style={{ display:'flex', gap:4, marginBottom:20 }}>
-        {([['published','✅ Veröffentlicht'],['pending','⏳ Ausstehend']] as const).map(([key,label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{ padding:'9px 20px', borderRadius:9, cursor:'pointer', fontFamily:'var(--font-body)', fontSize:13, fontWeight:600, border:tab===key?'none':'1px solid var(--border)', background:tab===key?'var(--accent)':'var(--bg-hover)', color:tab===key?'#0F1117':'var(--text-secondary)', transition:'all 0.15s' }}>
-            {label}
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)',
+              background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer',
+              fontSize: 13, opacity: loading ? 0.6 : 1 }}>
+            {loading ? 'Laedt...' : '\u21ba Aktualisieren'}
           </button>
-        ))}
-      </div>
-
-      {/* Fehler */}
-      {error && (
-        <div style={{ background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, color:'#EF4444', fontSize:13 }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* ── Tabelle ── */}
-      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden' }}>
-        <div style={{ display:'grid', gridTemplateColumns:tab==='published'?'110px 160px 100px 1fr 100px 120px':'110px 160px 100px 1fr 100px 180px', padding:'11px 18px', background:'var(--bg-secondary)', borderBottom:'1px solid var(--border)', fontSize:11, fontWeight:700, color:'var(--text-muted)', letterSpacing:'0.6px', textTransform:'uppercase', gap:8 }}>
-          <span>ID</span><span>Name</span><span>Sterne</span><span>Nachricht</span><span>Datum</span><span>Aktion</span>
         </div>
 
-        {loading && <div style={{ padding:'48px 0', textAlign:'center', color:'var(--text-muted)', fontSize:14 }}>⏳ Daten werden geladen…</div>}
+        {/* Suchfeld */}
+        <div style={{ marginBottom: 16 }}>
+          <input
+            type="text"
+            placeholder="Suche nach Kommentar, Nutzer oder Werk..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }}
+          />
+        </div>
 
-        {!loading && reviews.length === 0 && (
-          <div style={{ padding:'48px 0', textAlign:'center', color:'var(--text-muted)', fontSize:14 }}>
-            {tab==='published' ? '💬 Noch keine veröffentlichten Bewertungen.' : '✅ Keine ausstehenden Bewertungen.'}
+        {/* Fehler */}
+        {error && (
+          <div style={{ padding: 14, borderRadius: 8, background: 'rgba(255,107,107,0.1)',
+            border: '1px solid var(--red)', color: 'var(--red)', marginBottom: 16, fontSize: 13 }}>
+            {error}
           </div>
         )}
 
-        {!loading && reviews.map((r, idx) => (
-          <div
-            key={r.id}
-            onClick={() => setDetailReview(r)}
-            style={{ display:'grid', gridTemplateColumns:tab==='published'?'110px 160px 100px 1fr 100px 120px':'110px 160px 100px 1fr 100px 180px', padding:'14px 18px', borderBottom:idx<reviews.length-1?'1px solid var(--border)':'none', background:busy===r.id?'var(--bg-hover)':'transparent', opacity:busy===r.id?0.5:1, transition:'background 0.15s, opacity 0.2s', alignItems:'center', gap:8, cursor:'pointer' }}
-            onMouseEnter={e => { if (busy!==r.id) (e.currentTarget as HTMLElement).style.background='var(--bg-hover)'; }}
-            onMouseLeave={e => { if (busy!==r.id) (e.currentTarget as HTMLElement).style.background='transparent'; }}
-          >
-            <span style={{ fontSize:10, color:'var(--text-muted)', fontFamily:'var(--font-mono)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.id}>{r.id.slice(0,10)}…</span>
-            <div style={{ display:'flex', alignItems:'center', gap:8, overflow:'hidden' }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(r.id), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#0F1117', flexShrink:0 }}>
-                {(r.name||'?').charAt(0).toUpperCase()}
-              </div>
-              <span style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.name}</span>
-            </div>
-            <StarDisplay stars={r.stars} />
-            <span style={{ fontSize:12.5, color:'var(--text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.message}>{r.message}</span>
-            <span style={{ fontSize:12, color:'var(--text-muted)', whiteSpace:'nowrap' }}>{r.date||'—'}</span>
-            <div style={{ display:'flex', gap:6 }} onClick={e => e.stopPropagation()}>
-              {tab==='pending' && (
-                <button onClick={() => handlePublish(r.id)} disabled={!!busy} style={{ padding:'6px 11px', borderRadius:7, border:'none', background:'var(--accent)', color:'#0F1117', fontSize:11, fontWeight:700, cursor:busy?'not-allowed':'pointer', fontFamily:'var(--font-body)', whiteSpace:'nowrap' }}>
-                  ✅ Live
-                </button>
-              )}
-              <button
-                onClick={() => tab==='published' ? setConfirmId(r.id) : handleReject(r.id)}
-                disabled={!!busy}
-                style={{ padding:'6px 11px', borderRadius:7, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)', color:'#EF4444', fontSize:11, fontWeight:700, cursor:busy?'not-allowed':'pointer', fontFamily:'var(--font-body)', whiteSpace:'nowrap' }}
-              >🗑️ {tab==='published'?'Löschen':'Ablehnen'}</button>
-            </div>
+        {/* Loading */}
+        {loading && (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 14 }}>
+            Kommentare werden geladen...
           </div>
-        ))}
-      </div>
+        )}
 
-      <div style={{ marginTop:16, fontSize:11.5, color:'var(--text-muted)', display:'flex', alignItems:'center', gap:6 }}>
-        <span>💡</span>
-        <span>Zeile anklicken zum Lesen · Änderungen wirken sofort auf <strong>be-hui.com</strong></span>
+        {/* Leer */}
+        {!loading && !error && filtered.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 14 }}>
+            {search ? 'Keine Treffer fuer diese Suche.' : 'Noch keine Kommentare vorhanden.'}
+          </div>
+        )}
+
+        {/* Kommentar-Liste */}
+        {!loading && filtered.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filtered.map(r => (
+              <div key={r.id} style={cardStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* Avatar */}
+                    {r.userAvatar ? (
+                      <img src={r.userAvatar} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-dim)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, color: 'var(--accent)', fontWeight: 600 }}>
+                        {(r.userName || '?')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
+                        {r.userName || 'Unbekannt'}
+                      </span>
+                      {r.workTitle && r.workTitle !== '\u2014' && (
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
+                          &rarr; <span style={{ color: 'var(--accent)' }}>{r.workTitle}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {timeAgo(r.createdAt)}
+                    </span>
+                    <button
+                      disabled={delId === r.id}
+                      onClick={() => handleDelete(r.id)}
+                      style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--red)',
+                        background: 'transparent', color: 'var(--red)', fontSize: 11,
+                        cursor: 'pointer', opacity: delId === r.id ? 0.5 : 1 }}>
+                      {delId === r.id ? '...' : 'Loeschen'}
+                    </button>
+                  </div>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                  {r.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)', textAlign: 'right' }}>
+          {filtered.length} von {reviews.length} Kommentaren
+        </div>
       </div>
     </DashboardLayout>
   );
