@@ -1,6 +1,4 @@
 // frontend/src/app/api/tickets/route.ts
-// Support-Tickets in notifications (type='support_ticket')
-// PATCH: reply → sendet E-Mail via Supabase Auth + Resonanzzentrum Notification
 import { NextRequest } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
@@ -12,123 +10,71 @@ function parseTicket(row: Record<string, unknown>) {
   const rawData = row.data;
   const raw: Record<string, unknown> = (rawData && typeof rawData === 'object' && !Array.isArray(rawData))
     ? (rawData as Record<string, unknown>) : {};
-  const titleStr = typeof row.title === 'string' ? row.title : '';
-  const bodyStr  = typeof row.body  === 'string' ? row.body  : '';
   return {
-    id:            row.id,
-    created_at:    row.created_at,
+    id:            row.id as string,
+    created_at:    row.created_at as string,
+    user_id:       row.user_id as string|null,
     ticket_number: String(raw.ticket_number ?? 'HUI-????'),
     name:          String(raw.name  ?? ''),
     email:         String(raw.email ?? ''),
     phone:         String(raw.phone ?? ''),
     category:      String(raw.category ?? 'sonstiges'),
     priority:      String(raw.priority  ?? 'normal'),
-    subject:       String(raw.subject   ?? titleStr).replace(/^\[HUI-[^\]]+\]\s*/, ''),
-    message:       String(raw.message   ?? bodyStr),
+    subject:       String(raw.subject   ?? '').replace(/^RE:\s*/i, '').replace(/^\[HUI-[^\]]+\]\s*/, ''),
+    full_subject:  String(raw.subject   ?? ''),
+    message:       String(raw.message   ?? ''),
     status:        String(raw.status    ?? 'open') as 'open'|'replied'|'closed',
     attachments:   Array.isArray(raw.attachments) ? raw.attachments as Attachment[] : [],
     admin_reply:   raw.admin_reply  != null ? String(raw.admin_reply)  : null,
     replied_at:    raw.replied_at   != null ? String(raw.replied_at)   : null,
     read_by_admin: Boolean(raw.read_by_admin ?? false),
-    user_id:       row.user_id as string|null,
+    is_followup:   Boolean(raw.is_followup  ?? false),
   };
 }
 
-async function sendReplyEmail(ticket: ReturnType<typeof parseTicket>, reply: string): Promise<void> {
-  try {
-    const sb = getServiceClient();
-    // Supabase Auth Admin sendEmail — nutzt konfigurierten SMTP
-    const emailBody = `
-Hallo ${ticket.name},
+// Tickets nach Ticket-Nummer gruppieren → ein Thread pro Nummer
+function groupIntoThreads(rows: ReturnType<typeof parseTicket>[]) {
+  const map: Record<string, ReturnType<typeof parseTicket>[]> = {};
+  rows.forEach(t => {
+    const nr = t.ticket_number;
+    if (!map[nr]) map[nr] = [];
+    map[nr].push(t);
+  });
 
-dein Support-Ticket wurde beantwortet.
+  return Object.entries(map).map(([ticketNumber, msgs]) => {
+    const sorted   = msgs.sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const original = sorted.find(m => !m.is_followup) ?? sorted[0];
+    const latest   = sorted[sorted.length - 1];
+    const unread   = msgs.some(m => !m.read_by_admin);
 
-━━━━━━━━━━━━━━━━━━━━━━━━
-Ticket-Nummer: ${ticket.ticket_number}
-Betreff:       ${ticket.subject}
-Status:        Beantwortet
-━━━━━━━━━━━━━━━━━━━━━━━━
+    // Thread-Status: wenn neueste Nachricht von User (kein admin_reply) → open
+    // wenn admin hat geantwortet auf neueste → replied
+    const latestUserMsg = [...sorted].reverse().find(m => true); // letztes Element
+    let threadStatus: 'open'|'replied'|'closed' = 'open';
+    if (latest.status === 'closed') threadStatus = 'closed';
+    else if (latest.is_followup && !latest.admin_reply) threadStatus = 'open';   // User hat geantwortet → offen
+    else if (latest.admin_reply) threadStatus = 'replied';
+    else if (latest.status === 'replied') threadStatus = 'replied';
 
-DEINE NACHRICHT:
-${ticket.message}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-ANTWORT VOM HUI-SUPPORT:
-${reply}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-Bei weiteren Fragen antworte auf diese E-Mail oder schreibe uns erneut über
-den Support-Bereich in deiner HUI-App (Studio → Support).
-
-Herzliche Grüße,
-Dein HUI-Support-Team
-support@be-hui.com
-    `.trim();
-
-    // Supabase Admin API: E-Mail via auth.admin.generateLink (magic link approach)
-    // Alternativ: direkt via REST die notifications table + externe SMTP
-    // Da kein Resend/SendGrid konfiguriert: Supabase eigenen SMTP nutzen
-    // via admin.generateLink gibt keine custom mail — stattdessen:
-    // Wir schreiben einen pending_email Eintrag der vom Edge Function verarbeitet wird
-    // ODER: direkt via Supabase REST /auth/v1/admin/generate_link mit custom redirect
-
-    // Pragmatische Lösung: notification mit type='email_queue' → Edge Function liest und sendet
-    // Aber ohne Edge Function: wir nutzen den Supabase built-in SMTP für Auth-Emails
-    // via generateLink with custom subject/body wird NICHT supported
-
-    // Realistische Lösung ohne externe Dependencies:
-    // 1) Notification im Resonanzzentrum (immer) ✅
-    // 2) E-Mail via Supabase Edge Function ODER
-    //    fetch an Vercel API Route die SMTP nutzt
-
-    // Da kein SMTP konfiguriert → wir speichern in 'email_queue' Tabelle
-    // und nutzen Supabase's own mailer wenn verfügbar
-    // FALLBACK: console.log für jetzt, User sieht Notification
-
-    console.log(`[EMAIL] To: ${ticket.email} | Subject: Re: ${ticket.ticket_number} | Body: ${emailBody.slice(0, 100)}`);
-
-    // Versuche via Supabase Auth Admin (wenn user_id bekannt)
-    if (ticket.user_id) {
-      await (sb.auth.admin as { generateLink: (p: object) => Promise<unknown> }).generateLink({
-        type: 'magiclink',
-        email: ticket.email,
-        options: { redirectTo: 'https://be-hui.com/studio' },
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.error('[EMAIL ERROR]', e);
-  }
-}
-
-async function createResonanzNotification(
-  sb: ReturnType<typeof getServiceClient>,
-  ticket: ReturnType<typeof parseTicket>,
-  reply: string
-): Promise<void> {
-  if (!ticket.user_id) return;
-  try {
-    await sb.from('notifications').insert({
-      user_id:    ticket.user_id,
-      type:       'support_ticket_reply',
-      title:      `Dein Ticket ${ticket.ticket_number} wurde beantwortet`,
-      body:       reply.slice(0, 200),
-      data: {
-        ticket_number: ticket.ticket_number,
-        subject:       ticket.subject,
-        reply,
-        original_message: ticket.message,
-        notification_id:  ticket.id,
-      },
-      is_read:       false,
-      action_url:    '/studio?section=tickets',
-      entity_type:   'support_ticket',
-      entity_id:     ticket.id as string,
-    });
-  } catch (e) {
-    console.error('[RESONANZ ERROR]', e);
-  }
+    return {
+      ticket_number:  ticketNumber,
+      subject:        original.subject || original.full_subject,
+      name:           original.name,
+      email:          original.email,
+      phone:          original.phone,
+      category:       original.category,
+      priority:       original.priority,
+      user_id:        original.user_id,
+      created_at:     original.created_at,
+      updated_at:     latest.created_at,
+      status:         threadStatus,
+      unread,
+      message_count:  msgs.length,
+      messages:       sorted,   // alle Nachrichten im Thread
+      // Letztes Msg-Preview
+      preview:        latest.message.slice(0, 80),
+    };
+  }).sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 }
 
 // ── GET ────────────────────────────────────────────────────────────────────────
@@ -138,37 +84,47 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');
-  const id     = searchParams.get('id');
+  const tnr    = searchParams.get('ticket_number'); // einzelner Thread
   const search = searchParams.get('search') ?? '';
-  const limit  = Math.min(parseInt(searchParams.get('limit') ?? '200'), 500);
+  const limit  = Math.min(parseInt(searchParams.get('limit') ?? '500'), 1000);
 
   try {
     const sb = getServiceClient();
 
-    if (id) {
-      const { data, error } = await sb.from('notifications')
-        .select('*').eq('id', id).eq('type', 'support_ticket').single();
-      if (error || !data) return fail('Ticket nicht gefunden');
-      await sb.from('notifications').update({
-        data: { ...(data.data as object ?? {}), read_by_admin: true }
-      }).eq('id', id);
-      return ok(parseTicket(data as Record<string, unknown>));
-    }
-
-    // Alle support_tickets UND support_ticket_reply ausschliessen
     const { data, error } = await sb.from('notifications')
-      .select('*', { count: 'exact' })
+      .select('*')
       .eq('type', 'support_ticket')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(limit);
     if (error) return serverError(error, 'tickets GET');
 
-    let tickets = (data ?? []).map(r => parseTicket(r as Record<string, unknown>));
+    const all     = (data ?? []).map(r => parseTicket(r as Record<string, unknown>));
+    let threads   = groupIntoThreads(all);
 
-    if (status && status !== 'all') tickets = tickets.filter(t => t.status === status);
+    // Als gelesen markieren wenn einzelner Thread abgerufen
+    if (tnr) {
+      const thread = threads.find(t => t.ticket_number === tnr);
+      if (!thread) return fail('Thread nicht gefunden');
+      // Alle Nachrichten dieses Threads als gelesen markieren
+      const ids = thread.messages.filter(m => !m.read_by_admin).map(m => m.id);
+      if (ids.length > 0) {
+        for (const id of ids) {
+          const row = data?.find(r => r.id === id);
+          if (row) {
+            await sb.from('notifications').update({
+              data: { ...(row.data as object ?? {}), read_by_admin: true }
+            }).eq('id', id);
+          }
+        }
+      }
+      return ok(thread);
+    }
+
+    // Filter
+    if (status && status !== 'all') threads = threads.filter(t => t.status === status);
     if (search) {
       const s = search.toLowerCase();
-      tickets = tickets.filter(t =>
+      threads = threads.filter(t =>
         t.ticket_number.toLowerCase().includes(s) ||
         t.name.toLowerCase().includes(s) ||
         t.email.toLowerCase().includes(s) ||
@@ -177,59 +133,125 @@ export async function GET(req: NextRequest) {
     }
 
     const stats = {
-      open:    tickets.filter(t => t.status === 'open').length,
-      replied: tickets.filter(t => t.status === 'replied').length,
-      closed:  tickets.filter(t => t.status === 'closed').length,
-      total:   tickets.length,
-      unread:  tickets.filter(t => !t.read_by_admin).length,
+      open:    threads.filter(t => t.status === 'open').length,
+      replied: threads.filter(t => t.status === 'replied').length,
+      closed:  threads.filter(t => t.status === 'closed').length,
+      total:   threads.length,
+      unread:  threads.filter(t => t.unread).length,
     };
-    return ok({ tickets, stats });
+
+    return ok({ threads, stats });
   } catch (err) {
     return serverError(err, 'tickets GET');
   }
 }
 
-// ── PATCH ─────────────────────────────────────────────────────────────────────
+// ── PATCH — Admin antwortet auf Thread (setzt status=replied auf letzter User-Msg) ──
 export async function PATCH(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {
-    const body = await req.json() as { id?:string; action?:string; status?:string; reply?:string; priority?:string };
-    if (!body.id) return fail('id erforderlich');
+    const body = await req.json() as {
+      ticket_number?: string;
+      id?: string;
+      action?: string;
+      status?: string;
+      reply?: string;
+      priority?: string;
+    };
 
     const sb = getServiceClient();
-    const { data: existing, error: fetchErr } = await sb
-      .from('notifications').select('*').eq('id', body.id).single();
-    if (fetchErr || !existing) return fail('Ticket nicht gefunden');
 
-    const ticket      = parseTicket(existing as Record<string, unknown>);
-    const update: Record<string, unknown> = { ...(existing.data as object ?? {}) };
+    // Antwort auf Thread: finde letzte unbeantworte User-Nachricht
+    if (body.ticket_number && body.action === 'reply' && body.reply) {
+      const { data: rows } = await sb.from('notifications')
+        .select('*')
+        .eq('type', 'support_ticket')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-    if (body.action === 'reply' && body.reply) {
-      update.admin_reply   = body.reply;
-      update.replied_at    = new Date().toISOString();
-      update.status        = 'replied';
-      update.read_by_admin = true;
+      const threadRows = (rows ?? []).filter(r => {
+        const d = r.data as Record<string, unknown>;
+        return String(d?.ticket_number ?? '') === body.ticket_number;
+      });
 
-      // E-Mail an Nutzer senden
-      await sendReplyEmail({ ...ticket, admin_reply: body.reply }, body.reply);
+      // Letzte Nachricht finden
+      if (threadRows.length === 0) return fail('Thread nicht gefunden');
+      const latest = threadRows[0]; // DESC sort → neueste zuerst
+      const currentData = (latest.data as Record<string, unknown>) ?? {};
+
+      const updateData = {
+        ...currentData,
+        admin_reply:   body.reply,
+        replied_at:    new Date().toISOString(),
+        status:        'replied',
+        read_by_admin: true,
+      };
+
+      const { error } = await sb.from('notifications')
+        .update({ data: updateData }).eq('id', latest.id);
+      if (error) return serverError(error, 'tickets PATCH reply');
 
       // Resonanzzentrum Notification
-      await createResonanzNotification(sb, ticket, body.reply);
+      if (latest.user_id) {
+        await sb.from('notifications').insert({
+          user_id:     latest.user_id,
+          type:        'support_ticket_reply',
+          title:       `Dein Ticket ${body.ticket_number} wurde beantwortet`,
+          body:        body.reply.slice(0, 200),
+          data: {
+            ticket_number:    body.ticket_number,
+            subject:          String(currentData.subject ?? ''),
+            reply:            body.reply,
+            original_message: String(currentData.message ?? ''),
+            notification_id:  latest.id,
+          },
+          is_read:    false,
+          action_url: '/studio?section=tickets',
+          entity_type:'support_ticket',
+          entity_id:  latest.id as string,
+        }).catch(() => {});
+      }
+
+      return ok({ ticket_number: body.ticket_number, status: 'replied' });
     }
 
-    if (body.action === 'close')  update.status = 'closed';
-    if (body.action === 'reopen') update.status = 'open';
-    if (body.action === 'read')   update.read_by_admin = true;
-    if (body.status)   update.status   = body.status;
-    if (body.priority) update.priority = body.priority;
+    // Einzelne Nachricht aktualisieren (close/reopen/read)
+    if (body.id) {
+      const { data: existing } = await sb.from('notifications').select('*').eq('id', body.id).single();
+      if (!existing) return fail('Nicht gefunden');
+      const d = { ...(existing.data as object ?? {}) } as Record<string, unknown>;
 
-    const { error } = await sb.from('notifications')
-      .update({ data: update }).eq('id', body.id);
-    if (error) return serverError(error, 'tickets PATCH');
+      if (body.action === 'close')  d.status = 'closed';
+      if (body.action === 'reopen') d.status = 'open';
+      if (body.action === 'read')   d.read_by_admin = true;
+      if (body.status)   d.status   = body.status;
+      if (body.priority) d.priority = body.priority;
 
-    return ok({ id: body.id, updated: update });
+      const { error } = await sb.from('notifications').update({ data: d }).eq('id', body.id);
+      if (error) return serverError(error, 'tickets PATCH id');
+      return ok({ id: body.id });
+    }
+
+    // Thread schließen/öffnen
+    if (body.ticket_number && (body.action === 'close' || body.action === 'reopen')) {
+      const newStatus = body.action === 'close' ? 'closed' : 'open';
+      const { data: rows } = await sb.from('notifications')
+        .select('*').eq('type', 'support_ticket').limit(500);
+      const threadRows = (rows ?? []).filter(r => {
+        const d = r.data as Record<string, unknown>;
+        return String(d?.ticket_number ?? '') === body.ticket_number;
+      });
+      for (const row of threadRows) {
+        await sb.from('notifications').update({
+          data: { ...(row.data as object ?? {}), status: newStatus }
+        }).eq('id', row.id);
+      }
+      return ok({ ticket_number: body.ticket_number, status: newStatus });
+    }
+
+    return fail('Ungültige Aktion');
   } catch (err) {
     return serverError(err, 'tickets PATCH');
   }
@@ -240,12 +262,27 @@ export async function DELETE(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
-    const { id } = await req.json() as { id?:string };
-    if (!id) return fail('id erforderlich');
+    const { id, ticket_number } = await req.json() as { id?:string; ticket_number?:string };
     const sb = getServiceClient();
-    const { error } = await sb.from('notifications').delete().eq('id', id).eq('type', 'support_ticket');
-    if (error) return serverError(error, 'tickets DELETE');
-    return ok({ deleted: id });
+    if (ticket_number) {
+      // Ganzen Thread löschen
+      const { data: rows } = await sb.from('notifications').select('id').eq('type','support_ticket').limit(500);
+      // Wir müssen data.ticket_number filtern — kein DB-Filter auf JSON
+      // Alternativ: alle laden und filtern
+      const { data: allRows } = await sb.from('notifications').select('*').eq('type','support_ticket').limit(500);
+      const ids = (allRows ?? [])
+        .filter(r => String((r.data as Record<string,unknown>)?.ticket_number ?? '') === ticket_number)
+        .map(r => r.id);
+      if (ids.length > 0) {
+        await sb.from('notifications').delete().in('id', ids);
+      }
+      return ok({ deleted_count: ids.length });
+    }
+    if (id) {
+      await sb.from('notifications').delete().eq('id', id).eq('type', 'support_ticket');
+      return ok({ deleted: id });
+    }
+    return fail('id oder ticket_number erforderlich');
   } catch (err) {
     return serverError(err, 'tickets DELETE');
   }
