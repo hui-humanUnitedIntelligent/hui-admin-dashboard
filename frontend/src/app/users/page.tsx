@@ -608,6 +608,17 @@ export default function UsersPage() {
       } catch { showToast('Fehler beim Wiederherstellen.', 'error'); }
       return;
     }
+    if (action === 'permanent_delete') {
+      const name = user.full_name || user.display_name || user.email || 'Nutzer';
+      if (!window.confirm(`⚠️ "${name}" ENDGÜLTIG löschen?\n\nAlle Daten (Profil, Werke, Buchungen, Nachrichten) werden unwiderruflich entfernt!`)) return;
+      try {
+        await apiDelete(user.id);
+        showToast(`🗑 ${name} wurde endgültig gelöscht.`, 'info', 4000);
+        setViewUser(null);
+        refetch();
+      } catch { showToast('Fehler beim endgültigen Löschen.', 'error'); }
+      return;
+    }
   }, [refetch]);
 
   const handleBlock = useCallback(async (user: MergedUser, reason: string) => {
