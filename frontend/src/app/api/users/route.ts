@@ -52,7 +52,7 @@ const PROFILE_COLS = [
   'membership_type','is_wirker','is_member',
   'blocked','blocked_at','blocked_by','phone',
   'impact_eur','trust_score','last_seen_at','email','created_at',
-  'location_label',
+  'location_label','bio','tagline','location','dna_tags',
 ].join(',');
 
 export async function GET(req: NextRequest) {
