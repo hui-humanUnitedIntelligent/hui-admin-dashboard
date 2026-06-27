@@ -1,5 +1,4 @@
 // frontend/src/app/api/users/[id]/activity/route.ts
-// GET /api/users/:id/activity — Bio, Werke, Erlebnisse, Projekte eines Nutzers
 import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
@@ -17,7 +16,7 @@ export async function GET(
 
     const [profileRes, worksRes, experiencesRes, projectsRes] = await Promise.all([
       sb.from('profiles')
-        .select('bio, location_text, tags, social_links')
+        .select('bio, tagline, location, location_label, dna_tags')
         .eq('id', id)
         .single(),
 
@@ -40,10 +39,12 @@ export async function GET(
         .limit(50),
     ]);
 
+    const p = profileRes.data;
     return NextResponse.json({
-      bio:         profileRes.data?.bio         ?? null,
-      location:    profileRes.data?.location_text ?? null,
-      tags:        profileRes.data?.tags         ?? [],
+      bio:         p?.bio          ?? null,
+      tagline:     p?.tagline      ?? null,
+      location:    p?.location_label ?? p?.location ?? null,
+      tags:        Array.isArray(p?.dna_tags) ? p.dna_tags : (p?.dna_tags ? JSON.parse(String(p.dna_tags)) : []),
       works:       worksRes.data       ?? [],
       experiences: experiencesRes.data ?? [],
       projects:    projectsRes.data    ?? [],
