@@ -34,40 +34,60 @@ export interface UserCounts {
 export type UserFilter = 'all' | 'active' | 'blocked' | 'deleted' | 'wirker';
 
 export function useUsers(opts: {
-  filter?: UserFilter; search?: string; limit?: number; offset?: number; refreshInterval?: number;
+  filter?: UserFilter; search?: string; limit?: number; offset?: number;
+  refreshInterval?: number;
 } = {}) {
-  const { filter='active', search='', limit=500, offset=0, refreshInterval=0 } = opts;
+  const { filter = 'active', search = '', limit = 1000, offset = 0,
+          refreshInterval = 30_000 } = opts; // ← default: alle 30s refreshen
 
   const [users,   setUsers]   = useState<MergedUser[]>([]);
-  const [counts,  setCounts]  = useState<UserCounts>({ total:0,active:0,blocked:0,deleted:0,wirker:0 });
+  const [counts,  setCounts]  = useState<UserCounts>({ total:0, active:0, blocked:0, deleted:0, wirker:0 });
   const [total,   setTotal]   = useState(0);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string|null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
+  const timerRef  = useRef<ReturnType<typeof setInterval>|null>(null);
+  const mountedRef = useRef(true);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
     try {
-      const p = new URLSearchParams({ filter, search, limit: String(limit), offset: String(offset) });
-      const res = await fetch(`/api/users?${p}`, { credentials: 'include' });
+      const p = new URLSearchParams({
+        filter, search,
+        limit:  String(limit),
+        offset: String(offset),
+        _ts:    String(Date.now()), // Cache-Buster: kein stale Cache
+      });
+      const res = await fetch(`/api/users?${p}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      // API gibt direkt { users, total, counts } — kein ok()-Wrapper
+      if (!mountedRef.current) return;
       setUsers(data.users   ?? []);
       setTotal(data.total   ?? 0);
-      setCounts(data.counts ?? { total:0,active:0,blocked:0,deleted:0,wirker:0 });
+      setCounts(data.counts ?? { total:0, active:0, blocked:0, deleted:0, wirker:0 });
     } catch(e) {
-      setError(e instanceof Error ? e.message : 'Fehler');
+      if (mountedRef.current) setError(e instanceof Error ? e.message : 'Fehler');
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [filter, search, limit, offset]);
 
   useEffect(() => {
-    load();
-    if (refreshInterval > 0) { timerRef.current = setInterval(load, refreshInterval); }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    mountedRef.current = true;
+    load(false);
+
+    if (refreshInterval > 0) {
+      timerRef.current = setInterval(() => load(true), refreshInterval);
+    }
+
+    return () => {
+      mountedRef.current = false;
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [load, refreshInterval]);
 
-  return { users, counts, total, loading, error, refetch: load };
+  return { users, counts, total, loading, error, refetch: () => load(false) };
 }
