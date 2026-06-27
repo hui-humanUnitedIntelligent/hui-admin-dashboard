@@ -1,207 +1,262 @@
 'use client';
-import { useRouter } from 'next/navigation';
 // frontend/src/app/system/page.tsx
-
-import { isSuperAdmin } from '@/lib/roles';
-
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
-import { useSystemHealth, useKPIs } from '@/lib/hooks/useSupabase';
-import { SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
 
+// ─── Typen ────────────────────────────────────────────────────────────────────
 type CheckStatus = 'ok' | 'error' | 'unknown' | 'checking';
 
 interface ServiceCheck {
   name: string;
   status: CheckStatus;
-  latency: number;
+  latency: number | null;
   detail: string;
 }
 
+// ─── Status-Punkt ─────────────────────────────────────────────────────────────
 function StatusDot({ status }: { status: CheckStatus }) {
-  const colors: Record<CheckStatus, string> = {
-    ok:       'var(--green)',
-    error:    'var(--red)',
-    unknown:  'var(--text-muted)',
-    checking: 'var(--gold)',
-  };
+  const c = { ok:'var(--green)', error:'var(--red)', unknown:'var(--text-muted)', checking:'var(--gold)' }[status];
   return (
-    <span style={{
-      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-      background: colors[status],
-      animation: status === 'checking' ? 'pulse 1s ease-in-out infinite' : status === 'ok' ? 'blink 3s ease-in-out infinite' : 'none',
+    <span style={{ display:'inline-block', width:9, height:9, borderRadius:'50%', background:c,
+      boxShadow: status === 'ok' ? `0 0 6px ${c}` : 'none',
+      animation: status === 'checking' ? 'pulse 1s ease-in-out infinite' : 'none',
     }} />
   );
 }
 
-const INITIAL_CHECKS: ServiceCheck[] = [
-  { name: 'Supabase DB',      status: 'checking', latency: 0, detail: 'Prüfe...' },
-  { name: 'Supabase Auth',    status: 'checking', latency: 0, detail: 'Prüfe...' },
-  { name: 'Supabase Storage', status: 'checking', latency: 0, detail: 'Prüfe...' },
-  { name: 'API REST Layer',   status: 'checking', latency: 0, detail: 'Prüfe...' },
+// ─── Service-Karte ────────────────────────────────────────────────────────────
+function ServiceCard({ check }: { check: ServiceCheck }) {
+  const isErr = check.status === 'error';
+  return (
+    <div style={{ padding:'18px 20px', borderRadius:10, border:`1px solid ${isErr ? 'var(--red)' : 'var(--border)'}`,
+      background: isErr ? 'rgba(248,113,113,0.05)' : 'var(--bg-secondary)',
+      display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <StatusDot status={check.status} />
+        <div>
+          <p style={{ margin:0, fontSize:14, fontWeight:600, color: isErr ? 'var(--red)' : 'var(--text-primary)' }}>
+            {check.name}
+          </p>
+          <p style={{ margin:'2px 0 0', fontSize:12, color: isErr ? 'var(--red)' : 'var(--text-muted)' }}>
+            {check.detail}
+          </p>
+        </div>
+      </div>
+      {check.latency !== null && (
+        <span style={{ fontSize:12, fontWeight:600,
+          color: check.latency > 500 ? 'var(--gold)' : check.latency > 200 ? 'var(--gold)' : 'var(--green)',
+          background:'var(--bg-tertiary)', padding:'3px 8px', borderRadius:6, flexShrink:0 }}>
+          {check.latency}ms
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Haupt-Seite ──────────────────────────────────────────────────────────────
+const INITIAL: ServiceCheck[] = [
+  { name:'Supabase DB',      status:'unknown', latency:null, detail:'Noch nicht geprüft' },
+  { name:'Supabase Auth',    status:'unknown', latency:null, detail:'Noch nicht geprüft' },
+  { name:'Supabase Storage', status:'unknown', latency:null, detail:'Noch nicht geprüft' },
+  { name:'API REST Layer',   status:'unknown', latency:null, detail:'Noch nicht geprüft' },
+  { name:'Dashboard Server', status:'unknown', latency:null, detail:'Noch nicht geprüft' },
 ];
 
 export default function SystemPage() {
-  const { currentUser } = useAuth();
-  const router = useRouter();
+  const [checks,  setChecks]  = useState<ServiceCheck[]>(INITIAL);
+  const [running, setRunning] = useState(false);
+  const [lastRun, setLastRun] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([]);
+
+  // Env-Vars via API laden
   useEffect(() => {
-    if (!isSuperAdmin(currentUser?.role)) router.replace("/dashboard");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.role]);
-  if (!isSuperAdmin(currentUser?.role)) return null;
-
-  const userRole = currentUser?.role;
-  const health = useSystemHealth();
-  const kpis   = useKPIs();
-  const [checks, setChecks] = useState<ServiceCheck[]>(INITIAL_CHECKS);
-
-  const runChecks = useCallback(async () => {
-    setChecks(INITIAL_CHECKS.map((c) => ({ ...c, status: 'checking' as CheckStatus })));
-
-    const results: ServiceCheck[] = [...INITIAL_CHECKS];
-
-    // 1. Check DB
-    const t0 = Date.now();
-    try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`, {
-        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
-      });
-      results[0] = { name: 'Supabase DB', status: r.ok ? 'ok' : 'error', latency: Date.now() - t0, detail: r.ok ? `HTTP ${r.status}` : `Fehler ${r.status}` };
-    } catch (e: unknown) {
-      results[0] = { name: 'Supabase DB', status: 'error', latency: Date.now() - t0, detail: (e as Error).message };
-    }
-
-    // 2. Check Auth
-    const t1 = Date.now();
-    try {
-      const r = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
-        headers: { apikey: SUPABASE_ANON },
-      });
-      results[1] = { name: 'Supabase Auth', status: r.ok ? 'ok' : 'error', latency: Date.now() - t1, detail: r.ok ? 'Healthy' : `HTTP ${r.status}` };
-    } catch (e: unknown) {
-      results[1] = { name: 'Supabase Auth', status: 'error', latency: Date.now() - t1, detail: (e as Error).message };
-    }
-
-    // 3. Check Storage
-    const t2 = Date.now();
-    try {
-      const r = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
-        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
-      });
-      results[2] = { name: 'Supabase Storage', status: r.ok ? 'ok' : 'error', latency: Date.now() - t2, detail: r.ok ? 'Reachable' : `HTTP ${r.status}` };
-    } catch (e: unknown) {
-      results[2] = { name: 'Supabase Storage', status: 'error', latency: Date.now() - t2, detail: (e as Error).message };
-    }
-
-    // 4. Config check
-    results[3] = {
-      name: 'API REST Layer',
-      status: SUPABASE_URL ? 'ok' : 'error',
-      latency: 0,
-      detail: SUPABASE_URL ? 'Konfiguriert' : 'NEXT_PUBLIC_SUPABASE_URL fehlt',
-    };
-
-    setChecks(results);
+    fetch('/api/system/env', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.data) setEnvVars(d.data); })
+      .catch(() => {});
   }, []);
 
+  const runChecks = useCallback(async () => {
+    setRunning(true);
+    setChecks(INITIAL.map(c => ({ ...c, status: 'checking' as CheckStatus, detail: 'Prüfe…' })));
+
+    const results: ServiceCheck[] = [...INITIAL];
+
+    // 1. Supabase DB — via interne API um CORS/Key zu vermeiden
+    const t0 = Date.now();
+    try {
+      const r = await fetch('/api/system/health?check=db', { credentials: 'include' });
+      const d = await r.json();
+      results[0] = { name:'Supabase DB', status: d.ok ? 'ok' : 'error',
+        latency: Date.now() - t0, detail: d.ok ? `HTTP 200 — ${d.rows ?? 0} Profile` : d.error ?? 'Fehler' };
+    } catch (e) {
+      results[0] = { name:'Supabase DB', status:'error', latency: Date.now()-t0,
+        detail: 'Verbindung unterbrochen: ' + (e instanceof Error ? e.message : 'Unbekannt') };
+    }
+
+    // 2. Supabase Auth
+    const t1 = Date.now();
+    try {
+      const r = await fetch('/api/system/health?check=auth', { credentials: 'include' });
+      const d = await r.json();
+      results[1] = { name:'Supabase Auth', status: d.ok ? 'ok' : 'error',
+        latency: Date.now()-t1, detail: d.ok ? 'Healthy' : d.error ?? 'Auth-Dienst nicht erreichbar' };
+    } catch (e) {
+      results[1] = { name:'Supabase Auth', status:'error', latency: Date.now()-t1,
+        detail: 'Verbindung unterbrochen: ' + (e instanceof Error ? e.message : 'Unbekannt') };
+    }
+
+    // 3. Supabase Storage
+    const t2 = Date.now();
+    try {
+      const r = await fetch('/api/system/health?check=storage', { credentials: 'include' });
+      const d = await r.json();
+      results[2] = { name:'Supabase Storage', status: d.ok ? 'ok' : 'error',
+        latency: Date.now()-t2, detail: d.ok ? 'Reachable' : d.error ?? 'Storage nicht erreichbar' };
+    } catch (e) {
+      results[2] = { name:'Supabase Storage', status:'error', latency: Date.now()-t2,
+        detail: 'Verbindung unterbrochen: ' + (e instanceof Error ? e.message : 'Unbekannt') };
+    }
+
+    // 4. API REST Layer (intern)
+    const t3 = Date.now();
+    try {
+      const r = await fetch('/api/system/health?check=api', { credentials: 'include' });
+      const d = await r.json();
+      results[3] = { name:'API REST Layer', status: d.ok ? 'ok' : 'error',
+        latency: Date.now()-t3, detail: d.ok ? 'Konfiguriert & erreichbar' : d.error ?? 'API nicht erreichbar' };
+    } catch (e) {
+      results[3] = { name:'API REST Layer', status:'error', latency: Date.now()-t3,
+        detail: 'Server nicht erreichbar: ' + (e instanceof Error ? e.message : 'Unbekannt') };
+    }
+
+    // 5. Dashboard Server selbst
+    const t4 = Date.now();
+    try {
+      const r = await fetch('/api/system/health?check=server', { credentials: 'include' });
+      const d = await r.json();
+      results[4] = { name:'Dashboard Server', status: d.ok ? 'ok' : 'error',
+        latency: Date.now()-t4, detail: d.ok ? `Next.js v${d.version ?? '?'} — OK` : d.error ?? 'Fehler' };
+    } catch (e) {
+      results[4] = { name:'Dashboard Server', status:'error', latency: Date.now()-t4,
+        detail: 'Dashboard nicht erreichbar: ' + (e instanceof Error ? e.message : 'Unbekannt') };
+    }
+
+    setChecks(results);
+    setLastRun(new Date().toLocaleTimeString('de-DE'));
+    setRunning(false);
+  }, []);
+
+  // Beim Laden direkt prüfen
   useEffect(() => { runChecks(); }, [runChecks]);
 
-  const allOk = checks.every((c) => c.status === 'ok');
+  // Auto-Refresh alle 60s
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(runChecks, 60_000);
+    return () => clearInterval(id);
+  }, [autoRefresh, runChecks]);
+
+  const allOk    = checks.every(c => c.status === 'ok');
+  const hasError = checks.some(c  => c.status === 'error');
+  const errorCount = checks.filter(c => c.status === 'error').length;
 
   return (
-    <DashboardLayout
-      title="System Status"
-      headerActions={
-        <button onClick={runChecks} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-          
+    <DashboardLayout>
       <PageHeader
-        title="System-Status"
+        title="System Status"
         subtitle="Datenbankverbindung & Health-Checks"
-        actionsRole="superadmin"
-        userRole={userRole}
+        actions={
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12,
+              color:'var(--text-muted)', cursor:'pointer', userSelect:'none' }}>
+              <input type="checkbox" checked={autoRefresh}
+                onChange={e => setAutoRefresh(e.target.checked)}
+                style={{ accentColor:'var(--accent)', width:14, height:14 }}
+              />
+              Auto (60s)
+            </label>
+            <button onClick={runChecks} disabled={running}
+              style={{ padding:'7px 16px', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer',
+                border:'1px solid var(--accent)', background:'transparent', color:'var(--accent)',
+                opacity: running ? 0.5 : 1 }}>
+              {running ? '⏳ Prüfe…' : '↺ Alle prüfen'}
+            </button>
+          </div>
+        }
       />
 
-↻ Alle prüfen
-        </button>
-      }
-    >
-      {/* Overall Status */}
-      <div style={{
-        background: allOk ? 'rgba(81,207,102,0.08)' : 'rgba(255,107,107,0.08)',
-        border: `1px solid ${allOk ? 'rgba(81,207,102,0.3)' : 'rgba(255,107,107,0.3)'}`,
-        borderRadius: 12, padding: '16px 20px',
-        display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18,
-      }}>
-        <div style={{ fontSize: 28 }}>{allOk ? '✅' : '⚠️'}</div>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: allOk ? 'var(--green)' : 'var(--red)' }}>
-            {allOk ? 'Alle Systeme operational' : 'Probleme erkannt'}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-            Letzte Prüfung: gerade eben · DB-Latenz: {health.latency}ms
+      <div style={{ padding:'24px 28px', display:'flex', flexDirection:'column', gap:20 }}>
+
+        {/* Status-Banner */}
+        <div style={{ padding:'16px 20px', borderRadius:10,
+          background: hasError ? 'rgba(248,113,113,0.1)' : allOk ? 'rgba(78,205,196,0.08)' : 'var(--bg-secondary)',
+          border: `1px solid ${hasError ? 'var(--red)' : allOk ? 'var(--green)' : 'var(--border)'}`,
+          display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ fontSize:22 }}>{hasError ? '🔴' : allOk ? '✅' : '⏳'}</span>
+          <div>
+            <p style={{ margin:0, fontWeight:700, fontSize:15,
+              color: hasError ? 'var(--red)' : allOk ? 'var(--green)' : 'var(--text-primary)' }}>
+              {hasError
+                ? `${errorCount} Dienst${errorCount > 1 ? 'e' : ''} nicht erreichbar`
+                : allOk ? 'Alle Systeme operational'
+                : 'Prüfung läuft…'}
+            </p>
+            {lastRun && (
+              <p style={{ margin:'2px 0 0', fontSize:12, color:'var(--text-muted)' }}>
+                Letzte Prüfung: {lastRun}
+              </p>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Service Checks */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 18 }} className="grid-2-1">
-        {checks.map((c) => (
-          <div key={c.name} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <StatusDot status={c.status} />
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{c.name}</span>
+        {/* Fehler-Detail-Box */}
+        {hasError && (
+          <div style={{ padding:'14px 18px', borderRadius:9, background:'rgba(248,113,113,0.07)',
+            border:'1px solid rgba(248,113,113,0.3)' }}>
+            <p style={{ margin:'0 0 8px', fontSize:12, fontWeight:700, color:'var(--red)',
+              textTransform:'uppercase', letterSpacing:'0.06em' }}>⚠ Verbindungsprobleme</p>
+            {checks.filter(c => c.status === 'error').map(c => (
+              <div key={c.name} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:4 }}>
+                <span style={{ fontSize:12, color:'var(--red)', fontWeight:600, minWidth:130 }}>{c.name}:</span>
+                <span style={{ fontSize:12, color:'var(--red)', opacity:0.8 }}>{c.detail}</span>
               </div>
-              {c.latency > 0 && (
-                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: c.latency < 200 ? 'var(--green)' : c.latency < 500 ? 'var(--gold)' : 'var(--red)' }}>
-                  {c.latency}ms
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: 11, color: c.status === 'error' ? 'var(--red)' : 'var(--text-muted)' }}>
-              {c.detail}
+            ))}
+          </div>
+        )}
+
+        {/* Service Cards 2×2 Grid */}
+        <div>
+          <p style={{ margin:'0 0 10px', fontSize:11, fontWeight:700, textTransform:'uppercase',
+            letterSpacing:'0.07em', color:'var(--text-muted)' }}>Services</p>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            {checks.map(c => <ServiceCard key={c.name} check={c} />)}
+          </div>
+        </div>
+
+        {/* Environment-Konfiguration */}
+        {envVars.length > 0 && (
+          <div>
+            <p style={{ margin:'0 0 10px', fontSize:11, fontWeight:700, textTransform:'uppercase',
+              letterSpacing:'0.07em', color:'var(--text-muted)' }}>Environment-Konfiguration</p>
+            <div style={{ borderRadius:9, border:'1px solid var(--border)', overflow:'hidden' }}>
+              {envVars.map((e, i) => (
+                <div key={e.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                  padding:'11px 16px', background: i%2===0 ? 'var(--bg-secondary)' : 'transparent',
+                  borderBottom: i < envVars.length-1 ? '1px solid var(--border)' : 'none' }}>
+                  <span style={{ fontSize:12, fontFamily:'monospace', color:'var(--text-secondary)' }}>{e.key}</span>
+                  <span style={{ fontSize:12, fontWeight:600,
+                    color: e.value.startsWith('https://') ? 'var(--accent)' : 'var(--green)' }}>
+                    {e.value.startsWith('https://') ? e.value : '✅ Gesetzt'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Platform Stats */}
-      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 14 }}>
-          Plattform-Statistiken (Live)
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }} className="grid-4">
-          {[
-            { label: 'User gesamt',      value: kpis.loading ? '…' : kpis.totalUsers.toLocaleString('de-DE'),   color: 'var(--accent)' },
-            { label: 'Aktive Wirker',    value: kpis.loading ? '…' : kpis.activeWirker.toLocaleString('de-DE'), color: 'var(--purple)' },
-            { label: 'Works publiziert', value: kpis.loading ? '…' : kpis.totalWorks.toLocaleString('de-DE'),   color: 'var(--gold)' },
-            { label: 'Mitglieder',       value: kpis.loading ? '…' : kpis.activeMembers.toLocaleString('de-DE'),color: 'var(--green)' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ padding: 14, background: 'var(--bg-tertiary)', borderRadius: 8, textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Env Config */}
-      <div style={{ marginTop: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 12 }}>
-          Environment-Konfiguration
-        </div>
-        {([
-          ['NEXT_PUBLIC_SUPABASE_URL',              SUPABASE_URL ? '✅ Gesetzt'       : '❌ Fehlt'],
-          ['NEXT_PUBLIC_SUPABASE_ANON_KEY',          SUPABASE_ANON ? '✅ Gesetzt'     : '❌ Fehlt'],
-          ['NEXT_PUBLIC_API_URL',                    process.env.NEXT_PUBLIC_API_URL ? `✅ ${process.env.NEXT_PUBLIC_API_URL}` : 'ℹ️ Nicht gesetzt (Supabase-Modus)'],
-        ] as [string, string][]).map(([key, val]) => (
-          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: 11 }}>{key}</span>
-            <span style={{ color: val.startsWith('✅') ? 'var(--green)' : val.startsWith('❌') ? 'var(--red)' : 'var(--gold)', fontSize: 11 }}>{val}</span>
-          </div>
-        ))}
       </div>
     </DashboardLayout>
   );
