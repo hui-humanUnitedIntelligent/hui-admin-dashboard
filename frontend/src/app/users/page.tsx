@@ -401,8 +401,9 @@ export default function UsersPage() {
     try {
       await apiAction('unblock', user.id);
       const userName = user.full_name || user.display_name || user.email || 'Nutzer';
-      showToast(`✅ ${userName} wurde wieder freigeschaltet.`, 'success', 3000);
+      showToast(`✅ ${userName} wurde freigeschaltet.`, 'success', 3000);
       setViewUser(null);
+      setActiveTab('active' as TabKey);
       refetch();
     } catch { showToast('Fehler beim Entsperren.', 'error'); }
   }, [refetch]);
