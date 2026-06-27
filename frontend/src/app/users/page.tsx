@@ -60,6 +60,53 @@ async function apiDelete(userId: string) {
 // ── ActivityTab: Bio + Werke + Erlebnisse + Projekte ─────────────────────────
 
 
+// ── ActivityCountsRow: kleine Zähler-Zeile für Profil-Info ──────────────────
+function ActivityCountsRow({ userId }: { userId: string }) {
+  const [counts, setCounts] = useState<{
+    works: number; experiences: number; projects_exp: number; impact: number; total: number;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/users/${userId}/activity`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.counts) setCounts(d.counts); })
+      .catch(() => {});
+  }, [userId]);
+
+  if (!counts) return null;
+
+  return (
+    <div style={{ borderBottom:'1px solid var(--border)', paddingBottom:10 }}>
+      <div style={{ display:'flex', gap:12 }}>
+        <span style={{ width:130, color:'var(--text-secondary)', flexShrink:0, fontSize:12 }}>Inhalte</span>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+          {[
+            { label:'Werke',      val: counts.works },
+            { label:'Erlebnisse', val: counts.experiences },
+            { label:'Projekte',   val: counts.projects_exp },
+            { label:'Impact',     val: counts.impact },
+          ].map(({ label, val }) => (
+            <div key={label} style={{ display:'flex', flexDirection:'column', alignItems:'center',
+              padding:'6px 14px', borderRadius:8, background:'var(--bg-secondary)',
+              border:'1px solid var(--border)', minWidth:60 }}>
+              <span style={{ fontSize:18, fontWeight:700, color:'var(--text-primary)', lineHeight:1 }}>{val}</span>
+              <span style={{ fontSize:10, color:'var(--text-muted)', marginTop:3, textTransform:'uppercase',
+                letterSpacing:'0.04em' }}>{label}</span>
+            </div>
+          ))}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center',
+            padding:'6px 14px', borderRadius:8, background:'var(--accent-dim)',
+            border:'1px solid rgba(78,205,196,0.3)', minWidth:60 }}>
+            <span style={{ fontSize:18, fontWeight:700, color:'var(--accent)', lineHeight:1 }}>{counts.total}</span>
+            <span style={{ fontSize:10, color:'var(--accent)', marginTop:3, textTransform:'uppercase',
+              letterSpacing:'0.04em', opacity:0.8 }}>Gesamt</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityTab({ userId }: { userId: string }) {
   const [data, setData] = useState<{
     bio: string | null;
@@ -68,7 +115,8 @@ function ActivityTab({ userId }: { userId: string }) {
     works: Array<Record<string,unknown>>;
     experiences: Array<Record<string,unknown>>;
     projects: Array<Record<string,unknown>>;
-  }>({ bio: null, location: null, tags: [], works: [], experiences: [], projects: [] });
+    counts: { works: number; experiences: number; projects_exp: number; impact: number; total: number } | null;
+  }>({ bio: null, location: null, tags: [], counts: null, works: [], experiences: [], projects: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -309,6 +357,8 @@ function UserDetailModal({
             <Row label="Registriert"  val={new Date(user.created_at).toLocaleDateString('de-DE')} />
             <Row label="Letzter Login" val={user.last_seen_at ? new Date(user.last_seen_at).toLocaleDateString('de-DE') : null} />
             <Row label="Quelle"       val={user.source} />
+            {/* Inhalts-Zähler */}
+            <ActivityCountsRow userId={user.id} />
             {/* Bio & Tagline */}
             {(user as unknown as Record<string,string|null>).tagline && (
               <Row label="Tagline" val={(user as unknown as Record<string,string|null>).tagline} />
