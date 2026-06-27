@@ -384,17 +384,16 @@ export default function UsersPage() {
   const handleBlock = useCallback(async (user: MergedUser, reason: string) => {
     try {
       await apiAction('block', user.id, { reason });
-      // 3-Sekunden Toast mit Blockiergrund
       const userName = user.full_name || user.display_name || user.email || 'Nutzer';
-      showToast(
-        `🔒 ${userName} wurde blockiert${reason ? ` — Grund: ${reason.slice(0, 60)}${reason.length > 60 ? '…' : ''}` : ''}.`,
-        'success',
-        3000
-      );
+      const shortReason = reason ? ` — „${reason.length > 50 ? reason.slice(0, 50) + '…' : reason}"` : '';
+      showToast(`🔒 ${userName} blockiert${shortReason}`, 'warning', 3000);
       setViewUser(null);
-      // Nutzer sofort lokal in blockiert verschieben (optimistic update)
+      setActiveTab('blocked' as TabKey);
       refetch();
-    } catch { showToast('Fehler beim Blockieren.', 'error'); }
+    } catch (e) {
+      console.error('[handleBlock]', e);
+      showToast('Fehler beim Blockieren.', 'error');
+    }
   }, [refetch]);
 
   const handleUnblock = useCallback(async (user: MergedUser) => {
