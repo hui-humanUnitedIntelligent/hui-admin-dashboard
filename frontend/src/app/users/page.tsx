@@ -1,7 +1,8 @@
 'use client';
 // frontend/src/app/users/page.tsx
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
@@ -60,7 +61,7 @@ async function apiDelete(userId: string) {
 
 
 function ActivityTab({ userId }: { userId: string }) {
-  const [data, setData] = React.useState<{
+  const [data, setData] = useState<{
     bio: string | null;
     location: string | null;
     tags: string[];
@@ -70,7 +71,7 @@ function ActivityTab({ userId }: { userId: string }) {
   }>({ bio: null, location: null, tags: [], works: [], experiences: [], projects: [] });
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch(`/api/users/${userId}/activity`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setData(d))
@@ -88,7 +89,7 @@ function ActivityTab({ userId }: { userId: string }) {
     title: string; icon: string;
     items: Array<Record<string,unknown>>;
     emptyMsg: string;
-    renderRow: (item: Record<string,unknown>, i: number) => React.ReactNode;
+    renderRow: (item: Record<string,unknown>, i: number) => ReactNode;
   }) {
     return (
       <div style={{ marginBottom:16 }}>
