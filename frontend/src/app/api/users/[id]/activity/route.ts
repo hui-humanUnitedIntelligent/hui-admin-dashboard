@@ -40,14 +40,25 @@ export async function GET(
     ]);
 
     const p = profileRes.data;
+    const works       = worksRes.data       ?? [];
+    const experiences = experiencesRes.data ?? [];
+    const projects    = projectsRes.data    ?? [];
+
     return NextResponse.json({
       bio:         p?.bio          ?? null,
       tagline:     p?.tagline      ?? null,
       location:    p?.location_label ?? p?.location ?? null,
       tags:        Array.isArray(p?.dna_tags) ? p.dna_tags : (p?.dna_tags ? JSON.parse(String(p.dna_tags)) : []),
-      works:       worksRes.data       ?? [],
-      experiences: experiencesRes.data ?? [],
-      projects:    projectsRes.data    ?? [],
+      counts: {
+        works:       works.length,
+        experiences: experiences.filter((e: Record<string,unknown>) => e.experience_type !== 'projekt').length,
+        projects_exp:experiences.filter((e: Record<string,unknown>) => e.experience_type === 'projekt').length,
+        impact:      projects.length,
+        total:       works.length + experiences.length + projects.length,
+      },
+      works,
+      experiences,
+      projects,
     });
 
   } catch (err) {
