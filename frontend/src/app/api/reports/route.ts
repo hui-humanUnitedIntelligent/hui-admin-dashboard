@@ -1,10 +1,9 @@
 // frontend/src/app/api/reports/route.ts
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
-import { ok, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-function monthKey(iso: string) { return iso?.slice(0, 7) || ''; }
+function monthKey(iso: string) { return (iso ?? '').slice(0, 7); }
 function weekKey(iso: string) {
   const d    = new Date(iso);
   const jan1 = new Date(d.getFullYear(), 0, 1);
@@ -12,36 +11,34 @@ function weekKey(iso: string) {
   return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-type Profile  = { created_at: string; is_wirker: boolean; is_member: boolean };
-type Payment  = { created_at: string; amount_eur: number; state: string };
-type SimpleRec = { created_at: string };
-
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {
     const { searchParams } = new URL(req.url);
-    const type    = searchParams.get('type')    || 'monthly';
-    const periods = Math.min(parseInt(searchParams.get('periods') || '6', 10), 24);
+    const type    = searchParams.get('type')    ?? 'monthly';
+    const periods = Math.min(parseInt(searchParams.get('periods') ?? '6', 10), 24);
+    const sb      = getServiceClient();
+    const keyFn   = type === 'monthly' ? monthKey : weekKey;
+    const now     = new Date();
 
-    const supabase = getServiceClient();
-
+    // Alle Rohdaten laden
     const [
-      { data: profiles  },
-      { data: payments  },
-      { data: works     },
-      { data: bookings  },
+      { data: profiles  = [] },
+      { data: payments  = [] },
+      { data: works     = [] },
+      { data: bookings  = [] },
+      { data: experiences = [] },
     ] = await Promise.all([
-      supabase.from('profiles').select('created_at,is_wirker,is_member').limit(10000),
-      supabase.from('payments').select('created_at,amount_eur,state').limit(10000),
-      supabase.from('works').select('created_at').limit(10000),
-      supabase.from('bookings').select('created_at').limit(10000),
+      sb.from('profiles').select('created_at,is_wirker,is_member').limit(10000),
+      sb.from('payments').select('created_at,amount,status').limit(10000),
+      sb.from('works').select('created_at').limit(10000),
+      sb.from('bookings').select('created_at').limit(10000),
+      sb.from('experiences').select('created_at').limit(10000),
     ]);
 
-    const keyFn = type === 'monthly' ? monthKey : weekKey;
-    const now   = new Date();
-
+    // Perioden-Keys aufbauen
     const periodKeys: string[] = [];
     for (let i = periods - 1; i >= 0; i--) {
       if (type === 'monthly') {
@@ -53,43 +50,62 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const reportPeriods = periodKeys.map(pk => {
-      const pProfiles = (profiles as Profile[] ?? []).filter(x => keyFn(x.created_at) === pk);
-      const pPayments = (payments as Payment[] ?? []).filter(x => keyFn(x.created_at) === pk);
-      const pWorks    = (works    as SimpleRec[] ?? []).filter(x => keyFn(x.created_at) === pk);
-      const pBookings = (bookings as SimpleRec[] ?? []).filter(x => keyFn(x.created_at) === pk);
+    const safeProfiles    = (profiles    ?? []) as Array<{ created_at: string; is_wirker?: boolean; is_member?: boolean }>;
+    const safePayments    = (payments    ?? []) as Array<{ created_at: string; amount?: number; status?: string }>;
+    const safeWorks       = (works       ?? []) as Array<{ created_at: string }>;
+    const safeBookings    = (bookings    ?? []) as Array<{ created_at: string }>;
+    const safeExperiences = (experiences ?? []) as Array<{ created_at: string }>;
 
-      const revenue   = pPayments.filter(p => p.state === 'completed').reduce((s, p) => s + (p.amount_eur || 0), 0);
-      const impact    = revenue * 0.15;
+    const reportPeriods = periodKeys.map(pk => {
+      const pProf = safeProfiles.filter(x => keyFn(x.created_at) === pk);
+      const pPay  = safePayments.filter(x => keyFn(x.created_at) === pk);
+      const pWrk  = safeWorks.filter(x => keyFn(x.created_at) === pk);
+      const pBk   = safeBookings.filter(x => keyFn(x.created_at) === pk);
+      const pExp  = safeExperiences.filter(x => keyFn(x.created_at) === pk);
+
+      const revenue      = pPay.filter(p => p.status === 'completed').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const impact_pool  = revenue * 0.15;
+      const net_impact   = impact_pool * 0.85;
+      const company_share = impact_pool * 0.15;
 
       return {
-        period:       pk,
-        newUsers:     pProfiles.length,
-        newWirker:    pProfiles.filter(p => p.is_wirker).length,
-        newMembers:   pProfiles.filter(p => p.is_member).length,
-        newWorks:     pWorks.length,
-        newBookings:  pBookings.length,
-        transactions: pPayments.length,
-        revenue:      Math.round(revenue * 100) / 100,
-        impactPool:   Math.round(impact * 100) / 100,
-        netImpact:    Math.round(impact * 0.85 * 100) / 100,
-        companyShare: Math.round(impact * 0.15 * 100) / 100,
+        period:        pk,
+        new_users:     pProf.length,
+        new_wirker:    pProf.filter(p => p.is_wirker).length,
+        new_members:   pProf.filter(p => p.is_member).length,
+        new_works:     pWrk.length,
+        new_experiences: pExp.length,
+        new_bookings:  pBk.length,
+        transactions:  pPay.length,
+        revenue,
+        impact_pool,
+        net_impact,
+        company_share,
       };
     });
 
-    return ok({
-      type,
-      periods:     reportPeriods,
-      totals: {
-        users:    (profiles  ?? []).length,
-        wirker:   (profiles  as Profile[] ?? []).filter(p => p.is_wirker).length,
-        members:  (profiles  as Profile[] ?? []).filter(p => p.is_member).length,
-        works:    (works     ?? []).length,
-        bookings: (bookings  ?? []).length,
-      },
-      generatedAt: new Date().toISOString(),
+    const totals = {
+      users:    safeProfiles.length,
+      wirker:   safeProfiles.filter(p => p.is_wirker).length,
+      members:  safeProfiles.filter(p => p.is_member).length,
+      works:    safeWorks.length,
+      experiences: safeExperiences.length,
+      bookings: safeBookings.length,
+      transactions: safePayments.length,
+      revenue:  safePayments.filter(p => p.status === 'completed').reduce((s, p) => s + (Number(p.amount) || 0), 0),
+    };
+
+    return NextResponse.json({
+      data: {
+        type,
+        periods:      reportPeriods,
+        totals,
+        generated_at: new Date().toISOString(),
+      }
     });
+
   } catch (err) {
-    return serverError(err, 'reports GET');
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
 }
