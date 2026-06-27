@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
         blocked_reason:  p?.blocked_by ?? null,   // blocked_by als Grund-Fallback
         blocked_at:      p?.blocked_at ?? null,
         phone:           p?.phone ?? null,
-        is_deleted:      false,
+        is_deleted:      (p?.blocked === true && (p?.blocked_by?.toLowerCase().includes('gelöscht') || p?.blocked_by?.toLowerCase().includes('deleted'))) ?? false,
         impact_eur:      Number(p?.impact_eur ?? 0),
         trust_score:     Number(p?.trust_score ?? 0),
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
           blocked_reason: p.blocked_by ?? null,
           blocked_at: p.blocked_at ?? null,
           phone: p.phone ?? null,
-          is_deleted: false,
+          is_deleted: (p.blocked === true && (p.blocked_by?.toLowerCase().includes('gelöscht') || p.blocked_by?.toLowerCase().includes('deleted'))) ?? false,
           impact_eur: Number(p.impact_eur ?? 0),
           trust_score: Number(p.trust_score ?? 0),
           last_seen_at: p.last_seen_at,
@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
       total:   merged.length,
       active:  merged.filter(u => !u.blocked && !u.is_deleted).length,
       blocked: merged.filter(u =>  u.blocked && !u.is_deleted).length,
-      deleted: 0,
+      deleted: merged.filter(u => u.is_deleted).length,
       wirker:  merged.filter(u =>  u.is_wirker).length,
     };
 
