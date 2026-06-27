@@ -19,7 +19,7 @@ const MODULES: Module[] = [
   // Buchhaltung
   { key:'payments',       label:'Zahlungen',         icon:'💳', desc:'Alle Transaktionen & Zahlungen',            group:'Buchhaltung' },
   { key:'orders',         label:'Bestellungen',       icon:'🛒', desc:'Bestellungen mit Status & Betrag',          group:'Buchhaltung' },
-  { key:'memberships',    label:'Mitgliedschaften',   icon:'⭐', desc:'Abo-Pläne, Status & Zahlungsreferenzen',    group:'Buchhaltung' },
+  // memberships — deaktiviert bis Tabelle angelegt
   // Nutzer
   { key:'profiles',       label:'Nutzerliste',        icon:'👥', desc:'Alle Profile inkl. Rollen & Mitgliedschaft', group:'Nutzer' },
   { key:'wirker_profiles',label:'Wirker Profile',     icon:'🔧', desc:'Aktive Wirker: Typ, Buchungen & Impact',    group:'Nutzer' },
@@ -31,7 +31,7 @@ const MODULES: Module[] = [
   { key:'impact_pool',    label:'Impact Pool',        icon:'🌱', desc:'Monatsübersicht Pool & Ausschüttung',       group:'Impact' },
   { key:'impact_projects',label:'Impact Projekte',    icon:'🚀', desc:'Projekte, Votes & Fördersummen',            group:'Impact' },
   // System
-  { key:'activity_logs',  label:'Audit Logs',         icon:'📋', desc:'Alle Admin-Aktionen & Änderungen',          group:'System' },
+  // activity_logs — deaktiviert bis Tabelle angelegt
 ];
 
 const GROUP_ORDER = ['Buchhaltung','Nutzer','Content','Impact','System'];
