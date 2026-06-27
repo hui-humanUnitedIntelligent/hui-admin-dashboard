@@ -10,16 +10,27 @@ type AuthUser = {
   app_metadata?:  Record<string, unknown>;
 };
 
+// Nur Spalten die in der profiles-Tabelle tatsächlich existieren
 interface Profile {
-  id: string; email: string | null; created_at: string;
-  display_name: string | null; username: string | null;
-  full_name: string | null; avatar_url: string | null;
-  role: string | null; membership_type: string | null;
-  is_wirker: boolean | null; is_member: boolean | null;
-  blocked: boolean | null; blocked_reason: string | null;
-  blocked_at: string | null; phone: string | null;
-  impact_eur: number | null; trust_score: number | null;
+  id: string;
+  email: string | null;
+  created_at: string;
+  display_name: string | null;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: string | null;
+  membership_type: string | null;
+  is_wirker: boolean | null;
+  is_member: boolean | null;
+  blocked: boolean | null;
+  blocked_at: string | null;
+  blocked_by: string | null;
+  phone: string | null;
+  impact_eur: number | null;
+  trust_score: number | null;
   last_seen_at: string | null;
+  location_label: string | null;
 }
 
 interface MergedUser {
@@ -31,10 +42,18 @@ interface MergedUser {
   blocked: boolean; blocked_reason: string | null; blocked_at: string | null;
   phone: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
+  location_label: string | null;
   source: string;
 }
 
-const PROFILE_COLS = 'id,display_name,username,full_name,avatar_url,role,membership_type,is_wirker,is_member,blocked,blocked_reason,blocked_at,phone,impact_eur,trust_score,last_seen_at,email,created_at';
+// Nur existierende Spalten — kein blocked_reason, kein is_deleted in DB
+const PROFILE_COLS = [
+  'id','display_name','username','full_name','avatar_url','role',
+  'membership_type','is_wirker','is_member',
+  'blocked','blocked_at','blocked_by','phone',
+  'impact_eur','trust_score','last_seen_at','email','created_at',
+  'location_label',
+].join(',');
 
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
@@ -63,7 +82,8 @@ export async function GET(req: NextRequest) {
           );
           if (!res.ok) break;
           const body = await res.json() as { users?: AuthUser[] } | AuthUser[];
-          const users: AuthUser[] = Array.isArray(body) ? body : ((body as { users?: AuthUser[] }).users ?? []);
+          const users: AuthUser[] = Array.isArray(body) ? body
+            : ((body as { users?: AuthUser[] }).users ?? []);
           authUsers.push(...users);
           if (users.length < 1000) break;
           page++;
@@ -71,17 +91,17 @@ export async function GET(req: NextRequest) {
       } catch(e) { console.error('[users] auth error:', e); }
     }
 
-    // 2) Profiles — doppelter Cast um Supabase-GenericStringError zu umgehen
+    // 2) Profiles — nur existierende Spalten
     const { data: rawProfiles, error: profErr } = await supabase
       .from('profiles')
       .select(PROFILE_COLS);
 
     if (profErr) {
+      console.error('[users GET] profiles error:', profErr.message);
       return NextResponse.json({ ok: false, error: profErr.message }, { status: 500 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const profiles = ((rawProfiles ?? []) as unknown as Profile[]);
+    const profiles = (rawProfiles ?? []) as unknown as Profile[];
 
     // 3) Maps
     const profileMap = new Map<string, Profile>();
@@ -109,17 +129,19 @@ export async function GET(req: NextRequest) {
         is_wirker:       Boolean(p?.is_wirker),
         is_member:       Boolean(p?.is_member),
         blocked:         Boolean(p?.blocked) || isBanned,
-        blocked_reason:  p?.blocked_reason ?? null,
+        blocked_reason:  p?.blocked_by ?? null,   // blocked_by als Grund-Fallback
         blocked_at:      p?.blocked_at ?? null,
         phone:           p?.phone ?? null,
         is_deleted:      false,
         impact_eur:      Number(p?.impact_eur ?? 0),
         trust_score:     Number(p?.trust_score ?? 0),
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
+        location_label:  p?.location_label ?? null,
         source:          p ? 'both' : 'auth_only',
       });
     }
 
+    // Nur-Profile ohne Auth-Account
     for (const p of profiles) {
       if (!authMap.has(p.id)) {
         merged.push({
@@ -130,10 +152,15 @@ export async function GET(req: NextRequest) {
           role: p.role ?? 'user', membership_type: p.membership_type,
           is_wirker: Boolean(p.is_wirker), is_member: Boolean(p.is_member),
           blocked: Boolean(p.blocked),
-          blocked_reason: p.blocked_reason, blocked_at: p.blocked_at, phone: p.phone,
+          blocked_reason: p.blocked_by ?? null,
+          blocked_at: p.blocked_at ?? null,
+          phone: p.phone ?? null,
           is_deleted: false,
-          impact_eur: Number(p.impact_eur ?? 0), trust_score: Number(p.trust_score ?? 0),
-          last_seen_at: p.last_seen_at, source: 'profile_only',
+          impact_eur: Number(p.impact_eur ?? 0),
+          trust_score: Number(p.trust_score ?? 0),
+          last_seen_at: p.last_seen_at,
+          location_label: p.location_label ?? null,
+          source: 'profile_only',
         });
       }
     }
@@ -158,7 +185,7 @@ export async function GET(req: NextRequest) {
       total:   merged.length,
       active:  merged.filter(u => !u.blocked && !u.is_deleted).length,
       blocked: merged.filter(u =>  u.blocked && !u.is_deleted).length,
-      deleted: merged.filter(u =>  u.is_deleted).length,
+      deleted: 0,
       wirker:  merged.filter(u =>  u.is_wirker).length,
     };
 
