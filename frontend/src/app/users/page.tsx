@@ -1,3 +1,4 @@
+import React from 'react';
 // frontend/src/app/users/page.tsx
 'use client';
 
@@ -56,6 +57,149 @@ async function apiDelete(userId: string) {
   return res.json();
 }
 
+// ── ActivityTab: Bio + Werke + Erlebnisse + Projekte ─────────────────────────
+const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+function ActivityTab({ userId }: { userId: string }) {
+  const [data, setData] = React.useState<{
+    bio: string | null;
+    works: Array<Record<string,unknown>>;
+    experiences: Array<Record<string,unknown>>;
+    projects: Array<Record<string,unknown>>;
+  }>({ bio: null, works: [], experiences: [], projects: [] });
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const h = { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` };
+        const qs = (table: string, filter: string, fields: string) =>
+          fetch(`${SUPABASE_URL}/rest/v1/${table}?${filter}&select=${fields}&limit=50`, { headers: h })
+            .then(r => r.json()).catch(() => []);
+
+        const [profile, works, experiences, projects] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=bio`, { headers: h }).then(r=>r.json()).catch(()=>[]),
+          qs('works',       `user_id=eq.${userId}`, 'id,title,status,price,category,created_at'),
+          qs('experiences', `user_id=eq.${userId}`, 'id,title,status,price,experience_type,category,created_at'),
+          qs('projects',    `user_id=eq.${userId}`, 'id,title,status,category,created_at'),
+        ]);
+
+        setData({
+          bio:         Array.isArray(profile) && profile[0] ? (profile[0] as Record<string,unknown>).bio as string | null : null,
+          works:       Array.isArray(works)       ? works as Array<Record<string,unknown>>       : [],
+          experiences: Array.isArray(experiences) ? experiences as Array<Record<string,unknown>> : [],
+          projects:    Array.isArray(projects)    ? projects as Array<Record<string,unknown>>    : [],
+        });
+      } finally { setLoading(false); }
+    }
+    load();
+  }, [userId]);
+
+  if (loading) return (
+    <div style={{ padding:'24px 0', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
+      Lade Aktivitäten…
+    </div>
+  );
+
+  function Section({ title, icon, items, emptyMsg, renderRow }: {
+    title: string; icon: string;
+    items: Array<Record<string,unknown>>;
+    emptyMsg: string;
+    renderRow: (item: Record<string,unknown>, i: number) => React.ReactNode;
+  }) {
+    return (
+      <div style={{ marginBottom:18 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+          <span>{icon}</span>
+          <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em',
+            color:'var(--text-muted)' }}>{title}</span>
+          <span style={{ fontSize:11, background:'var(--bg-tertiary)', padding:'1px 6px',
+            borderRadius:10, color:'var(--text-muted)' }}>{items.length}</span>
+        </div>
+        {items.length === 0 ? (
+          <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:'4px 0' }}>{emptyMsg}</p>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+            {items.map((item, i) => renderRow(item, i))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function ItemRow({ item, typeField }: { item: Record<string,unknown>; typeField?: string }) {
+    const s = String(item.status ?? '—');
+    const statusColor: Record<string,string> = {
+      published: '#4ECDC4', pending_review: '#F59E0B', submitted: '#F59E0B',
+      draft: '#9CA3AF', deleted: '#F87171', rejected: '#F87171', sensitive: '#F59E0B',
+    };
+    const color = statusColor[s] ?? '#9CA3AF';
+    const typeVal = typeField ? String(item[typeField] ?? '') : '';
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px',
+        background:'var(--bg-secondary)', borderRadius:7,
+        border:'1px solid var(--border)' }}>
+        {typeVal && (
+          <span style={{ fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3,
+            textTransform:'uppercase', background:'var(--bg-tertiary)',
+            color:'var(--text-secondary)', flexShrink:0 }}>{typeVal}</span>
+        )}
+        <span style={{ flex:1, fontSize:12, color:'var(--text-primary)',
+          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {String(item.title ?? 'Kein Titel')}
+        </span>
+        {item.price != null && (
+          <span style={{ fontSize:11, color:'var(--text-secondary)', flexShrink:0 }}>
+            €{Number(item.price).toLocaleString('de-DE')}
+          </span>
+        )}
+        <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:600,
+          background:`${color}18`, color, flexShrink:0 }}>
+          {s}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+
+      {/* Bio */}
+      <div style={{ marginBottom:18, padding:'12px 14px', borderRadius:8,
+        background:'var(--bg-secondary)', border:'1px solid var(--border)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
+          <span>💬</span>
+          <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase',
+            letterSpacing:'0.06em', color:'var(--text-muted)' }}>Bio</span>
+        </div>
+        {data.bio ? (
+          <p style={{ fontSize:13, color:'var(--text-primary)', margin:0,
+            lineHeight:1.5, whiteSpace:'pre-wrap' }}>{data.bio}</p>
+        ) : (
+          <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:0 }}>
+            Keine Bio eingetragen.
+          </p>
+        )}
+      </div>
+
+      <Section title="Werke" icon="🎨" items={data.works} emptyMsg="Keine Werke vorhanden."
+        renderRow={(item, i) => <ItemRow key={i} item={item} typeField="category" />}
+      />
+
+      <Section title="Erlebnisse & Projekte" icon="🌿" items={data.experiences} emptyMsg="Keine Erlebnisse vorhanden."
+        renderRow={(item, i) => <ItemRow key={i} item={item} typeField="experience_type" />}
+      />
+
+      <Section title="Projekte (Impact)" icon="📌" items={data.projects} emptyMsg="Keine Impact-Projekte."
+        renderRow={(item, i) => <ItemRow key={i} item={item} />}
+      />
+
+    </div>
+  );
+}
+
 // ── User-Detail-Modal ────────────────────────────────────────────────────────
 function UserDetailModal({
   user, onClose, onBlock, onUnblock, onDelete, refetch
@@ -67,7 +211,7 @@ function UserDetailModal({
   onDelete:  (u: MergedUser) => void;
   refetch: () => void;
 }) {
-  const [view,        setView]        = useState<'info' | 'block' | 'note'>('info');
+  const [view,        setView]        = useState<'info' | 'activity' | 'block' | 'note'>('info');
   const [blockReason, setBlockReason] = useState(user.blocked_reason || '');
   const [saving,      setSaving]      = useState(false);
 
@@ -148,7 +292,7 @@ function UserDetailModal({
 
         {/* Sub-Tabs */}
         <div style={{ display:'flex', gap:6, marginBottom:18, borderBottom:'1px solid var(--border)', paddingBottom:12 }}>
-          {([['info','Profil-Info'], ['block', isBlocked ? 'Entsperren' : 'Blockieren'], ['note','Admin-Notiz']] as const).map(([k,l])=>(
+          {([['info','Profil-Info'], ['activity','Aktivität'], ['block', isBlocked ? 'Entsperren' : 'Blockieren'], ['note','Admin-Notiz']] as const).map(([k,l])=>(
             <button key={k} onClick={()=>setView(k)}
               style={{ padding:'5px 14px', borderRadius:16, fontSize:12, cursor:'pointer',
                 border:`1px solid ${view===k?'var(--accent)':'var(--border)'}`,
@@ -192,6 +336,12 @@ function UserDetailModal({
                 textDecoration:'none', fontWeight:500 }}>support@be-hui.com</a>
             </div>
           </div>
+        )}
+
+
+        {/* Aktivitäts-Tab: Bio + Werke + Erlebnisse + Projekte */}
+        {view === 'activity' && (
+          <ActivityTab userId={user.id} />
         )}
 
         {/* Block / Unblock */}
