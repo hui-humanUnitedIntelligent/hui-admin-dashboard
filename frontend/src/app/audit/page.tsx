@@ -60,14 +60,6 @@ const TABS: TabConfig[] = [
       { key: 'status',        label: 'Status',      width: 100 },
     ],
   },
-  { key: 'messages', label: 'Nachrichten', icon: '💬',
-    cols: [
-      { key: 'created_at',  label: 'Zeit',    width: 130 },
-      { key: 'sender_name', label: 'Absender',width: 140 },
-      { key: 'text',        label: 'Nachricht' },
-      { key: 'is_read',     label: 'Gelesen', width: 80 },
-    ],
-  },
   { key: 'reviews', label: 'Website Reviews', icon: '⭐',
     cols: [
       { key: 'created_at', label: 'Zeit',    width: 130 },
