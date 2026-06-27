@@ -43,7 +43,7 @@ export default function PageHeader({
         display:       'flex',
         alignItems:    'center',
         justifyContent:'space-between',
-        minHeight:     72,
+        minHeight:     56,
         padding:       '0 0 24px 0',
         gap:           16,
         borderBottom:  '1px solid var(--border)',
@@ -129,7 +129,7 @@ export default function PageHeader({
             alignItems: 'center',
             gap:        8,
             flexShrink: 0,
-            flexWrap:   'wrap',
+            flexWrap:   'nowrap',
             justifyContent: 'flex-end',
           }}
         >
