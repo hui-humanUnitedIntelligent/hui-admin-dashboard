@@ -69,7 +69,7 @@ function ActivityTab({ userId }: { userId: string }) {
     experiences: Array<Record<string,unknown>>;
     projects: Array<Record<string,unknown>>;
   }>({ bio: null, location: null, tags: [], works: [], experiences: [], projects: [] });
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch(`/api/users/${userId}/activity`, { credentials: 'include' })
