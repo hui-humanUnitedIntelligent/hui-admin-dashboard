@@ -10,7 +10,29 @@ type AuthUser = {
   app_metadata?:  Record<string, unknown>;
 };
 
-type MergedUser = {
+// Explizites Profile-Interface — alle Felder die wir brauchen
+interface Profile {
+  id:              string;
+  email:           string | null;
+  created_at:      string;
+  display_name:    string | null;
+  username:        string | null;
+  full_name:       string | null;
+  avatar_url:      string | null;
+  role:            string | null;
+  membership_type: string | null;
+  is_wirker:       boolean | null;
+  is_member:       boolean | null;
+  blocked:         boolean | null;
+  blocked_reason:  string | null;
+  blocked_at:      string | null;
+  phone:           string | null;
+  impact_eur:      number | null;
+  trust_score:     number | null;
+  last_seen_at:    string | null;
+}
+
+interface MergedUser {
   id: string; email: string | null; created_at: string;
   last_sign_in_at: string | null; display_name: string | null;
   username: string | null; full_name: string | null;
@@ -20,7 +42,7 @@ type MergedUser = {
   phone: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
   source: string;
-};
+}
 
 const PROFILE_COLS = [
   'id','display_name','username','full_name','avatar_url','role',
@@ -67,8 +89,8 @@ export async function GET(req: NextRequest) {
       } catch(e) { console.error('[users] auth fetch error:', e); }
     }
 
-    // 2) Profiles — alle Felder inkl. blocked_reason, phone etc.
-    const { data: profiles, error: profErr } = await supabase
+    // 2) Profiles
+    const { data: rawProfiles, error: profErr } = await supabase
       .from('profiles')
       .select(PROFILE_COLS);
 
@@ -77,17 +99,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: profErr.message }, { status: 500 });
     }
 
+    const profiles = (rawProfiles ?? []) as Profile[];
+
     // 3) Maps
-    type Profile = NonNullable<typeof profiles>[0];
     const profileMap = new Map<string, Profile>();
-    (profiles ?? []).forEach(p => profileMap.set(p.id, p));
+    profiles.forEach(p => profileMap.set(p.id, p));
     const authMap = new Map<string, AuthUser>();
     authUsers.forEach(u => authMap.set(u.id, u));
 
-    // 4) Merge: Auth-User + Profile zusammenführen
+    // 4) Merge
     const merged: MergedUser[] = [];
 
-    // Auth-User mit oder ohne Profil
     for (const au of authUsers) {
       const p = profileMap.get(au.id);
       const isBanned = !!au.banned_until && new Date(au.banned_until) > new Date();
@@ -99,15 +121,15 @@ export async function GET(req: NextRequest) {
         display_name:    p?.display_name ?? null,
         username:        p?.username ?? null,
         full_name:       p?.full_name ?? String(au.user_metadata?.full_name ?? ''),
-        avatar_url:      p?.avatar_url ?? String(au.user_metadata?.avatar_url ?? ''),
+        avatar_url:      p?.avatar_url ?? null,
         role:            p?.role ?? String(au.app_metadata?.role ?? 'user'),
         membership_type: p?.membership_type ?? null,
         is_wirker:       Boolean(p?.is_wirker),
         is_member:       Boolean(p?.is_member),
         blocked:         Boolean(p?.blocked) || isBanned,
-        blocked_reason:  (p as unknown as Record<string,unknown>)?.blocked_reason as string|null ?? null,
-        blocked_at:      (p as unknown as Record<string,unknown>)?.blocked_at   as string|null ?? null,
-        phone:           (p as unknown as Record<string,unknown>)?.phone         as string|null ?? null,
+        blocked_reason:  p?.blocked_reason ?? null,
+        blocked_at:      p?.blocked_at ?? null,
+        phone:           p?.phone ?? null,
         is_deleted:      false,
         impact_eur:      Number(p?.impact_eur ?? 0),
         trust_score:     Number(p?.trust_score ?? 0),
@@ -116,23 +138,21 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Nur-Profile (kein Auth-Account — Sonderfall)
-    for (const p of profiles ?? []) {
+    // Nur-Profile (kein Auth-Account)
+    for (const p of profiles) {
       if (!authMap.has(p.id)) {
         merged.push({
-          id: p.id, email: p.email ?? null, created_at: p.created_at,
+          id: p.id, email: p.email, created_at: p.created_at,
           last_sign_in_at: p.last_seen_at ?? null,
-          display_name: p.display_name ?? null, username: p.username ?? null,
-          full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null,
-          role: p.role ?? 'user', membership_type: p.membership_type ?? null,
+          display_name: p.display_name, username: p.username,
+          full_name: p.full_name, avatar_url: p.avatar_url,
+          role: p.role ?? 'user', membership_type: p.membership_type,
           is_wirker: Boolean(p.is_wirker), is_member: Boolean(p.is_member),
           blocked: Boolean(p.blocked),
-          blocked_reason: (p as unknown as Record<string,unknown>)?.blocked_reason as string|null ?? null,
-          blocked_at:     (p as unknown as Record<string,unknown>)?.blocked_at    as string|null ?? null,
-          phone:          (p as unknown as Record<string,unknown>)?.phone          as string|null ?? null,
+          blocked_reason: p.blocked_reason, blocked_at: p.blocked_at, phone: p.phone,
           is_deleted: false,
           impact_eur: Number(p.impact_eur ?? 0), trust_score: Number(p.trust_score ?? 0),
-          last_seen_at: p.last_seen_at ?? null, source: 'profile_only',
+          last_seen_at: p.last_seen_at, source: 'profile_only',
         });
       }
     }
