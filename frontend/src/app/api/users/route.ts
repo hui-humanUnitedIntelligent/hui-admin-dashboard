@@ -15,10 +15,19 @@ type MergedUser = {
   last_sign_in_at: string | null; display_name: string | null;
   username: string | null; full_name: string | null;
   avatar_url: string | null; role: string; membership_type: string | null;
-  is_wirker: boolean; is_member: boolean; blocked: boolean;
+  is_wirker: boolean; is_member: boolean;
+  blocked: boolean; blocked_reason: string | null; blocked_at: string | null;
+  phone: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
   source: string;
 };
+
+const PROFILE_COLS = [
+  'id','display_name','username','full_name','avatar_url','role',
+  'membership_type','is_wirker','is_member',
+  'blocked','blocked_reason','blocked_at','phone',
+  'impact_eur','trust_score','last_seen_at','email','created_at',
+].join(',');
 
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
@@ -27,15 +36,15 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const filter = searchParams.get('filter') || 'all';
-    const search = (searchParams.get('search') || '').toLowerCase();
-    const limit  = Math.min(parseInt(searchParams.get('limit')  || '500'), 1000);
+    const search = (searchParams.get('search') || '').toLowerCase().trim();
+    const limit  = Math.min(parseInt(searchParams.get('limit')  || '1000'), 2000);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     const supabase    = getServiceClient();
     const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
-    // 1) Auth Users via Admin REST
+    // 1) Auth Users — alle Seiten laden
     let authUsers: AuthUser[] = [];
     if (supabaseUrl && serviceKey) {
       try {
@@ -43,7 +52,8 @@ export async function GET(req: NextRequest) {
         while (true) {
           const res = await fetch(
             `${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=1000`,
-            { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+            { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
+              cache: 'no-store' }
           );
           if (!res.ok) break;
           const body = await res.json() as { users?: AuthUser[] } | AuthUser[];
@@ -54,13 +64,13 @@ export async function GET(req: NextRequest) {
           if (users.length < 1000) break;
           page++;
         }
-      } catch { /* ignore */ }
+      } catch(e) { console.error('[users] auth fetch error:', e); }
     }
 
-    // 2) Profiles — nur existierende Columns
+    // 2) Profiles — alle Felder inkl. blocked_reason, phone etc.
     const { data: profiles, error: profErr } = await supabase
       .from('profiles')
-      .select('id,display_name,username,full_name,avatar_url,role,membership_type,is_wirker,is_member,blocked,impact_eur,trust_score,last_seen_at,email,created_at');
+      .select(PROFILE_COLS);
 
     if (profErr) {
       console.error('[users GET] profiles error:', profErr.message);
@@ -74,11 +84,13 @@ export async function GET(req: NextRequest) {
     const authMap = new Map<string, AuthUser>();
     authUsers.forEach(u => authMap.set(u.id, u));
 
-    // 4) Merge
+    // 4) Merge: Auth-User + Profile zusammenführen
     const merged: MergedUser[] = [];
 
+    // Auth-User mit oder ohne Profil
     for (const au of authUsers) {
       const p = profileMap.get(au.id);
+      const isBanned = !!au.banned_until && new Date(au.banned_until) > new Date();
       merged.push({
         id:              au.id,
         email:           au.email ?? p?.email ?? null,
@@ -90,16 +102,21 @@ export async function GET(req: NextRequest) {
         avatar_url:      p?.avatar_url ?? String(au.user_metadata?.avatar_url ?? ''),
         role:            p?.role ?? String(au.app_metadata?.role ?? 'user'),
         membership_type: p?.membership_type ?? null,
-        is_wirker:       p?.is_wirker ?? false,
-        is_member:       p?.is_member ?? false,
-        blocked:         p?.blocked ?? (!!au.banned_until && new Date(au.banned_until) > new Date()),
-        impact_eur:      p?.impact_eur ?? 0,
-        trust_score:     p?.trust_score ?? 0,
+        is_wirker:       Boolean(p?.is_wirker),
+        is_member:       Boolean(p?.is_member),
+        blocked:         Boolean(p?.blocked) || isBanned,
+        blocked_reason:  (p as unknown as Record<string,unknown>)?.blocked_reason as string|null ?? null,
+        blocked_at:      (p as unknown as Record<string,unknown>)?.blocked_at   as string|null ?? null,
+        phone:           (p as unknown as Record<string,unknown>)?.phone         as string|null ?? null,
+        is_deleted:      false,
+        impact_eur:      Number(p?.impact_eur ?? 0),
+        trust_score:     Number(p?.trust_score ?? 0),
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
         source:          p ? 'both' : 'auth_only',
       });
     }
 
+    // Nur-Profile (kein Auth-Account — Sonderfall)
     for (const p of profiles ?? []) {
       if (!authMap.has(p.id)) {
         merged.push({
@@ -108,13 +125,20 @@ export async function GET(req: NextRequest) {
           display_name: p.display_name ?? null, username: p.username ?? null,
           full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null,
           role: p.role ?? 'user', membership_type: p.membership_type ?? null,
-          is_wirker: p.is_wirker ?? false, is_member: p.is_member ?? false,
-          blocked: p.blocked ?? false,
-          impact_eur: p.impact_eur ?? 0, trust_score: p.trust_score ?? 0,
+          is_wirker: Boolean(p.is_wirker), is_member: Boolean(p.is_member),
+          blocked: Boolean(p.blocked),
+          blocked_reason: (p as unknown as Record<string,unknown>)?.blocked_reason as string|null ?? null,
+          blocked_at:     (p as unknown as Record<string,unknown>)?.blocked_at    as string|null ?? null,
+          phone:          (p as unknown as Record<string,unknown>)?.phone          as string|null ?? null,
+          is_deleted: false,
+          impact_eur: Number(p.impact_eur ?? 0), trust_score: Number(p.trust_score ?? 0),
           last_seen_at: p.last_seen_at ?? null, source: 'profile_only',
         });
       }
     }
+
+    // Neueste zuerst
+    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // 5) Filter
     let filtered = merged;
@@ -122,22 +146,22 @@ export async function GET(req: NextRequest) {
       u.email?.toLowerCase().includes(search) ||
       u.display_name?.toLowerCase().includes(search) ||
       u.username?.toLowerCase().includes(search) ||
+      u.full_name?.toLowerCase().includes(search) ||
       u.id.toLowerCase().includes(search)
     );
-    if (filter === 'active')  filtered = filtered.filter(u => !u.blocked);
-    if (filter === 'blocked') filtered = filtered.filter(u =>  u.blocked);
-    if (filter === 'deleted') filtered = [];
+    if (filter === 'active')  filtered = filtered.filter(u => !u.blocked && !u.is_deleted);
+    if (filter === 'blocked') filtered = filtered.filter(u =>  u.blocked && !u.is_deleted);
+    if (filter === 'deleted') filtered = filtered.filter(u =>  u.is_deleted);
     if (filter === 'wirker')  filtered = filtered.filter(u =>  u.is_wirker);
 
-    filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     const total     = filtered.length;
     const paginated = filtered.slice(offset, offset + limit);
 
     const counts = {
       total:   merged.length,
-      active:  merged.filter(u => !u.blocked).length,
-      blocked: merged.filter(u =>  u.blocked).length,
-      deleted: 0,
+      active:  merged.filter(u => !u.blocked && !u.is_deleted).length,
+      blocked: merged.filter(u =>  u.blocked && !u.is_deleted).length,
+      deleted: merged.filter(u =>  u.is_deleted).length,
       wirker:  merged.filter(u =>  u.is_wirker).length,
     };
 
