@@ -2,59 +2,67 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseRealtime } from './useSupabaseRealtime';
 
-export interface KPIData {
-  totalUsers:      number;
-  activeWirker:    number;
-  activeMembers:   number;
-  monthlyRevenue:  number;
-  netImpactPool:   number;
-  companyShare:    number;
-  totalWorks:      number;
-  openBookings:    number;
-  totalPayments:   number;
-  activeAmbassadors: number;
-  openApplications:  number;
-  totalReferrals:    number;
-  recentUsers:     Array<Record<string,unknown>>;
-  recentPayments:  Array<Record<string,unknown>>;
-  growthData:      Array<{ month: string; new: number; total: number }>;
-  loading:   boolean;
-  error:     string | null;
+// Spiegelt exakt die API-Response wider
+export interface DashboardData {
+  kpis: {
+    totalUsers: number; activeWirker: number; activeMembers: number;
+    totalWorks: number; monthlyRevenue: number; impactPool: number;
+    totalPayments: number; activeBookings: number;
+    activeAmbassadors: number; pendingAmbassadors: number; totalReferrals: number;
+  };
+  growth: { labels: string[]; newUsers: number[]; activeUsers: number[] };
+  recentUsers:    Array<Record<string,unknown>>;
+  recentPayments: Array<Record<string,unknown>>;
+  impactProjects: Array<Record<string,unknown>>;
+  loading:     boolean;
+  error:       string | null;
   lastUpdated: Date | null;
+  refetch:     () => void;
 }
 
-export interface DashboardData extends KPIData {
-  refetch: () => void;
-}
+const EMPTY: Omit<DashboardData, 'refetch'> = {
+  kpis: {
+    totalUsers:0, activeWirker:0, activeMembers:0,
+    totalWorks:0, monthlyRevenue:0, impactPool:0,
+    totalPayments:0, activeBookings:0,
+    activeAmbassadors:0, pendingAmbassadors:0, totalReferrals:0,
+  },
+  growth:         { labels:[], newUsers:[], activeUsers:[] },
+  recentUsers:    [],
+  recentPayments: [],
+  impactProjects: [],
+  loading: true, error: null, lastUpdated: null,
+};
 
 export function useDashboard(refreshInterval = 30000): DashboardData {
-  const [data, setData] = useState<Omit<DashboardData, 'refetch'>>({
-    totalUsers: 0, activeWirker: 0, activeMembers: 0,
-    monthlyRevenue: 0, netImpactPool: 0, companyShare: 0,
-    totalWorks: 0, openBookings: 0, totalPayments: 0,
-    activeAmbassadors: 0, openApplications: 0, totalReferrals: 0,
-    recentUsers: [], recentPayments: [], growthData: [],
-    loading: true, error: null, lastUpdated: null,
-  });
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [data, setData] = useState<Omit<DashboardData,'refetch'>>(EMPTY);
+  const intervalRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
   const fetchAll = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard', { credentials: 'include' });
+      const res = await fetch('/api/dashboard', { credentials:'include', cache:'no-store' });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({})) as { error?: string };
-        setData(prev => ({ ...prev, loading: false, error: j.error ?? `HTTP ${res.status}` }));
+        const j = await res.json().catch(()=>({})) as {error?:string};
+        setData(p => ({...p, loading:false, error: j.error ?? `HTTP ${res.status}`}));
         return;
       }
-      const j = await res.json() as Omit<DashboardData, 'refetch'>;
-      setData({ ...j, loading: false, error: null, lastUpdated: new Date() });
-    } catch (e) {
-      setData(prev => ({ ...prev, loading: false, error: String(e), lastUpdated: new Date() }));
+      const j = await res.json() as Omit<DashboardData,'refetch'|'loading'|'error'|'lastUpdated'>;
+      setData({
+        kpis:           j.kpis           ?? EMPTY.kpis,
+        growth:         j.growth         ?? EMPTY.growth,
+        recentUsers:    j.recentUsers    ?? [],
+        recentPayments: j.recentPayments ?? [],
+        impactProjects: j.impactProjects ?? [],
+        loading:     false,
+        error:       null,
+        lastUpdated: new Date(),
+      });
+    } catch(e) {
+      setData(p => ({...p, loading:false, error:String(e)}));
     }
   }, []);
 
-  // Initial + Poll
+  // Initial + Polling
   useEffect(() => {
     fetchAll();
     if (refreshInterval > 0) {
@@ -63,7 +71,7 @@ export function useDashboard(refreshInterval = 30000): DashboardData {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchAll, refreshInterval]);
 
-  // Supabase Realtime: sofortiger Refresh bei jeder DB-Änderung
+  // Realtime: sofort bei DB-Änderung
   useSupabaseRealtime({ onRefresh: fetchAll, debounceMs: 800 });
 
   return { ...data, refetch: fetchAll };
