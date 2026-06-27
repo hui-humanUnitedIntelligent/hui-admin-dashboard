@@ -307,8 +307,33 @@ function EntryStatus({ entry }: { entry: HuiEntry }) {
   return <Badge variant="neutral">{str(entry.status)}</Badge>;
 }
 
-function SourceBadge({ source }: { source: string }) {
-  const isExp = source === 'experiences';
+function SourceBadge({ source, experienceType }: { source: string; experienceType?: string | null }) {
+  // Typ-Konfiguration: alle bekannten experience_types
+  const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+    workshop:    { label: 'Workshop',    color: '#4ECDC4', bg: 'rgba(78,205,196,0.12)',   border: 'rgba(78,205,196,0.3)' },
+    event:       { label: 'Event',       color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',   border: 'rgba(245,158,11,0.3)' },
+    projekt:     { label: 'Projekt',     color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)',   border: 'rgba(139,92,246,0.3)' },
+    ausstellung: { label: 'Ausstellung', color: '#EC4899', bg: 'rgba(236,72,153,0.12)',   border: 'rgba(236,72,153,0.3)' },
+    kurs:        { label: 'Kurs',        color: '#10B981', bg: 'rgba(16,185,129,0.12)',   border: 'rgba(16,185,129,0.3)' },
+    tour:        { label: 'Tour',        color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',   border: 'rgba(59,130,246,0.3)' },
+  };
+
+  const isExp  = source === 'experiences';
+  const typeKey = (experienceType ?? '').toLowerCase().trim();
+  const cfg    = TYPE_CONFIG[typeKey];
+
+  // Wenn experience_type gesetzt und bekannt → Typ-Badge
+  if (cfg) {
+    return (
+      <span style={{
+        fontSize:9, fontWeight:700, padding:'2px 6px', borderRadius:4, letterSpacing:'0.5px',
+        textTransform:'uppercase' as const,
+        background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+      }}>{cfg.label}</span>
+    );
+  }
+
+  // Fallback: Tabelle (Erlebnis / Projekt)
   return (
     <span style={{
       fontSize:9, fontWeight:700, padding:'2px 6px', borderRadius:4, letterSpacing:'0.5px',
@@ -623,7 +648,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                             {detectSensitiveExp(entry).flagged&&<span title={detectSensitiveExp(entry).reasons.join('\n')} style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:'rgba(255,107,107,0.12)', color:'var(--red)', fontWeight:700, cursor:'help' }}>⚠️</span>}
                           </div>
                         </td>
-                        <td style={{ padding:'10px 12px' }}><SourceBadge source={entry._source||'experiences'}/></td>
+                        <td style={{ padding:'10px 12px' }}><SourceBadge source={entry._source||'experiences'} experienceType={entry.experience_type}/></td>
                         <td style={{ padding:'10px 12px' }}><EntryStatus entry={entry}/></td>
                         <td style={{ padding:'10px 12px', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{entry.price?`€${Number(entry.price).toLocaleString('de-DE')}`:'—'}</td>
                         <td style={{ padding:'10px 12px', color:'var(--text-secondary)' }}>{str(entry.category)}</td>
