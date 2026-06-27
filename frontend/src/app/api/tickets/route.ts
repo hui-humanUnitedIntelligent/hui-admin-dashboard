@@ -5,25 +5,32 @@ import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
+interface Attachment { name:string; url:string; type:string; size:number }
+
 function parseTicket(row: Record<string, unknown>) {
-  const raw  = row.data as Record<string, unknown> ?? {};
+  const rawData = row.data;
+  const raw: Record<string, unknown> = (rawData && typeof rawData === 'object' && !Array.isArray(rawData))
+    ? (rawData as Record<string, unknown>)
+    : {};
+  const titleStr = typeof row.title === 'string' ? row.title : '';
+  const bodyStr  = typeof row.body  === 'string' ? row.body  : '';
   return {
     id:            row.id,
     created_at:    row.created_at,
-    ticket_number: raw.ticket_number ?? 'HUI-????',
-    name:          raw.name          ?? '',
-    email:         raw.email         ?? '',
-    phone:         raw.phone         ?? '',
-    category:      raw.category      ?? 'sonstiges',
-    priority:      raw.priority      ?? 'normal',
-    subject:       raw.subject       ?? (row.title as string ?? '').replace(/^\[HUI-[^\]]+\]\s*/, ''),
-    message:       raw.message       ?? (row.body as string ?? ''),
-    status:        raw.status        ?? 'open',
-    attachments:   raw.attachments   ?? [],
-    admin_reply:   raw.admin_reply   ?? null,
-    replied_at:    raw.replied_at    ?? null,
-    read_by_admin: raw.read_by_admin ?? false,
-    user_id:       row.user_id,
+    ticket_number: String(raw.ticket_number ?? 'HUI-????'),
+    name:          String(raw.name  ?? ''),
+    email:         String(raw.email ?? ''),
+    phone:         String(raw.phone ?? ''),
+    category:      String(raw.category ?? 'sonstiges'),
+    priority:      String(raw.priority  ?? 'normal'),
+    subject:       String(raw.subject   ?? titleStr).replace(/^\[HUI-[^\]]+\]\s*/, ''),
+    message:       String(raw.message   ?? bodyStr),
+    status:        String(raw.status    ?? 'open') as 'open'|'replied'|'closed',
+    attachments:   Array.isArray(raw.attachments) ? raw.attachments as Attachment[] : [],
+    admin_reply:   raw.admin_reply  != null ? String(raw.admin_reply)  : null,
+    replied_at:    raw.replied_at   != null ? String(raw.replied_at)   : null,
+    read_by_admin: Boolean(raw.read_by_admin ?? false),
+    user_id:       row.user_id as string|null,
   };
 }
 
