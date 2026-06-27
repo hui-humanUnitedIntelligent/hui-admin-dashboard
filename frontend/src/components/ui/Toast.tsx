@@ -13,11 +13,11 @@ interface Toast {
 }
 
 let toastId = 0;
-let globalShowToast: ((msg: string, type?: ToastType) => void) | null = null;
+let globalShowToast: ((msg: string, type?: ToastType, duration?: number) => void) | null = null;
 
 /** Imperativ-API: showToast('Gespeichert') — nutzbar ohne Hook */
-export function showToast(message: string, type: ToastType = 'success') {
-  if (globalShowToast) globalShowToast(message, type);
+export function showToast(message: string, type: ToastType = 'success', duration?: number) {
+  if (globalShowToast) globalShowToast(message, type, duration);
 }
 
 const TYPE_ICONS: Record<ToastType, string> = {
@@ -38,12 +38,12 @@ const TYPE_COLORS: Record<ToastType, string> = {
 export default function ToastContainer() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((message: string, type: ToastType = 'success') => {
+  const addToast = useCallback((message: string, type: ToastType = 'success', duration = 3500) => {
     const id = ++toastId;
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3500);
+    }, duration);
   }, []);
 
   useEffect(() => {
