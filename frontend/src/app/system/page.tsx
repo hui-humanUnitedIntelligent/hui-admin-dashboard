@@ -179,9 +179,9 @@ export default function SystemPage() {
               Auto (60s)
             </label>
             <button onClick={runChecks} disabled={running}
-              style={{ padding:'7px 16px', borderRadius:7, fontSize:13, fontWeight:600, cursor:'pointer',
+              style={{ padding:'0 14px', height:32, borderRadius:7, fontSize:12, fontWeight:600, cursor:'pointer',
                 border:'1px solid var(--accent)', background:'transparent', color:'var(--accent)',
-                opacity: running ? 0.5 : 1 }}>
+                opacity: running ? 0.5 : 1, whiteSpace:'nowrap' }}>
               {running ? '⏳ Prüfe…' : '↺ Alle prüfen'}
             </button>
           </div>
