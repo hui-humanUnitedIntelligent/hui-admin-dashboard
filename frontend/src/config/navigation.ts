@@ -40,7 +40,8 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/transactions', label_de: 'Transaktionen',    label_en: 'Transactions',     icon: '⇄',  roles: ['superadmin'] },
       { href: '/bookings',     label_de: 'Buchungen',        label_en: 'Bookings',         icon: '📅', roles: ['superadmin'] },
       { href: '/impact',       label_de: 'Impact Pool',      label_en: 'Impact Pool',      icon: '🌱', roles: ['superadmin'], superadminOnly: true },
-      { href: '/reviews',      label_de: 'Reviews',          label_en: 'Reviews',          icon: '💬', roles: ['superadmin'] },
+      { href: '/reviews',      label_de: 'App Review',        label_en: 'App Review',        icon: '💬', roles: ['superadmin'] },
+      { href: '/website-reviews', label_de: 'Webseite Review',   label_en: 'Website Review',    icon: '🌐', roles: ['superadmin'] },
     ],
   },
   {
