@@ -1,145 +1,289 @@
 'use client';
-import { useRouter } from 'next/navigation';
 // frontend/src/app/audit/page.tsx
-
-import { isSuperAdmin } from '@/lib/roles';
-
-import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
-import { sbQuery } from '@/lib/api';
 
-interface AuditEntry {
-  id: string;
-  table_name?: string;
-  action?: string;
-  record_id?: string;
-  changed_by?: string;
-  changed_at?: string;
-  old_data?: unknown;
-  new_data?: unknown;
-  created_at: string;
-  event_type?: string;
-  user_id?: string;
+// ── Typen ─────────────────────────────────────────────────────────────────────
+type Row = Record<string, unknown>;
+
+interface TabConfig {
+  key: string;
+  label: string;
+  icon: string;
+  cols: { key: string; label: string; width?: number }[];
 }
 
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return 'gerade eben';
-  if (mins < 60) return `vor ${mins} Min`;
-  const h = Math.floor(mins / 60);
-  if (h < 24)    return `vor ${h} Std`;
-  return new Date(iso).toLocaleDateString('de-DE');
+const TABS: TabConfig[] = [
+  { key: 'notifications', label: 'Benachrichtigungen', icon: '🔔',
+    cols: [
+      { key: 'created_at', label: 'Zeit', width: 130 },
+      { key: 'type',       label: 'Typ',  width: 180 },
+      { key: 'title',      label: 'Titel' },
+      { key: 'user_id',    label: 'User-ID', width: 110 },
+      { key: 'is_read',    label: 'Gelesen', width: 80 },
+    ],
+  },
+  { key: 'registrations', label: 'Registrierungen', icon: '👤',
+    cols: [
+      { key: 'created_at',   label: 'Zeit',         width: 130 },
+      { key: 'display_name', label: 'Name' },
+      { key: 'username',     label: 'Username',     width: 130 },
+      { key: 'email',        label: 'E-Mail' },
+      { key: 'role',         label: 'Rolle',        width: 90 },
+    ],
+  },
+  { key: 'works', label: 'Werke', icon: '🎨',
+    cols: [
+      { key: 'created_at', label: 'Zeit',     width: 130 },
+      { key: 'title',      label: 'Titel' },
+      { key: 'category',   label: 'Kategorie', width: 130 },
+      { key: 'status',     label: 'Status',    width: 100 },
+      { key: 'price_eur',  label: 'Preis €',   width: 90 },
+    ],
+  },
+  { key: 'experiences', label: 'Erlebnisse', icon: '🌿',
+    cols: [
+      { key: 'created_at',     label: 'Zeit',   width: 130 },
+      { key: 'title',          label: 'Titel' },
+      { key: 'experience_type',label: 'Typ',    width: 110 },
+      { key: 'status',         label: 'Status', width: 100 },
+      { key: 'price',          label: 'Preis',  width: 90 },
+    ],
+  },
+  { key: 'impact', label: 'Impact Bewerbungen', icon: '🚀',
+    cols: [
+      { key: 'created_at',    label: 'Zeit',        width: 130 },
+      { key: 'project_name',  label: 'Projekt' },
+      { key: 'contact_name',  label: 'Kontakt',     width: 140 },
+      { key: 'contact_email', label: 'E-Mail',      width: 180 },
+      { key: 'status',        label: 'Status',      width: 100 },
+    ],
+  },
+  { key: 'messages', label: 'Nachrichten', icon: '💬',
+    cols: [
+      { key: 'created_at',  label: 'Zeit',    width: 130 },
+      { key: 'sender_name', label: 'Absender',width: 140 },
+      { key: 'text',        label: 'Nachricht' },
+      { key: 'is_read',     label: 'Gelesen', width: 80 },
+    ],
+  },
+  { key: 'reviews', label: 'Website Reviews', icon: '⭐',
+    cols: [
+      { key: 'created_at', label: 'Zeit',    width: 130 },
+      { key: 'name',       label: 'Name',    width: 140 },
+      { key: 'stars',      label: '★',       width: 60 },
+      { key: 'status',     label: 'Status',  width: 100 },
+      { key: 'message',    label: 'Kommentar' },
+    ],
+  },
+];
+
+// ── Hilfsfunktionen ───────────────────────────────────────────────────────────
+function fmtTime(v: unknown): string {
+  if (!v) return '—';
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    return new Date(s).toLocaleString('de-DE', {
+      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit',
+    });
+  }
+  return s;
 }
 
-const ACTION_COLORS: Record<string, string> = {
-  INSERT: 'var(--green)', DELETE: 'var(--red)',
-  UPDATE: 'var(--gold)', SELECT: 'var(--text-muted)',
-  signup: 'var(--accent)', login: 'var(--blue)',
-};
+function fmtVal(col: string, v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  if (col === 'created_at') return fmtTime(v);
+  if (typeof v === 'boolean') return v ? 'ja' : 'nein';
+  if (col === 'user_id' || col === 'chat_id') return String(v).slice(0, 8) + '…';
+  if (col === 'price_eur' || col === 'price') {
+    const n = parseFloat(String(v));
+    return isNaN(n) ? '—' : `€ ${n.toFixed(2)}`;
+  }
+  const s = String(v);
+  return s.length > 80 ? s.slice(0, 80) + '…' : s;
+}
 
+function StatusBadge({ val }: { val: string }) {
+  const colors: Record<string, string> = {
+    published: 'var(--green)', approved: 'var(--green)', true: 'var(--green)',
+    pending:   'var(--gold)',  submitted: 'var(--gold)',  draft: 'var(--gold)',
+    deleted:   'var(--red)',   rejected: 'var(--red)',    false: 'var(--text-muted)',
+  };
+  const c = colors[val.toLowerCase()] ?? 'var(--text-secondary)';
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, color: c,
+      background: c + '18', padding: '2px 7px', borderRadius: 5,
+      textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      {val}
+    </span>
+  );
+}
+
+// ── Haupt-Komponente ──────────────────────────────────────────────────────────
 export default function AuditPage() {
-  const { currentUser } = useAuth();
-  const router = useRouter();
-  useEffect(() => {
-    if (!isSuperAdmin(currentUser?.role)) router.replace("/dashboard");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.role]);
-  if (!isSuperAdmin(currentUser?.role)) return null;
+  const [activeTab, setActiveTab]   = useState('notifications');
+  const [rows, setRows]             = useState<Row[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [search, setSearch]         = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const userRole = currentUser?.role;
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<'auth_events'|'notifications'>('notifications');
-
-  const load = useCallback(async () => {
+  const load = useCallback(async (tab: string, q: string) => {
     setLoading(true);
+    setError(null);
     try {
-      // Try different audit-like tables
-      const rows = await sbQuery<AuditEntry>(source, {}, {
-        select: '*',
-        order: 'created_at.desc',
-        limit: 100,
-      });
-      setEntries(rows);
-    } catch {
-      setEntries([]);
+      const params = new URLSearchParams({ tab, limit: '100', search: q });
+      const res = await fetch(`/api/audit?${params}`, { credentials: 'include' });
+      const json = await res.json();
+      if (!json.ok) { setError(json.error ?? 'Fehler'); setRows([]); setTotal(0); }
+      else { setRows(json.data ?? []); setTotal(json.total ?? 0); }
+    } catch (e) {
+      setError('Verbindung unterbrochen: ' + (e instanceof Error ? e.message : String(e)));
+      setRows([]);
+    } finally {
+      setLoading(false);
+      setLastUpdate(new Date().toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit', second:'2-digit' }));
     }
-    setLoading(false);
-  }, [source]);
+  }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Tab oder Suche ändert sich → neu laden
+  useEffect(() => { load(activeTab, search); }, [activeTab, search, load]);
+
+  // Auto-Refresh alle 30s
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (autoRefresh) {
+      timerRef.current = setInterval(() => load(activeTab, search), 30_000);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [autoRefresh, activeTab, search, load]);
+
+  const tab = TABS.find(t => t.key === activeTab)!;
+  const isStatus = (col: string) => ['status','is_read'].includes(col);
 
   return (
-    <DashboardLayout title="Audit Logs" headerActions={
-      <button onClick={load} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+    <DashboardLayout>
       <PageHeader
         title="Audit Logs"
-        subtitle="Administrative Aktionen & Protokolle"
-        actionsRole="superadmin"
-        userRole={userRole}
+        subtitle="Administrative Aktionen & Protokolle — Live"
+        actions={
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12,
+              color:'var(--text-muted)', cursor:'pointer' }}>
+              <input type="checkbox" checked={autoRefresh}
+                onChange={e => setAutoRefresh(e.target.checked)}
+                style={{ accentColor:'var(--accent)', width:13, height:13 }} />
+              Live (30s)
+            </label>
+            <button onClick={() => load(activeTab, search)} disabled={loading}
+              style={{ padding:'0 12px', height:30, borderRadius:6, fontSize:12, fontWeight:600,
+                border:'1px solid var(--accent)', background:'transparent', color:'var(--accent)',
+                cursor:'pointer', opacity: loading ? 0.5 : 1 }}>
+              {loading ? '⏳' : '↺ Aktualisieren'}
+            </button>
+          </div>
+        }
       />
-↻ Refresh</button>
-    }>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        {(['notifications','auth_events'] as const).map((s) => (
-          <button key={s} onClick={() => setSource(s)}
-            style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, cursor: 'pointer', border: `1px solid ${source === s ? 'var(--accent)' : 'var(--border)'}`, background: source === s ? 'var(--accent-dim)' : 'transparent', color: source === s ? 'var(--accent)' : 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}>
-            {s}
-          </button>
-        ))}
-      </div>
 
-      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Live Audit Log — {source}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{loading ? '…' : `${entries.length} Einträge`}</span>
+      <div style={{ padding:'0 28px 28px' }}>
+
+        {/* Tabs */}
+        <div style={{ display:'flex', gap:4, marginBottom:16, flexWrap:'wrap', borderBottom:'1px solid var(--border)', paddingBottom:0 }}>
+          {TABS.map(t => (
+            <button key={t.key} onClick={() => { setActiveTab(t.key); setSearch(''); }}
+              style={{ padding:'8px 14px', borderRadius:'6px 6px 0 0', fontSize:13, fontWeight:600,
+                cursor:'pointer', border:'1px solid',
+                borderBottom: t.key === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
+                background:   t.key === activeTab ? 'var(--bg-primary)' : 'transparent',
+                color:        t.key === activeTab ? 'var(--accent)' : 'var(--text-muted)',
+                borderColor:  t.key === activeTab ? 'var(--border)' : 'transparent',
+                marginBottom: -1,
+              }}>
+              {t.icon} {t.label}
+            </button>
+          ))}
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr>
-                {['ID', 'User ID', 'Typ / Event', 'Details', 'Zeit'].map((h) => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i}>{[...Array(5)].map((_, j) => (
-                    <td key={j} style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ height: 11, background: 'var(--bg-tertiary)', borderRadius: 4, animation: 'pulse 2s ease-in-out infinite', width: '60%' }} />
-                    </td>
-                  ))}</tr>
-                ))
-              ) : entries.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-                  Keine Einträge in dieser Tabelle. Die HUI App hat möglicherweise eine eigene Audit-Tabelle — prüfe das Supabase-Schema.
-                </td></tr>
-              ) : (
-                entries.map((e) => (
-                  <tr key={e.id} className="tr-hover">
-                    <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{e.id.slice(0,8)}…</td>
-                    <td style={{ padding: '9px 14px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>{(e.user_id || e.changed_by || '—').slice(0,8)}…</td>
-                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: ACTION_COLORS[e.action || e.event_type || ''] || 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        {e.action || e.event_type || '—'}
-                      </span>
-                      {e.table_name && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-muted)' }}>· {e.table_name}</span>}
-                    </td>
-                    <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.record_id ? `Record: ${e.record_id.slice(0,8)}` : JSON.stringify(e.new_data || '').slice(0, 60) + '…'}
-                    </td>
-                    <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{timeAgo(e.changed_at || e.created_at)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+
+        {/* Toolbar */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={`In ${tab.label} suchen…`}
+            style={{ flex:1, maxWidth:320, padding:'7px 12px', borderRadius:7, fontSize:13,
+              border:'1px solid var(--border)', background:'var(--bg-secondary)',
+              color:'var(--text-primary)', outline:'none' }}
+          />
+          <span style={{ fontSize:12, color:'var(--text-muted)', marginLeft:'auto' }}>
+            {total} Einträge
+            {lastUpdate && <> · zuletzt <strong style={{ color:'var(--accent)' }}>{lastUpdate}</strong></>}
+          </span>
         </div>
+
+        {/* Fehler */}
+        {error && (
+          <div style={{ padding:'12px 16px', borderRadius:8, background:'rgba(248,113,113,0.08)',
+            border:'1px solid rgba(248,113,113,0.3)', color:'var(--red)', fontSize:13, marginBottom:12 }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        {/* Tabelle */}
+        <div style={{ borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+          {/* Header */}
+          <div style={{ display:'grid',
+            gridTemplateColumns: tab.cols.map(c => c.width ? `${c.width}px` : '1fr').join(' '),
+            background:'var(--bg-tertiary)', borderBottom:'1px solid var(--border)',
+            padding:'10px 16px', gap:8 }}>
+            {tab.cols.map(c => (
+              <span key={c.key} style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)',
+                textTransform:'uppercase', letterSpacing:'0.06em', overflow:'hidden',
+                textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {c.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {loading && rows.length === 0 ? (
+            <div style={{ padding:'40px 16px', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
+              ⏳ Lade Daten…
+            </div>
+          ) : rows.length === 0 ? (
+            <div style={{ padding:'40px 16px', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
+              Keine Einträge gefunden.
+            </div>
+          ) : (
+            rows.map((row, i) => (
+              <div key={String(row.id ?? i)}
+                style={{ display:'grid',
+                  gridTemplateColumns: tab.cols.map(c => c.width ? `${c.width}px` : '1fr').join(' '),
+                  padding:'9px 16px', gap:8, alignItems:'center',
+                  borderBottom: i < rows.length-1 ? '1px solid var(--border)' : 'none',
+                  background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
+                  transition:'background 0.1s' }}>
+                {tab.cols.map(c => {
+                  const val = row[c.key];
+                  const formatted = fmtVal(c.key, val);
+                  return (
+                    <span key={c.key}
+                      style={{ fontSize:12, color: c.key === 'created_at' ? 'var(--text-muted)' : 'var(--text-primary)',
+                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {isStatus(c.key) && val !== null && val !== undefined
+                        ? <StatusBadge val={String(val)} />
+                        : formatted}
+                    </span>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+
       </div>
     </DashboardLayout>
   );
