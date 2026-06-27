@@ -73,16 +73,24 @@ export async function GET(req: NextRequest) {
         .limit(8),
     ]);
 
-    // ── Auth-User für genaue Gesamtzahl ──────────────────────────────────────
+    // ── Auth-User für genaue Gesamtzahl (alle Seiten) ───────────────────────
     const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
     let authTotal = 0;
     try {
-      const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1`, {
-        headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
-      });
-      const authData = await authRes.json() as { total?: number; users?: unknown[] };
-      authTotal = authData.total ?? (authData.users as unknown[])?.length ?? 0;
+      // Supabase liefert kein total-Feld — alle Seiten laden
+      let page = 1;
+      const perPage = 1000;
+      while (true) {
+        const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
+          headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
+        });
+        const authData = await authRes.json() as { users?: unknown[] };
+        const batch = authData.users ?? [];
+        authTotal += batch.length;
+        if (batch.length < perPage) break;
+        page++;
+      }
     } catch { /* fallback auf profiles */ }
 
     // ── Berechnungen ─────────────────────────────────────────────────────────
