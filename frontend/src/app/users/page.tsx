@@ -237,13 +237,14 @@ function ActivityTab({ userId }: { userId: string }) {
 
 // ── User-Detail-Modal ────────────────────────────────────────────────────────
 function UserDetailModal({
-  user, onClose, onBlock, onUnblock, onDelete, refetch
+  user, onClose, onBlock, onUnblock, onDelete, onSoftDelete, refetch
 }: {
   user: MergedUser;
   onClose: () => void;
-  onBlock:   (u: MergedUser, reason: string) => void;
-  onUnblock: (u: MergedUser) => void;
-  onDelete:  (u: MergedUser) => void;
+  onBlock:      (u: MergedUser, reason: string) => void;
+  onUnblock:    (u: MergedUser) => void;
+  onDelete:     (u: MergedUser) => void;
+  onSoftDelete: (u: MergedUser) => void;
   refetch: () => void;
 }) {
   const [view,        setView]        = useState<'info' | 'activity' | 'block' | 'note'>('info');
@@ -444,12 +445,21 @@ function UserDetailModal({
                   🔒 Nutzer blockieren
                 </button>
                 <div style={{ borderTop:'1px solid var(--border)', paddingTop:12 }}>
-                  <button onClick={()=>onDelete(user)}
-                    style={{ width:'100%', padding:'10px', borderRadius:8, border:'1px solid var(--red)',
-                      background:'rgba(255,107,107,0.06)', color:'var(--red)',
-                      fontSize:13, cursor:'pointer', fontWeight:500 }}>
-                    🗑 Konto endgültig löschen
-                  </button>
+                  {user.is_deleted ? (
+                    <button onClick={()=>onDelete(user)}
+                      style={{ width:'100%', padding:'10px', borderRadius:8, border:'1px solid var(--red)',
+                        background:'rgba(255,107,107,0.12)', color:'var(--red)',
+                        fontSize:13, cursor:'pointer', fontWeight:700 }}>
+                      ⚠️ Endgültig löschen
+                    </button>
+                  ) : (
+                    <button onClick={()=>onSoftDelete(user)}
+                      style={{ width:'100%', padding:'10px', borderRadius:8, border:'1px solid var(--red)',
+                        background:'rgba(255,107,107,0.06)', color:'var(--red)',
+                        fontSize:13, cursor:'pointer', fontWeight:500 }}>
+                      🗑 In Gelöscht verschieben
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -573,10 +583,32 @@ export default function UsersPage() {
 
   const handleAction = useCallback(async (action: string, user: MergedUser) => {
     if (action === 'view') { setViewUser(user); return; }
-    if (action === 'block' || action === 'unblock' || action === 'delete' || action === 'restore') {
-      setViewUser(user);
+    if (action === 'block' || action === 'unblock') { setViewUser(user); return; }
+    if (action === 'delete') {
+      const name = user.full_name || user.display_name || user.email || 'Nutzer';
+      if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
+      try {
+        await apiAction('delete', user.id, { reason: 'Vom Admin gelöscht' });
+        showToast(`🗑 ${name} wurde gelöscht.`, 'info', 3000);
+        setViewUser(null);
+        setActiveTab('deleted' as TabKey);
+        refetch();
+      } catch { showToast('Fehler beim Löschen.', 'error'); }
+      return;
     }
-  }, []);
+    if (action === 'restore') {
+      const name = user.full_name || user.display_name || user.email || 'Nutzer';
+      if (!window.confirm(`"${name}" wiederherstellen?`)) return;
+      try {
+        await apiAction('restore', user.id, {});
+        showToast(`✅ ${name} wiederhergestellt.`, 'success', 3000);
+        setViewUser(null);
+        setActiveTab('active' as TabKey);
+        refetch();
+      } catch { showToast('Fehler beim Wiederherstellen.', 'error'); }
+      return;
+    }
+  }, [refetch]);
 
   const handleBlock = useCallback(async (user: MergedUser, reason: string) => {
     try {
@@ -605,13 +637,37 @@ export default function UsersPage() {
   }, [refetch]);
 
   const handleDelete = useCallback(async (user: MergedUser) => {
-    if (!window.confirm(`Konto von "${user.display_name||user.email}" endgültig löschen? Dies kann nicht rückgängig gemacht werden.`)) return;
+    const name = user.full_name || user.display_name || user.email || 'Nutzer';
+    if (!window.confirm(`"${name}" ENDGÜLTIG und unwiderruflich löschen?\n\nDies kann nicht rückgängig gemacht werden!`)) return;
     try {
       await apiDelete(user.id);
-      showToast('Konto gelöscht.', 'info');
+      showToast(`🗑 ${name} endgültig gelöscht.`, 'info', 4000);
       setViewUser(null);
       refetch();
+    } catch { showToast('Fehler beim endgültigen Löschen.', 'error'); }
+  }, [refetch]);
+
+  const handleSoftDelete = useCallback(async (user: MergedUser) => {
+    const name = user.full_name || user.display_name || user.email || 'Nutzer';
+    if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
+    try {
+      await apiAction('delete', user.id, { reason: 'Vom Admin gelöscht' });
+      showToast(`🗑 ${name} wurde gelöscht.`, 'info', 3000);
+      setViewUser(null);
+      setActiveTab('deleted' as TabKey);
+      refetch();
     } catch { showToast('Fehler beim Löschen.', 'error'); }
+  }, [refetch]);
+
+  const handleRestore = useCallback(async (user: MergedUser) => {
+    const name = user.full_name || user.display_name || user.email || 'Nutzer';
+    try {
+      await apiAction('restore', user.id, {});
+      showToast(`✅ ${name} wiederhergestellt.`, 'success', 3000);
+      setViewUser(null);
+      setActiveTab('active' as TabKey);
+      refetch();
+    } catch { showToast('Fehler beim Wiederherstellen.', 'error'); }
   }, [refetch]);
 
   const TABS = [
@@ -715,6 +771,7 @@ export default function UsersPage() {
           onBlock={handleBlock}
           onUnblock={handleUnblock}
           onDelete={handleDelete}
+          onSoftDelete={handleSoftDelete}
           refetch={refetch}
         />
       )}
