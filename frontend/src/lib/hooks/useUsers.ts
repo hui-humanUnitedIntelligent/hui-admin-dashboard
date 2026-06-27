@@ -17,6 +17,9 @@ export interface MergedUser {
   is_wirker:       boolean;
   is_member:       boolean;
   blocked:         boolean;
+  blocked_reason:  string | null;
+  blocked_at:      string | null;
+  phone:           string | null;
   is_deleted:      boolean;
   impact_eur:      number;
   trust_score:     number;
