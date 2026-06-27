@@ -43,6 +43,10 @@ interface MergedUser {
   phone: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
   location_label: string | null;
+  bio: string | null;
+  tagline: string | null;
+  location: string | null;
+  dna_tags: string[];
   source: string;
 }
 
@@ -137,6 +141,10 @@ export async function GET(req: NextRequest) {
         trust_score:     Number(p?.trust_score ?? 0),
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
         location_label:  p?.location_label ?? null,
+        bio:             (p as unknown as Record<string,unknown>)?.bio as string | null ?? null,
+        tagline:         (p as unknown as Record<string,unknown>)?.tagline as string | null ?? null,
+        location:        (p as unknown as Record<string,unknown>)?.location as string | null ?? null,
+        dna_tags:        [] as string[],
         source:          p ? 'both' : 'auth_only',
       });
     }
@@ -160,6 +168,10 @@ export async function GET(req: NextRequest) {
           trust_score: Number(p.trust_score ?? 0),
           last_seen_at: p.last_seen_at,
           location_label: p.location_label ?? null,
+          bio:    (p as unknown as Record<string,unknown>).bio as string | null ?? null,
+          tagline:(p as unknown as Record<string,unknown>).tagline as string | null ?? null,
+          location:(p as unknown as Record<string,unknown>).location as string | null ?? null,
+          dna_tags: [] as string[],
           source: 'profile_only',
         });
       }
