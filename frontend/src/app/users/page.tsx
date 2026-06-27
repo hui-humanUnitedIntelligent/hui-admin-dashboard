@@ -28,7 +28,7 @@ function normalizeName(s: string) {
 function findDuplicates(users: MergedUser[]): MergedUser[] {
   const seen = new Map<string,MergedUser[]>();
   for (const u of users) {
-    const key = normalizeName(u.display_name||u.username||u.email||'');
+    const key = normalizeName(u.full_name||u.display_name||u.username||u.email||'');
     if (key.length < 4) continue;
     if (!seen.has(key)) seen.set(key,[]);
     seen.get(key)!.push(u);
@@ -84,8 +84,11 @@ function UserDetailModal({
   const isBlocked = user.blocked;
 
   const avatar = user.avatar_url;
-  const initials = ((user.display_name||user.username||user.email||'?')
-    .split(' ').map((w:string)=>w[0]).slice(0,2).join('').toUpperCase());
+  const rawName = user.full_name || user.display_name || user.username || user.email || '?';
+  const nameParts = rawName.trim().split(' ').filter(Boolean);
+  const initials = nameParts.length >= 2
+    ? (nameParts[0][0] + nameParts[nameParts.length-1][0]).toUpperCase()
+    : (nameParts[0]?.[0] || '?').toUpperCase();
 
   function Row({ label, val }: { label: string; val: string | null | undefined }) {
     if (!val || val === '—') return null;
@@ -123,7 +126,7 @@ function UserDetailModal({
           )}
           <div>
             <h2 style={{ fontSize:17, fontWeight:700, color:'var(--text-primary)', margin:'0 0 4px' }}>
-              {user.display_name || user.full_name || user.username || 'Unbekannt'}
+              {user.full_name || user.display_name || user.username || 'Unbekannt'}
             </h2>
             <div style={{ fontSize:12, color:'var(--text-muted)' }}>{user.email}</div>
             {user.phone && <div style={{ fontSize:12, color:'var(--text-muted)' }}>{user.phone}</div>}
@@ -163,7 +166,7 @@ function UserDetailModal({
             <Row label="ID"           val={user.id} />
             <Row label="E-Mail"       val={user.email} />
             <Row label="Telefon"      val={user.phone} />
-            <Row label="Name"         val={user.display_name || user.full_name} />
+            <Row label="Name"         val={user.full_name || user.display_name} />
             <Row label="Username"     val={user.username} />
             <Row label="Rolle"        val={user.role} />
             <Row label="Membership"   val={user.membership_type} />
@@ -304,12 +307,12 @@ function BlockedCard({
         <div style={{ width:40, height:40, borderRadius:'50%', background:'var(--accent-dim)',
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize:14, fontWeight:700, color:'var(--accent)', flexShrink:0 }}>
-          {((user.display_name||user.email||'?')[0]||'?').toUpperCase()}
+          {((user.full_name||user.display_name||user.email||'?')[0]||'?').toUpperCase()}
         </div>
       )}
       <div style={{ flex:1, minWidth:0 }}>
         <p style={{ fontWeight:600, fontSize:13, color:'var(--text-primary)', margin:'0 0 2px' }}>
-          {user.display_name || user.username || '—'}
+          {user.full_name || user.display_name || user.username || '—'}
         </p>
         <p style={{ fontSize:11, color:'var(--text-muted)', margin:0 }}>{user.email}</p>
         {user.blocked_reason && (
