@@ -7,7 +7,7 @@ import type { MergedUser } from '@/lib/hooks/useUsers';
 interface UserTableProps {
   users:    MergedUser[];
   loading:  boolean;
-  onAction: (action: 'block' | 'unblock' | 'delete' | 'restore' | 'view', user: MergedUser) => void;
+  onAction: (action: 'block' | 'unblock' | 'delete' | 'restore' | 'view' | 'permanent_delete', user: MergedUser) => void;
 }
 
 function RoleBadge({ role }: { role: string }) {
