@@ -48,9 +48,16 @@ export default function ReportsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/reports?type=${type}&periods=${periods}`).then(r => r.json()).catch(() => null);
-    setData(res);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/reports?type=${type}&periods=${periods}`, { credentials: 'include' });
+      const json = await res.json();
+      // API gibt { data: { periods, totals, ... } } zurück
+      setData(json?.data ?? json ?? null);
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   }, [type, periods]);
 
   useEffect(() => { load(); }, [load]);
@@ -65,11 +72,11 @@ export default function ReportsPage() {
       '╚══════════════════════════════════════════════════════════════╝',
       '',
       '── GESAMTÜBERSICHT ────────────────────────────────────────────',
-      `  User gesamt:    ${data.totals.users}`,
-      `  Wirker:         ${data.totals.wirker}`,
-      `  Members:        ${data.totals.members}`,
-      `  Werke:          ${data.totals.works}`,
-      `  Buchungen:      ${data.totals.bookings}`,
+      `  User gesamt:    ${(data?.totals?.users ?? 0)}`,
+      `  Wirker:         ${(data?.totals?.wirker ?? 0)}`,
+      `  Members:        ${(data?.totals?.members ?? 0)}`,
+      `  Werke:          ${(data?.totals?.works ?? 0)}`,
+      `  Buchungen:      ${(data?.totals?.bookings ?? 0)}`,
       '',
       `── PERIODEN (${type === 'monthly' ? 'Monatlich' : 'Wöchentlich'}) ──────────────────────────────────────`,
     ];
@@ -95,7 +102,7 @@ export default function ReportsPage() {
   const sendReport = async () => {
     if (!data || !email.trim()) { showToast('Empfänger-Email erforderlich', 'error'); return; }
     setSending(true);
-    const latest = data.periods[data.periods.length - 1];
+    const latest = data.periods[(data?.periods?.length ?? 0) - 1];
     const bodyText = latest
       ? `📊 ${type === 'monthly' ? 'Monats' : 'Wochen'}-Report ${periodLabel(latest.period)}\n\n` +
         `👥 Neue User: ${latest.new_users} | ⭐ Wirker: ${latest.new_wirker} | 🏅 Members: ${latest.new_members}\n` +
@@ -115,7 +122,7 @@ export default function ReportsPage() {
     else showToast('Fehler beim Senden', 'error');
   };
 
-  const latest = data?.periods[data.periods.length - 1];
+  const latest = data?.periods[(data?.periods?.length ?? 0) - 1];
   const maxRevenue = Math.max(...(data?.periods.map(p => p.revenue) || [1]), 1);
   const maxUsers   = Math.max(...(data?.periods.map(p => p.new_users) || [1]), 1);
 
@@ -168,10 +175,10 @@ export default function ReportsPage() {
           {/* Totals Row */}
           <div className="grid-4" style={{ marginBottom: 16 }}>
             {[
-              { label: 'User gesamt', value: data.totals.users,    color: 'var(--accent)', icon: '◎' },
-              { label: 'Wirker',      value: data.totals.wirker,   color: 'var(--purple)', icon: '⭐' },
-              { label: 'Members',     value: data.totals.members,  color: 'var(--gold)',   icon: '🏅' },
-              { label: 'Werke',       value: data.totals.works,    color: 'var(--blue)',   icon: '🎨' },
+              { label: 'User gesamt', value: (data?.totals?.users ?? 0),    color: 'var(--accent)', icon: '◎' },
+              { label: 'Wirker',      value: (data?.totals?.wirker ?? 0),   color: 'var(--purple)', icon: '⭐' },
+              { label: 'Members',     value: (data?.totals?.members ?? 0),  color: 'var(--gold)',   icon: '🏅' },
+              { label: 'Werke',       value: (data?.totals?.works ?? 0),    color: 'var(--blue)',   icon: '🎨' },
             ].map(({ label, value, color, icon }) => (
               <div key={label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', borderTop: `3px solid ${color}` }}>
                 <div style={{ fontSize: 26, fontWeight: 700, color, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{value}</div>
@@ -219,7 +226,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data.periods].reverse().map((p, i) => (
+                  {([...(data?.periods ?? [])]).reverse().map((p, i) => (
                     <tr key={p.period} className="tr-hover" style={{ background: i === 0 ? 'var(--accent-dim)' : 'transparent' }}>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: i === 0 ? 'var(--accent)' : 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 11, whiteSpace: 'nowrap' }}>
                         {periodLabel(p.period)} {i === 0 && <span style={{ fontSize: 9, color: 'var(--accent)', marginLeft: 4 }}>← aktuell</span>}
@@ -248,7 +255,7 @@ export default function ReportsPage() {
               <div key={title} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 18 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>{title}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {data.periods.map(p => (
+                  {(data?.periods ?? []).map(p => (
                     <div key={p.period} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', width: 48, flexShrink: 0 }}>{periodLabel(p.period)}</span>
                       <MiniBar value={p[key]} max={max} color={color} />
