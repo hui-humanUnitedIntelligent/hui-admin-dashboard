@@ -6,43 +6,168 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/lib/hooks/useAuth';
 
-interface Ambassador {
-  id:            string;
-  displayName:   string;
-  username:      string;
-  avatarUrl:     string | null;
-  email:         string | null;
-  role:          string;
-  isWirker:      boolean;
-  trustScore:    number;
-  impactEur:     number;
-  createdAt:     string;
-  referralCode:  string | null;
-  referralLink:  string | null;
-  referralCount: number;
-  revenueEur:    number;
+interface ReferredUser {
+  id: string; displayName: string; username: string;
+  avatarUrl: string | null; email: string | null;
+  joinedAt: string; firstTransaction: string | null; isActive: boolean;
 }
 
-function fmtEur(n: number | null | undefined): string {
+interface Ambassador {
+  id: string; displayName: string; username: string;
+  avatarUrl: string | null; email: string | null;
+  impactEur: number; createdAt: string;
+  referralCode: string | null; referralLink: string | null;
+  referralCount: number; activeCount: number; sleepingCount: number;
+  revenueEur: number; level: string; levelLabel: string; levelColor: string;
+  linkActive: boolean; activatedAt: string | null;
+  referredUsers: ReferredUser[];
+}
+
+function fmtEur(n: number | null | undefined) {
   const v = n ?? 0;
-  if (v >= 1000) return `€${(v / 1000).toFixed(1)}K`;
+  if (v >= 1000) return `€${(v/1000).toFixed(1)}K`;
   return `€${v.toFixed(2)}`;
 }
-
-function fmtTime(iso: string | null | undefined): string {
+function fmtDate(iso: string | null | undefined) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('de-DE', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return new Date(iso).toLocaleString('de-DE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function fmtShort(iso: string | null | undefined) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
-function getLevel(rev: number): { label: string; color: string; bg: string } {
-  if (rev >= 5000) return { label: '\uD83E\uDD47 Gold',   color: '#ffd43b', bg: 'rgba(255,212,59,0.15)' };
-  if (rev >= 1000) return { label: '\uD83E\uDD48 Silber', color: '#ced4da', bg: 'rgba(206,212,218,0.15)' };
-  return                  { label: '\uD83E\uDD49 Bronze', color: '#cd7f32', bg: 'rgba(205,127,50,0.15)' };
+// ── Detail-Drawer ─────────────────────────────────────────────
+function AmbassadorDrawer({ amb, onClose }: { amb: Ambassador; onClose: () => void }) {
+  const progressMax = amb.level === 'Platin' ? 201 : amb.level === 'Gold' ? 51 : amb.level === 'Silber' ? 11 : 10;
+  const progressPct = Math.min(100, (amb.referralCount / progressMax) * 100);
+
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, zIndex:10000,
+      background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)',
+      display:'flex', alignItems:'flex-start', justifyContent:'flex-end',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 500, height: '100vh',
+        background: 'var(--bg-secondary)', borderLeft: '1px solid var(--border)',
+        overflowY: 'auto', display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg-primary)', position:'sticky', top:0, zIndex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            {amb.avatarUrl ? (
+              <img src={amb.avatarUrl} alt="" style={{ width:44, height:44, borderRadius:'50%', objectFit:'cover' }} />
+            ) : (
+              <div style={{ width:44, height:44, borderRadius:'50%', background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:700, color:'#fff' }}>
+                {(amb.displayName?.[0] ?? '?').toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div style={{ fontWeight:700, fontSize:15 }}>{amb.displayName}</div>
+              <div style={{ fontSize:12, color:'var(--text-muted)' }}>@{amb.username} · {amb.email ?? '—'}</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'var(--bg-tertiary)', border:'1px solid var(--border)', borderRadius:8, padding:'6px 12px', color:'var(--text-muted)', cursor:'pointer', fontSize:13 }}>✕ Schließen</button>
+        </div>
+
+        <div style={{ padding:'20px 24px', flex:1, display:'flex', flexDirection:'column', gap:20 }}>
+
+          {/* Level + Progress */}
+          <div style={{ background:'var(--bg-tertiary)', borderRadius:12, padding:'16px 18px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+              <span style={{ fontSize:13, fontWeight:700, color: amb.levelColor }}>{amb.levelLabel}</span>
+              <span style={{ fontSize:11, color:'var(--text-muted)' }}>Aktiv seit {fmtShort(amb.activatedAt ?? amb.createdAt)}</span>
+            </div>
+            <div style={{ background:'var(--bg-secondary)', borderRadius:99, height:8, overflow:'hidden' }}>
+              <div style={{ width:`${progressPct}%`, height:'100%', background: amb.levelColor, borderRadius:99, transition:'width .4s' }} />
+            </div>
+            <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:6 }}>
+              {amb.referralCount} / {progressMax} Referrals für nächstes Level
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+            {[
+              { label:'Geworbene', val: String(amb.referralCount), icon:'👥', color:'var(--accent)' },
+              { label:'Aktiv', val: String(amb.activeCount), icon:'⚡', color:'#51cf66' },
+              { label:'Schlafend', val: String(amb.sleepingCount), icon:'😴', color:'var(--text-muted)' },
+              { label:'Umsatz', val: fmtEur(amb.revenueEur), icon:'💰', color:'#ffd43b' },
+              { label:'Impact', val: fmtEur(amb.impactEur), icon:'🌿', color:'#74c0fc' },
+              { label:'Link-Status', val: amb.linkActive ? 'Aktiv' : 'Inaktiv', icon:'🔗', color: amb.linkActive ? '#51cf66' : '#ff6b6b' },
+            ].map(s => (
+              <div key={s.label} style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'12px 14px', textAlign:'center' }}>
+                <div style={{ fontSize:18, marginBottom:4 }}>{s.icon}</div>
+                <div style={{ fontSize:16, fontWeight:800, color: s.color, fontFamily:'var(--font-mono)' }}>{s.val}</div>
+                <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ref-Link */}
+          {amb.referralLink && (
+            <div style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'12px 16px' }}>
+              <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:6 }}>🔗 Persönlicher Einladungslink</div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <code style={{ flex:1, fontSize:12, color:'var(--accent)', background:'var(--bg-secondary)', padding:'6px 10px', borderRadius:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {amb.referralLink}
+                </code>
+                <button onClick={() => navigator.clipboard.writeText(amb.referralLink!)} style={{ padding:'6px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--bg-secondary)', color:'var(--text-muted)', cursor:'pointer', fontSize:11, flexShrink:0 }}>
+                  Kopieren
+                </button>
+              </div>
+              <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4 }}>Code: {amb.referralCode ?? '—'}</div>
+            </div>
+          )}
+
+          {/* Geworbene Nutzer */}
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>
+              👥 Geworbene Mitglieder ({amb.referralCount})
+            </div>
+            {amb.referredUsers.length === 0 ? (
+              <div style={{ padding:'24px', textAlign:'center', color:'var(--text-muted)', fontSize:13, background:'var(--bg-tertiary)', borderRadius:10 }}>
+                Noch keine geworbenen Mitglieder
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {amb.referredUsers.map(u => (
+                  <div key={u.id} style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+                    {u.avatarUrl ? (
+                      <img src={u.avatarUrl} alt="" style={{ width:32, height:32, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />
+                    ) : (
+                      <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, color:'#fff', flexShrink:0 }}>
+                        {(u.displayName?.[0] ?? '?').toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.displayName}</span>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:20,
+                          background: u.isActive ? 'rgba(81,207,102,0.12)' : 'rgba(255,255,255,0.06)',
+                          color: u.isActive ? '#51cf66' : 'var(--text-muted)' }}>
+                          {u.isActive ? '⚡ aktiv' : '😴 schlafend'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize:11, color:'var(--text-muted)' }}>@{u.username} · Reg. {fmtShort(u.joinedAt)}</div>
+                      {u.firstTransaction && (
+                        <div style={{ fontSize:11, color:'#51cf66' }}>💳 Erste Zahlung {fmtShort(u.firstTransaction)}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
 }
 
+// ── Main Page ──────────────────────────────────────────────────
 export default function AmbassadorsPage() {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role ?? 'employee';
@@ -52,10 +177,10 @@ export default function AmbassadorsPage() {
   const [search,      setSearch]      = useState('');
   const [toast,       setToast]       = useState('');
   const [acting,      setActing]      = useState<string | null>(null);
+  const [selected,    setSelected]    = useState<Ambassador | null>(null);
 
   const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    setToast(msg); setTimeout(() => setToast(''), 3000);
   }, []);
 
   const load = useCallback(async () => {
@@ -65,11 +190,10 @@ export default function AmbassadorsPage() {
       if (search) params.set('search', search);
       const res = await fetch(`/api/ambassador?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setAmbassadors(Array.isArray(data.data) ? data.data : []);
+      const json = await res.json();
+      setAmbassadors(Array.isArray(json.data) ? json.data : []);
     } catch (e) {
       console.error('[ambassadors]', e);
-      setAmbassadors([]);
     } finally {
       setLoading(false);
     }
@@ -77,134 +201,142 @@ export default function AmbassadorsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function toggleAmbassador(a: Ambassador) {
+  // Realtime: alle 30s refreshen
+  useEffect(() => {
+    const iv = setInterval(load, 30_000);
+    return () => clearInterval(iv);
+  }, [load]);
+
+  async function removeAmbassador(a: Ambassador) {
     if (userRole !== 'superadmin') return;
+    if (!confirm(`Ambassador-Status von ${a.displayName} entfernen?`)) return;
     setActing(a.id);
     try {
       const res = await fetch('/api/ambassador', {
-        method: 'PATCH',
-        credentials: 'include',
+        method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: a.id, action: 'deactivate' }),
       });
-      if (res.ok) { showToast('\u2705 Ambassador entfernt'); load(); }
-      else         showToast('Fehler beim Speichern');
+      if (res.ok) { showToast('✅ Ambassador entfernt'); load(); }
+      else showToast('Fehler beim Speichern');
     } finally { setActing(null); }
   }
 
-  const filtered = ambassadors.filter(a =>
-    !search ||
-    a.displayName.toLowerCase().includes(search.toLowerCase()) ||
-    (a.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (a.username ?? '').toLowerCase().includes(search.toLowerCase())
-  );
+  const totalRevenue  = ambassadors.reduce((s, a) => s + (a.revenueEur ?? 0), 0);
+  const totalReferrals = ambassadors.reduce((s, a) => s + (a.referralCount ?? 0), 0);
+  const totalActive   = ambassadors.reduce((s, a) => s + (a.activeCount ?? 0), 0);
 
-  const totalRevenue = ambassadors.reduce((s, a) => s + (a.revenueEur ?? 0), 0);
-  const totalRef     = ambassadors.reduce((s, a) => s + (a.referralCount ?? 0), 0);
-
-  const colStyle: React.CSSProperties = { padding: '10px 14px' };
-  const thStyle: React.CSSProperties  = { padding: '10px 14px', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', fontWeight: 600 };
+  const th: React.CSSProperties = { padding:'10px 14px', textAlign:'left', fontSize:10, textTransform:'uppercase', letterSpacing:'0.6px', color:'var(--text-muted)', fontWeight:600 };
+  const td: React.CSSProperties = { padding:'10px 14px' };
 
   return (
     <DashboardLayout title="Ambassadors">
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: 'var(--accent)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+        <div style={{ position:'fixed', top:20, right:20, zIndex:9999, background:'var(--accent)', color:'#fff', padding:'10px 20px', borderRadius:8, fontSize:13, fontWeight:600 }}>
           {toast}
         </div>
       )}
 
-      <PageHeader title="Ambassadors" subtitle="Referral-Partner & Markenbotschafter" actionsRole={userRole as "superadmin" | "employee"} userRole={userRole} />
+      {selected && <AmbassadorDrawer amb={selected} onClose={() => setSelected(null)} />}
 
-      {/* KPI-Kacheln */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12, marginBottom: 20 }}>
+      <PageHeader title="Ambassadors" subtitle="Referral-Partner & Markenbotschafter" actionsRole={userRole as 'superadmin' | 'employee'} userRole={userRole} />
+
+      {/* KPI */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
         {[
-          { label: 'Ambassadors', val: String(ambassadors.length), icon: '\uD83E\uDD1D' },
-          { label: 'Gesamtumsatz', val: fmtEur(totalRevenue), icon: '\uD83D\uDCB0' },
-          { label: 'Referrals',    val: String(totalRef),     icon: '\uD83D\uDD17' },
+          { label:'Ambassadors', val: String(ambassadors.length), icon:'🤝' },
+          { label:'Gesamtumsatz', val: fmtEur(totalRevenue), icon:'💰' },
+          { label:'Alle Referrals', val: String(totalReferrals), icon:'🔗' },
+          { label:'Aktive Mitgl.', val: String(totalActive), icon:'⚡' },
         ].map(k => (
-          <div key={k.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 4 }}>{k.icon} {k.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{k.val}</div>
+          <div key={k.label} style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px' }}>
+            <div style={{ fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:4 }}>{k.icon} {k.label}</div>
+            <div style={{ fontSize:22, fontWeight:700, color:'var(--accent)', fontFamily:'var(--font-mono)' }}>{k.val}</div>
           </div>
         ))}
       </div>
 
-      {/* Suche */}
-      <div style={{ marginBottom: 16 }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+      {/* Suche + Refresh */}
+      <div style={{ display:'flex', gap:10, marginBottom:16, alignItems:'center' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Name, E-Mail oder Username..."
-          style={{ width: '100%', maxWidth: 400, padding: '8px 14px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 13, outline: 'none' }}
-        />
+          style={{ flex:1, maxWidth:400, padding:'8px 14px', background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text-primary)', fontSize:13, outline:'none' }} />
+        <button onClick={load} style={{ padding:'8px 16px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-secondary)', color:'var(--text-muted)', cursor:'pointer', fontSize:12 }}>
+          🔄 Aktualisieren
+        </button>
       </div>
 
       {/* Tabelle */}
       {loading ? (
-        <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Lade Ambassadors...</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Keine Ambassadors gefunden.</div>
+        <div style={{ color:'var(--text-muted)', padding:40, textAlign:'center' }}>Lade Ambassadors...</div>
+      ) : ambassadors.length === 0 ? (
+        <div style={{ color:'var(--text-muted)', padding:40, textAlign:'center' }}>Keine Ambassadors gefunden.</div>
       ) : (
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-tertiary)' }}>
-                <th style={thStyle}>Ambassador</th>
-                <th style={thStyle}>Level</th>
-                <th style={thStyle}>Referrals</th>
-                <th style={thStyle}>Umsatz</th>
-                <th style={thStyle}>Ref-Link</th>
-                <th style={thStyle}>Seit</th>
-                {userRole === 'superadmin' && <th style={thStyle}>Aktion</th>}
+              <tr style={{ borderBottom:'1px solid var(--border)', background:'var(--bg-tertiary)' }}>
+                <th style={th}>Ambassador</th>
+                <th style={th}>Level</th>
+                <th style={th}>Referrals</th>
+                <th style={th}>Aktiv / Schlafend</th>
+                <th style={th}>Umsatz</th>
+                <th style={th}>Ref-Link</th>
+                <th style={th}>Seit</th>
+                {userRole === 'superadmin' && <th style={th}>Aktion</th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a, idx) => {
-                const level = getLevel(a.revenueEur ?? 0);
-                return (
-                  <tr key={a.id} style={{ borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <td style={colStyle}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {a.avatarUrl ? (
-                          <img src={a.avatarUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                            {(a.displayName?.[0] ?? '?').toUpperCase()}
-                          </div>
-                        )}
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{a.displayName || a.username || '—'}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.email ?? a.username ?? '—'}</div>
+              {ambassadors.map((a, idx) => (
+                <tr key={a.id}
+                  onClick={() => setSelected(a)}
+                  style={{ borderBottom: idx < ambassadors.length-1 ? '1px solid var(--border)' : 'none', cursor:'pointer', transition:'background .1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                  <td style={td}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      {a.avatarUrl ? (
+                        <img src={a.avatarUrl} alt="" style={{ width:32, height:32, borderRadius:'50%', objectFit:'cover' }} />
+                      ) : (
+                        <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, color:'#fff' }}>
+                          {(a.displayName?.[0] ?? '?').toUpperCase()}
                         </div>
+                      )}
+                      <div>
+                        <div style={{ fontWeight:600 }}>{a.displayName || a.username || '—'}</div>
+                        <div style={{ fontSize:11, color:'var(--text-muted)' }}>{a.email ?? '—'}</div>
                       </div>
+                    </div>
+                  </td>
+                  <td style={td}>
+                    <span style={{ padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600, background:`${a.levelColor}22`, color: a.levelColor }}>{a.levelLabel}</span>
+                  </td>
+                  <td style={{ ...td, fontFamily:'var(--font-mono)', fontWeight:700, color:'var(--accent)' }}>{a.referralCount}</td>
+                  <td style={td}>
+                    <span style={{ color:'#51cf66', fontWeight:600 }}>{a.activeCount}</span>
+                    <span style={{ color:'var(--text-muted)', fontSize:11 }}> / {a.sleepingCount}</span>
+                  </td>
+                  <td style={{ ...td, fontFamily:'var(--font-mono)', fontWeight:700, color: a.revenueEur > 0 ? '#51cf66' : 'var(--text-muted)' }}>{fmtEur(a.revenueEur)}</td>
+                  <td style={td}>
+                    {a.referralLink ? (
+                      <a href={a.referralLink} target="_blank" rel="noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        style={{ color:'var(--accent)', fontSize:11, textDecoration:'none' }}>
+                        {a.referralCode ?? a.referralLink.split('/').pop()}
+                      </a>
+                    ) : <span style={{ color:'var(--text-muted)', fontSize:11 }}>—</span>}
+                  </td>
+                  <td style={{ ...td, color:'var(--text-muted)', fontSize:12 }}>{fmtDate(a.createdAt)}</td>
+                  {userRole === 'superadmin' && (
+                    <td style={td} onClick={e => e.stopPropagation()}>
+                      <button disabled={acting === a.id} onClick={() => removeAmbassador(a)}
+                        style={{ padding:'4px 12px', borderRadius:6, fontSize:11, fontWeight:600, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-muted)', cursor: acting === a.id ? 'not-allowed' : 'pointer', opacity: acting === a.id ? 0.5 : 1 }}>
+                        {acting === a.id ? '...' : 'Entfernen'}
+                      </button>
                     </td>
-                    <td style={colStyle}>
-                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: level.bg, color: level.color }}>{level.label}</span>
-                    </td>
-                    <td style={{ ...colStyle, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{a.referralCount ?? 0}</td>
-                    <td style={{ ...colStyle, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#51cf66' }}>{fmtEur(a.revenueEur)}</td>
-                    <td style={colStyle}>
-                      {a.referralLink ? (
-                        <a href={a.referralLink} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 11, textDecoration: 'none' }}>
-                          {a.referralCode ?? a.referralLink.split('/').pop()}
-                        </a>
-                      ) : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}
-                    </td>
-                    <td style={{ ...colStyle, color: 'var(--text-muted)', fontSize: 12 }}>{fmtTime(a.createdAt)}</td>
-                    {userRole === 'superadmin' && (
-                      <td style={colStyle}>
-                        <button
-                          disabled={acting === a.id}
-                          onClick={() => toggleAmbassador(a)}
-                          style={{ padding: '4px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: acting === a.id ? 'not-allowed' : 'pointer', opacity: acting === a.id ? 0.5 : 1 }}
-                        >
-                          {acting === a.id ? '...' : 'Entfernen'}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
