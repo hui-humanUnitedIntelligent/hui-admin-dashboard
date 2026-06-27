@@ -21,7 +21,24 @@ export interface UserCounts {
 
 export type UserFilter = 'all' | 'active' | 'blocked' | 'deleted' | 'wirker';
 
-export function useUsers(filter: UserFilter = 'all', refreshInterval = 30000) {
+export interface UseUsersOptions {
+  filter?:          UserFilter;
+  search?:          string;
+  limit?:           number;
+  refreshInterval?: number;
+}
+
+export function useUsers(options: UseUsersOptions | UserFilter = 'all', legacyInterval?: number) {
+  // Rückwärtskompatibilität: useUsers('all') oder useUsers({ filter, search, ... })
+  const opts: UseUsersOptions = typeof options === 'string'
+    ? { filter: options, refreshInterval: legacyInterval }
+    : options;
+
+  const filter          = opts.filter          ?? 'all';
+  const search          = opts.search          ?? '';
+  const limit           = opts.limit           ?? 1000;
+  const refreshInterval = opts.refreshInterval ?? 30000;
+
   const [users,   setUsers]   = useState<MergedUser[]>([]);
   const [counts,  setCounts]  = useState<UserCounts>({ total:0, active:0, blocked:0, deleted:0, wirker:0 });
   const [total,   setTotal]   = useState(0);
@@ -33,7 +50,8 @@ export function useUsers(filter: UserFilter = 'all', refreshInterval = 30000) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const p = new URLSearchParams({ filter, limit: '1000' });
+      const p = new URLSearchParams({ filter, limit: String(limit) });
+      if (search) p.set('search', search);
       const res = await fetch(`/api/users?${p}`, {
         credentials: 'include', cache: 'no-store',
       });
@@ -48,9 +66,8 @@ export function useUsers(filter: UserFilter = 'all', refreshInterval = 30000) {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, search, limit]);
 
-  // Initial + Poll
   useEffect(() => {
     load(false);
     if (refreshInterval > 0) {
@@ -59,7 +76,7 @@ export function useUsers(filter: UserFilter = 'all', refreshInterval = 30000) {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [load, refreshInterval]);
 
-  // Realtime: sofort aktualisieren wenn sich profiles ändert
+  // Realtime: sofort bei DB-Änderung aktualisieren
   useSupabaseRealtime({ onRefresh: () => load(true), debounceMs: 800 });
 
   return { users, counts, total, loading, error, refetch: () => load(false) };
