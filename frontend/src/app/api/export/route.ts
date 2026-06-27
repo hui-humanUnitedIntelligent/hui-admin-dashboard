@@ -26,10 +26,7 @@ const TABLE_CONFIGS: Record<string, { columns: string[]; label: string; orderCol
     columns: ['id','order_id','work_id','quantity','unit_price','total_price','created_at'],
     orderCol: 'created_at',
   },
-  memberships: {
-    label: 'Mitgliedschaften',
-    columns: ['id','user_id','plan','status','started_at','ends_at','stripe_subscription_id','amount','created_at'],
-  },
+  // memberships: deaktiviert — Tabelle noch nicht angelegt
   works: {
     label: 'Werke',
     columns: ['id','user_id','title','category','status','visibility','price','currency',
@@ -68,10 +65,7 @@ const TABLE_CONFIGS: Record<string, { columns: string[]; label: string; orderCol
     label: 'Webseite Reviews',
     columns: ['id','name','username','rating','comment','status','created_at'],
   },
-  activity_logs: {
-    label: 'Audit Logs',
-    columns: ['id','admin_id','action','target_id','target_type','details','created_at'],
-  },
+  // activity_logs: deaktiviert — Tabelle noch nicht angelegt
 };
 
 function toCSV(rows: Record<string, unknown>[], columns: string[]): string {
