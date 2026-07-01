@@ -209,28 +209,59 @@ export default function StripeDashboardPage() {
 
       {/* IMPACT POOL */}
       {tab === 'pool' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          {pool.map(p => (
-            <div key={p.id} style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-                <div style={{ fontWeight:700, fontSize:15 }}>🌱 {p.month}</div>
-                <StatusBadge status={p.distributed ? 'paid' : 'pending'} />
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-                {[
-                  { label:'Gesamt-Einfluss', val: eur(p.total_inflow) },
-                  { label:'Projekt-Anteil (15%)', val: eur(p.project_share) },
-                  { label:'Unternehmens-Anteil (85%)', val: eur(p.company_share) },
-                ].map(s => (
-                  <div key={s.label} style={{ background:'var(--bg-tertiary)', borderRadius:8, padding:'10px 14px' }}>
-                    <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:4 }}>{s.label}</div>
-                    <div style={{ fontSize:18, fontWeight:700, color:'var(--accent)' }}>{s.val}</div>
-                  </div>
-                ))}
-              </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+          {/* Aktueller Monat KPI */}
+          {overview && (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))', gap:12 }}>
+              {[
+                { label:'Pool gesamt (Monat)', val:eurDec(overview.impact_pool_eur),    icon:'🌱', color:'#3ECF8E' },
+                { label:'Projektanteil (15%)', val:eurDec(overview.project_share_eur),  icon:'📊', color:'#6C63FF' },
+                { label:'Unternehmensanteil',  val:eurDec(overview.impact_pool_eur-(overview.project_share_eur||0)), icon:'🏢', color:'#F59E0B' },
+                { label:'Amb. Provision (offn)',val:eurDec(overview.amb_pending_eur),   icon:'🤝', color:'#EF4444' },
+              ].map(k => (
+                <div key={k.label} style={{ background:'var(--bg-secondary)', border:`1px solid ${k.color}44`,
+                  borderRadius:12, padding:'14px 16px' }}>
+                  <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:4 }}>{k.icon} {k.label}</div>
+                  <div style={{ fontSize:22, fontWeight:700, color:k.color, fontFamily:'var(--font-mono)' }}>{k.val}</div>
+                </div>
+              ))}
             </div>
-          ))}
-          {pool.length === 0 && <div style={{ color:'var(--text-muted)', textAlign:'center', fontSize:13, padding:40 }}>Noch keine Impact-Pool-Daten</div>}
+          )}
+
+          {/* Monats-History */}
+          <div>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase',
+              letterSpacing:'0.07em', marginBottom:12 }}>📅 Monats-Verlauf</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {pool.map(p => (
+                <div key={p.id || p.month} style={{ background:'var(--bg-secondary)',
+                  border:'1px solid var(--border)', borderRadius:12, padding:'14px 18px' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                    <div style={{ fontWeight:700, fontSize:14 }}>🌱 {p.month}</div>
+                    <StatusBadge status={p.distributed ? 'paid' : 'pending'} />
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:10 }}>
+                    {[
+                      { label:'Gesamt-Einfluss',      val: eur(p.total_inflow),    col:'#3ECF8E' },
+                      { label:'Projekt-Anteil (15%)', val: eur(p.project_share),   col:'#6C63FF' },
+                      { label:'Firmen-Anteil (85%)',  val: eur(p.company_share),   col:'#F59E0B' },
+                    ].map(s => (
+                      <div key={s.label} style={{ background:'var(--bg-tertiary)', borderRadius:8, padding:'8px 12px' }}>
+                        <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:2 }}>{s.label}</div>
+                        <div style={{ fontSize:16, fontWeight:700, color:s.col }}>{s.val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {pool.length === 0 && (
+                <div style={{ color:'var(--text-muted)', textAlign:'center', fontSize:13, padding:40 }}>
+                  Noch keine Impact-Pool-Daten
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
