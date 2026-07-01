@@ -58,14 +58,21 @@ const KACHEL_STYLE: React.CSSProperties = {
   padding: '18px 20px', flex: '1 1 160px', minWidth: 140,
 };
 
-function Kachel({ label, value, sub, color, stripe }: {
-  label: string; value: string; sub?: string; color?: string; stripe?: boolean;
+function Kachel({ label, value, sub, color, stripe, info, valueSize }: {
+  label: string; value: string; sub?: string; color?: string; stripe?: boolean; info?: string; valueSize?: number;
 }) {
   return (
     <div style={{ ...KACHEL_STYLE, borderTop: color ? `3px solid ${color}` : undefined }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0, flex: '1 1 auto', minWidth: 0 }}>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0, display: 'flex', alignItems: 'center', gap: 5, flex: '1 1 auto', minWidth: 0 }}>
           {label}
+          {info && (
+            <span title={info} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 13, height: 13, borderRadius: '50%', background: 'var(--bg-tertiary)', color: 'var(--text-muted)',
+              fontSize: 9, fontWeight: 700, fontStyle: 'normal', letterSpacing: 0, textTransform: 'none', cursor: 'help', flexShrink: 0 }}>
+              i
+            </span>
+          )}
         </p>
         {stripe && (
           <span style={{ flexShrink: 0, fontSize: 9, padding: '2px 6px', lineHeight: 1.4,
@@ -74,7 +81,7 @@ function Kachel({ label, value, sub, color, stripe }: {
           </span>
         )}
       </div>
-      <p style={{ fontSize: 24, fontWeight: 700, color: color || 'var(--text-primary)', margin: 0 }}>
+      <p style={{ fontSize: valueSize ?? 24, fontWeight: 700, color: color || 'var(--text-primary)', margin: 0 }}>
         {value}
       </p>
       {sub && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{sub}</p>}
@@ -197,7 +204,8 @@ export default function ImpactPage() {
               <Kachel label="Vergeben" value={eur(o.distributed)} />
               <Kachel label="Offen (verfuegbar)" value={eur(o.openImpact)} color="#818CF8" />
               <Kachel label="Bewerbungen" value={String(o.applications.total)} sub={`${o.applications.approved} genehmigt`} />
-              <Kachel label="Pool-Status" value={o.poolState}
+              <Kachel label="Pool-Status" value={o.poolState} valueSize={16}
+                info="accumulating = Pool sammelt gerade (15% der Zahlungen), noch nichts ausgezahlt. distributed = Pool wurde bereits an genehmigte Projekte ausgezahlt."
                 color={o.poolState === 'accumulating' ? '#22C55E' : o.poolState === 'voting' ? '#F59E0B' : 'var(--text-muted)'} />
             </div>
 
