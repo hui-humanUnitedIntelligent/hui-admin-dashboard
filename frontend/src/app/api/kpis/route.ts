@@ -13,19 +13,22 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-    // Parallel laden
+    // Parallel laden — Payments: Single Source of Truth ist stripe_payments (ARCH-006.1)
+    const currentPoolMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const [
       profilesRes,
       worksRes,
       membershipsRes,
       paymentsRes,
       bookingsRes,
+      poolRes,
     ] = await Promise.all([
       sb.from('profiles').select('id', { count: 'exact', head: true }),
       sb.from('works').select('id', { count: 'exact', head: true }).eq('status', 'published'),
       sb.from('memberships').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      sb.from('payments').select('amount_eur').eq('status', 'completed').gte('created_at', startOfMonth),
+      sb.from('stripe_payments').select('amount').eq('status', 'succeeded').gte('created_at', startOfMonth),
       sb.from('bookings').select('id', { count: 'exact', head: true }).eq('status', 'confirmed'),
+      sb.from('stripe_impact_pool').select('total_inflow, project_share, company_share').eq('month', currentPoolMonth).maybeSingle(),
     ]);
 
     const totalUsers    = profilesRes.count   ?? 0;
@@ -33,9 +36,15 @@ export async function GET(req: NextRequest) {
     const activeMembers = membershipsRes.count ?? 0;
     const activeBookings = bookingsRes.count   ?? 0;
 
+    // Stripe-Beträge sind in Cent gespeichert → /100 für EUR
     const payments = paymentsRes.data ?? [];
-    const monthlyRevenue = payments.reduce((s: number, p: { amount_eur?: number }) => s + (p.amount_eur ?? 0), 0);
-    const impactPool     = monthlyRevenue * 0.15;
+    const monthlyRevenue = payments.reduce((s: number, p: { amount?: number }) => s + ((p.amount ?? 0) / 100), 0);
+
+    // Impact Pool: live aus stripe_impact_pool — keine lokale Berechnung
+    const pool = poolRes.data as { total_inflow?: number; project_share?: number; company_share?: number } | null;
+    const impactPool      = (pool?.total_inflow  ?? 0) / 100; // Brutto-Pool (15% vom Umsatz)
+    const projectShareEur = (pool?.project_share ?? 0) / 100; // 15% davon → Projekte
+    const companyShareEur = (pool?.company_share ?? 0) / 100; // 85% davon → Firma
 
     // Aktive User (letzten 30 Tage)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
@@ -67,6 +76,8 @@ export async function GET(req: NextRequest) {
       activeBookings,
       monthlyRevenue,
       impactPool,
+      projectShareEur,
+      companyShareEur,
       growth,
     });
   } catch (err) {
