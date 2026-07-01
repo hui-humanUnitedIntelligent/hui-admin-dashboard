@@ -38,10 +38,13 @@ export async function GET(req: NextRequest) {
       worksAllStatusRes,
       talentProfilesRes,
       projectApplicationsRes,
+      bookingTypesRes,
+      allPaymentsRes,
+      ambassadorCommissionsRes,
     ] = await Promise.all([
       // 1) Alle Profile (keine Filterung — geblockte zählen MIT)
       sb.from('profiles')
-        .select('id, is_wirker, role, is_member, membership_active, is_ambassador, created_at, blocked, referred_by, is_talent', { count: 'exact' })
+        .select('id, is_wirker, role, is_member, membership_active, is_ambassador, created_at, blocked, referred_by, is_talent, location_label, membership_type', { count: 'exact' })
         .limit(5000),
 
       // 2) Werke (published)
@@ -102,6 +105,18 @@ export async function GET(req: NextRequest) {
 
       // 16) Projekt-Anträge nach Status — Single Source of Truth: impact_applications
       sb.from('impact_applications').select('status'),
+
+      // 17) Buchungs-Verteilung nach Typ — Single Source of Truth: bookings
+      sb.from('bookings').select('booking_type'),
+
+      // 18) Alle Zahlungen (Typ + Status + Impact-Anteil) fuer Kauf-/Impact-/Zahlungs-Verteilung
+      sb.from('stripe_payments').select('status, payment_type, impact_pool_share').limit(5000),
+
+      // 19) Ambassador-Tier-Verteilung — je Ambassador der letzte (aktuelle) Tier-Stand
+      sb.from('stripe_ambassador_commissions')
+        .select('ambassador_id, tier, created_at')
+        .order('created_at', { ascending: false })
+        .limit(2000),
     ]);
 
     // ── Auth-User für genaue Gesamtzahl (alle Seiten) ───────────────────────
@@ -179,6 +194,64 @@ export async function GET(req: NextRequest) {
       totalAwardedEur:      liveProjects.reduce((s, p) => s + (p.awarded_eur ?? 0), 0),
     };
 
+    // ══════════════════════════════════════════════════════════════════════
+    // ── 8 Kuchendiagramme — ARCH-006.1, alle live aus Supabase, keine Fakes ──
+    // ══════════════════════════════════════════════════════════════════════
+
+    // 1) User-Zusammensetzung
+    const adminCountPie    = profiles.filter(p => ['admin','superadmin'].includes(p.role)).length;
+    const basisCountPie    = Math.max(profiles.length - activeWirker - activeMembers - adminCountPie, 0);
+    const userComposition  = { wirker: activeWirker, member: activeMembers, admin: adminCountPie, basisuser: basisCountPie };
+
+    // 2) Mitgliedschafts-Typen
+    const membershipTypes = { basisuser: 0, talent: 0, member: 0 } as Record<string, number>;
+    profiles.forEach(p => { if (p.membership_type && p.membership_type in membershipTypes) membershipTypes[p.membership_type]++; });
+
+    // 3) Top Städte
+    const cityMap: Record<string, number> = {};
+    profiles.forEach(p => { if (p.location_label) cityMap[p.location_label] = (cityMap[p.location_label] ?? 0) + 1; });
+    const topCities = Object.entries(cityMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([label, count]) => ({ label, count }));
+
+    // 4) Buchungs-Verteilung nach Typ
+    const bookingTypeRows = bookingTypesRes.data ?? [];
+    const bookingDistribution = {
+      work:    bookingTypeRows.filter(b => b.booking_type === 'work').length,
+      talent:  bookingTypeRows.filter(b => b.booking_type === 'talent').length,
+      project: bookingTypeRows.filter(b => b.booking_type === 'project').length,
+    };
+
+    // 5) Kauf-Verteilung + 6) Impact-Verteilung + 8) Zahlungs-Verteilung — alle aus stripe_payments
+    const allPayments = allPaymentsRes.data ?? [];
+    const succeededPayments = allPayments.filter(p => p.status === 'succeeded');
+    const purchaseDistribution = {
+      work:         succeededPayments.filter(p => p.payment_type === 'work').length,
+      talent:       succeededPayments.filter(p => p.payment_type === 'talent').length,
+      project:      succeededPayments.filter(p => p.payment_type === 'impact_pool').length,
+      donation:     succeededPayments.filter(p => p.payment_type === 'donation').length,
+      subscription: succeededPayments.filter(p => p.payment_type === 'subscription').length,
+    };
+    const sumShare = (rows: typeof allPayments) => rows.reduce((s, p) => s + ((p.impact_pool_share ?? 0) / 100), 0);
+    const impactDistribution = {
+      work:     sumShare(succeededPayments.filter(p => p.payment_type === 'work')),
+      talent:   sumShare(succeededPayments.filter(p => p.payment_type === 'talent')),
+      project:  sumShare(succeededPayments.filter(p => p.payment_type === 'impact_pool')),
+      donation: sumShare(succeededPayments.filter(p => p.payment_type === 'donation')),
+    };
+    const paymentStatusDistribution = {
+      succeeded: allPayments.filter(p => p.status === 'succeeded').length,
+      pending:   allPayments.filter(p => p.status === 'pending').length,
+      failed:    allPayments.filter(p => p.status === 'failed').length,
+      refunded:  allPayments.filter(p => p.status === 'refunded' || p.status === 'partially_refunded').length,
+    };
+
+    // 7) Ambassador-Tier-Verteilung — je Ambassador der jeweils aktuellste (neueste) Tier-Stand
+    const latestTierByAmbassador = new Map<string, string>();
+    (ambassadorCommissionsRes.data ?? []).forEach(row => {
+      if (!latestTierByAmbassador.has(row.ambassador_id) && row.tier) latestTierByAmbassador.set(row.ambassador_id, row.tier);
+    });
+    const ambassadorTiers = { bronze: 0, silber: 0, gold: 0, platin: 0 } as Record<string, number>;
+    latestTierByAmbassador.forEach(tier => { if (tier in ambassadorTiers) ambassadorTiers[tier]++; });
+
     // Impact Pool: live aus stripe_impact_pool (aktueller Monat) — keine lokale Berechnung
     const currentPoolMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const { data: poolRow } = await sb
@@ -248,6 +321,16 @@ export async function GET(req: NextRequest) {
       talentStats,
       workStats,
       projectStats,
+      pieData: {
+        userComposition,
+        membershipTypes,
+        topCities,
+        bookingDistribution,
+        purchaseDistribution,
+        impactDistribution,
+        ambassadorTiers,
+        paymentStatusDistribution,
+      },
     });
 
   } catch (err) {
