@@ -147,60 +147,64 @@ export async function POST(req: NextRequest) {
 
       case "customer.subscription.created":
       case "customer.subscription.updated": {
-        const { data: cust } = await sb
-          .from("stripe_customers")
-          .select("user_id")
-          .eq("stripe_customer_id", data.customer)
-          .single();
-
-        await sb.from("stripe_subscriptions").upsert({
-          stripe_subscription_id: data.id,
-          stripe_customer_id:     data.customer,
-          user_id:                cust?.user_id,
-          stripe_price_id:        data.items?.data?.[0]?.price?.id,
-          status:                 data.status,
-          amount:                 data.items?.data?.[0]?.price?.unit_amount || 0,
-          currency:               data.items?.data?.[0]?.price?.currency || "eur",
-          current_period_start:   new Date(data.current_period_start * 1000).toISOString(),
-          current_period_end:     new Date(data.current_period_end   * 1000).toISOString(),
-          cancel_at_period_end:   data.cancel_at_period_end,
-        }, { onConflict: "stripe_subscription_id" });
+        const price = data.items?.data?.[0]?.price;
+        await sb.rpc("rpc_record_subscription", {
+          p_stripe_subscription_id: data.id,
+          p_stripe_customer_id:     data.customer,
+          p_status:                 data.status,
+          p_stripe_price_id:        price?.id ?? null,
+          p_amount:                 price?.unit_amount ?? 0,
+          p_currency:               price?.currency ?? "eur",
+          p_period_start:           data.current_period_start
+            ? new Date(data.current_period_start * 1000).toISOString() : null,
+          p_period_end:             data.current_period_end
+            ? new Date(data.current_period_end * 1000).toISOString() : null,
+          p_cancel_at_period_end:   data.cancel_at_period_end ?? false,
+          p_metadata:               data.metadata ?? {},
+        });
         break;
       }
 
       case "customer.subscription.deleted": {
-        await sb.from("stripe_subscriptions")
-          .update({ status: "canceled", updated_at: new Date().toISOString() })
-          .eq("stripe_subscription_id", data.id);
+        await sb.rpc("rpc_record_subscription", {
+          p_stripe_subscription_id: data.id,
+          p_stripe_customer_id:     data.customer,
+          p_status:                 "canceled",
+        });
         break;
       }
 
       case "payout.paid": {
-        await sb.from("stripe_payouts").upsert({
-          stripe_payout_id: data.id,
-          amount:           data.amount,
-          currency:         data.currency,
-          status:           "paid",
-          arrival_date:     new Date(data.arrival_date * 1000).toISOString(),
-          description:      data.description,
-        }, { onConflict: "stripe_payout_id" });
+        await sb.rpc("rpc_record_payout", {
+          p_stripe_payout_id: data.id,
+          p_amount:           data.amount,
+          p_currency:         data.currency ?? "eur",
+          p_status:           "paid",
+          p_payout_type:      data.metadata?.payout_type ?? "platform",
+          p_arrival_date:     data.arrival_date
+            ? new Date(data.arrival_date * 1000).toISOString() : null,
+        });
         break;
       }
 
       case "payout.failed": {
-        await sb.from("stripe_payouts").upsert({
-          stripe_payout_id: data.id,
-          amount:           data.amount || 0,
-          currency:         data.currency || "eur",
-          status:           "failed",
-        }, { onConflict: "stripe_payout_id" });
+        await sb.rpc("rpc_record_payout", {
+          p_stripe_payout_id: data.id,
+          p_amount:           data.amount ?? 0,
+          p_currency:         data.currency ?? "eur",
+          p_status:           "failed",
+        });
         break;
       }
 
       case "charge.refunded": {
-        await sb.from("stripe_payments")
-          .update({ status: "refunded", updated_at: new Date().toISOString() })
-          .eq("stripe_payment_id", data.payment_intent);
+        // rpc_handle_refund: korrigiert Pool + Ambassador-Provision atomisch
+        if (data.payment_intent) {
+          await sb.rpc("rpc_handle_refund", {
+            p_stripe_payment_id: data.payment_intent,
+            p_refund_amount:     data.amount_refunded ?? null,
+          });
+        }
         break;
       }
     }
