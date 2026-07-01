@@ -138,14 +138,14 @@ export default function StripeDashboardPage() {
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {/* Type-Filter */}
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
-            {(['','work','talent','donation','subscription','impact_subscription'] as const).map(t => (
+            {['','work','talent','donation','subscription','impact_subscription'].map(t => (
               <button key={t||'all'} onClick={() => setPaymentTypeFilter(t)}
                 style={{ padding:'5px 14px', borderRadius:8, cursor:'pointer', fontSize:11,
                   fontWeight:600, border:'1px solid var(--border)',
                   background: paymentTypeFilter===t ? 'var(--accent)' : 'var(--bg-secondary)',
                   color:       paymentTypeFilter===t ? '#fff' : 'var(--text-muted)',
                 }}>
-                {t===''?'Alle':t==='work'?'🎨 Werke':t==='talent'?'✨ Talente':t==='donation'?'🌱 Spenden':t==='subscription'?'📋 Abos':t==='impact_subscription'?'♻️ Impact-Abo':t}
+                {t===''?'Alle':t==='work'?'🎨 Werke':t==='talent'?'✨ Talente':t==='donation'?'🌱 Spenden':t==='subscription'?'📋 Abos':'♻️ Impact-Abo'}
               </button>
             ))}
             <span style={{ fontSize:11, color:'var(--text-muted)', marginLeft:'auto' }}>{payments.length} Einträge</span>
@@ -159,7 +159,7 @@ export default function StripeDashboardPage() {
               </tr></thead>
               <tbody>
                 {payments.map(p => {
-                  const tc = ({work:'#6C63FF',talent:'#3ECF8E',donation:'#F59E0B',subscription:'#06B6D4',impact_subscription:'#8B5CF6'} as Record<string,string>)[p.payment_type||'work'] ?? '#888';
+                  const typeColors: Record<string,string> = {work:'#6C63FF',talent:'#3ECF8E',donation:'#F59E0B',subscription:'#06B6D4',impact_subscription:'#8B5CF6'}; const tc = typeColors[p.payment_type||'work'] ?? '#888';
                   return (
                     <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}>
                       <td style={td}><div style={{fontWeight:600}}>@{p.username||'—'}</div></td>
@@ -173,7 +173,7 @@ export default function StripeDashboardPage() {
                     </tr>
                   );
                 })}
-                {payments.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'var(--text-muted)' }}>Noch keine Zahlungen</td></tr>}
+                {payments.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'var(--text-muted)', padding:'40px' }}>Noch keine Zahlungen</td></tr>}
             </tbody>
           </table>
         </div>
