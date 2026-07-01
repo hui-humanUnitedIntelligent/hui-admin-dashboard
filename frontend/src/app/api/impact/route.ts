@@ -20,43 +20,34 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const sb     = getServiceClient();
 
-    // ── Pool-Finanzdaten direkt aus payments berechnen ────────────────────
+    // ── Pool-Finanzdaten: einzige Quelle ist Stripe (ARCH-006.1) ──────────
     if (type === 'pool' || type === 'overview') {
-      // Alle abgeschlossenen Zahlungen (status = completed/paid)
-      const { data: payments } = await sb
-        .from('payments')
-        .select('id,amount_eur,impact_eur,item_type,status,payment_status,paid_at,created_at,user_id,wirker_id,item_name')
-        .in('status', ['completed', 'paid', 'released'])
-        .order('created_at', { ascending: false });
+      // Gesamtumsatz + Aufschlüsselung nach Zahlungstyp aus rpc_get_stripe_overview
+      const { data: ov } = await sb.rpc('rpc_get_stripe_overview');
+      const byType: Record<string, { count: number; total_eur: number }> = ov?.by_type ?? {};
+      const revenueByType = {
+        work:                 byType.work?.total_eur ?? 0,
+        talent:               byType.talent?.total_eur ?? 0,
+        donation:             byType.donation?.total_eur ?? 0,
+        subscription:         byType.subscription?.total_eur ?? 0,
+        impact_subscription:  byType.impact_subscription?.total_eur ?? 0,
+      };
+      const totalRevenue = ov?.total_volume_eur ?? 0;
+      const paymentCount = ov?.total_payments ?? 0;
 
-      const paidPayments = payments ?? [];
-
-      // Umsatz nach Typ aufschlüsseln
-      const revenueByType: Record<string, number> = { works: 0, experiences: 0, bookings: 0, other: 0 };
-      let totalRevenue = 0;
-      for (const p of paidPayments) {
-        const amt = p.amount_eur ?? 0;
-        totalRevenue += amt;
-        const t = (p.item_type || 'other').toLowerCase();
-        if (t.includes('work'))       revenueByType.works       += amt;
-        else if (t.includes('exp') || t.includes('erlebnis')) revenueByType.experiences += amt;
-        else if (t.includes('book')) revenueByType.bookings     += amt;
-        else                         revenueByType.other        += amt;
-      }
-
-      // Impact-Pool-Berechnungen
-      const bruttoPool    = totalRevenue * IMPACT_RATE;       // 15% vom Umsatz
-      const nettoImpact   = bruttoPool   * NETTO_RATE;        // 85% davon = Projekte
-      const firmenanteil  = bruttoPool   * FIRMA_RATE;        // 15% davon = System
-
-      // Bereits vergebene Beträge aus impact_pool-Tabelle
+      // Impact-Pool-Zahlen: alle Monate aus stripe_impact_pool aufsummieren
       const { data: poolRows } = await sb
-        .from('impact_pool')
-        .select('*')
+        .from('stripe_impact_pool')
+        .select('month,total_inflow,project_share,company_share,distributed')
         .order('month', { ascending: false });
 
-      const distributed = (poolRows ?? []).reduce((s: number, p: {distributed_eur?: number}) => s + (p.distributed_eur ?? 0), 0);
-      const latestPool  = (poolRows ?? [])[0] ?? null;
+      const rows = poolRows ?? [];
+      const bruttoPool   = rows.reduce((s, r) => s + (r.total_inflow   ?? 0), 0) / 100;
+      const nettoImpact  = rows.reduce((s, r) => s + (r.project_share  ?? 0), 0) / 100;
+      const firmenanteil = rows.reduce((s, r) => s + (r.company_share  ?? 0), 0) / 100;
+      const distributed  = rows.filter(r => r.distributed)
+        .reduce((s, r) => s + (r.project_share ?? 0), 0) / 100;
+      const latestPool   = rows[0] ?? null;
 
       // Bewerbungen zählen
       const { count: appTotal } = await sb
@@ -71,24 +62,17 @@ export async function GET(req: NextRequest) {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'submitted');
 
-      // Monatliche Aufschlüsselung (letzte 6 Monate)
-      const monthlyMap: Record<string, {revenue: number; impact: number; count: number}> = {};
-      for (const p of paidPayments) {
-        const mo = (p.paid_at || p.created_at || '').slice(0, 7); // YYYY-MM
-        if (!mo) continue;
-        if (!monthlyMap[mo]) monthlyMap[mo] = { revenue: 0, impact: 0, count: 0 };
-        monthlyMap[mo].revenue += p.amount_eur ?? 0;
-        monthlyMap[mo].impact  += (p.amount_eur ?? 0) * IMPACT_RATE;
-        monthlyMap[mo].count   += 1;
-      }
-      const monthly = Object.entries(monthlyMap)
-        .sort(([a], [b]) => b.localeCompare(a))
-        .slice(0, 6)
-        .map(([month, d]) => ({ month, ...d }));
+      // Monatliche Aufschlüsselung direkt aus stripe_impact_pool (letzte 6 Monate)
+      const monthly = rows.slice(0, 6).map(r => ({
+        month:   r.month,
+        revenue: (r.total_inflow ?? 0) / 100 / IMPACT_RATE,
+        impact:  (r.total_inflow ?? 0) / 100,
+        count:   0,
+      }));
 
       return NextResponse.json({
         ok: true,
-        // Finanzen
+        // Finanzen (Single Source of Truth: stripe_payments / stripe_impact_pool)
         totalRevenue,
         bruttoPool,
         nettoImpact,
@@ -97,15 +81,15 @@ export async function GET(req: NextRequest) {
         openImpact:    nettoImpact - distributed,
         // Quellen
         revenueByType,
-        paymentCount:  paidPayments.length,
+        paymentCount,
         // Bewerbungen
         applications:  { total: appTotal ?? 0, approved: appApproved ?? 0, pending: appPending ?? 0 },
         // Pool-Status
-        poolState:     latestPool?.state ?? 'accumulating',
+        poolState:     latestPool?.distributed ? 'distributed' : 'accumulating',
         poolMonth:     latestPool?.month ?? null,
         monthly,
-        // Stripe-Status
-        stripeReady:   false, // wird auf true gesetzt sobald Stripe eingebunden ist
+        // Stripe-Status — live, da vollständig integriert
+        stripeReady:   true,
       });
     }
 
