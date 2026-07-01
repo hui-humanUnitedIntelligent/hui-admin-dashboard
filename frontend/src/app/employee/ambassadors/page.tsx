@@ -62,11 +62,83 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+
+// ── EDB Referral Card mit aufklappbaren Details ──────────────────────────────
+function EdbReferralCard({ ref: r }: { ref: any }) {
+  const [open, setOpen] = React.useState(false);
+  const initials = (r.display_name || r.username || '?').slice(0, 2).toUpperCase();
+  return (
+    <div>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 14px',
+          background:'var(--bg-tertiary)',borderRadius: open ? '8px 8px 0 0' : 8,
+          border:'1px solid var(--border)',cursor:'pointer' }}
+      >
+        <div style={{ width:32,height:32,borderRadius:'50%',background:'var(--accent)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:12,fontWeight:700,color:'#0F1117',flexShrink:0 }}>
+          {initials}
+        </div>
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ fontSize:12,fontWeight:600,color:'var(--text-primary)',
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+            {r.display_name || r.username || '—'}
+          </div>
+          <div style={{ display:'flex',gap:8,marginTop:2 }}>
+            {r.username && <span style={{ fontSize:10,color:'var(--text-muted)' }}>@{r.username}</span>}
+            <span style={{ fontSize:10,color:'var(--text-muted)' }}>
+              Reg. {r.joined_at ? new Date(r.joined_at).toLocaleDateString('de-DE') : '—'}
+            </span>
+            {r.is_active
+              ? <span style={{ fontSize:10,fontWeight:700,color:'#22C55E' }}>⚡ aktiv</span>
+              : <span style={{ fontSize:10,color:'var(--text-muted)' }}>😴 schlafend</span>
+            }
+          </div>
+        </div>
+        <span style={{ fontSize:11,color:'var(--text-muted)',display:'inline-block',
+          transition:'transform .15s',transform:open ? 'rotate(180deg)' : 'none' }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ padding:'10px 16px 12px',background:'rgba(99,102,241,0.05)',
+          border:'1px solid var(--border)',borderTop:'none',borderRadius:'0 0 8px 8px',
+          display:'flex',flexDirection:'column',gap:7 }}>
+          {[
+            { label:'E-Mail',   val: r.email, href: r.email ? `mailto:${r.email}` : null },
+            { label:'Telefon',  val: r.phone, href: r.phone ? `tel:${r.phone}` : null },
+            { label:'Rolle',    val: r.role ?? 'basisuser', href: null },
+            { label:'Erste Zahlung', val: r.first_transaction_at
+                ? new Date(r.first_transaction_at).toLocaleDateString('de-DE')
+                : 'Noch keine', href: null },
+            { label:'ID', val: r.id, href: null },
+          ].map(row => (
+            <div key={row.label} style={{ display:'flex',alignItems:'center',gap:8 }}>
+              <span style={{ fontSize:11,color:'var(--text-muted)',width:90,flexShrink:0 }}>{row.label}</span>
+              {row.href
+                ? <a href={row.href} style={{ fontSize:12,fontWeight:600,color:'var(--accent)',
+                    textDecoration:'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+                    {row.val || '—'}
+                  </a>
+                : <span style={{ fontSize:row.label==='ID' ? 10 : 12,
+                    fontFamily:row.label==='ID' ? 'monospace' : undefined,
+                    color:'var(--text-primary)',fontWeight:row.label==='ID' ? 400 : 600 }}>
+                    {row.val || '—'}
+                  </span>
+              }
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Haupt-Drawer: Ambassador-Detail ────────────────────────────────────────
 function AmbassadorDetailDrawer({
   amb, onClose,
 }: { amb: Ambassador; onClose: () => void }) {
-  const [tab, setTab]       = useState<'works'|'projects'|'messages'|'actions'>('works');
+  const [tab, setTab]       = useState<'referrals'|'works'|'projects'|'messages'|'actions'>('referrals');
+  const [referrals, setReferrals] = useState<any[]>([]);
   const [works, setWorks]   = useState<Work[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [chats, setChats]   = useState<Chat[]>([]);
@@ -80,7 +152,11 @@ function AmbassadorDetailDrawer({
   const loadTab = useCallback(async (t: string) => {
     setLoading(true);
     try {
-      if (t === 'works') {
+      if (t === 'referrals') {
+        const r = await fetch(`/api/ambassador?type=referrals&ambassador_id=${amb.id}`, { credentials:'include' });
+        const d = await r.json();
+        setReferrals(d.referrals ?? []);
+      } else if (t === 'works') {
         const r = await fetch(`/api/ambassador?type=works&ambassador_id=${amb.id}`, { credentials:'include' });
         const d = await r.json();
         setWorks(d.works ?? []);
@@ -120,6 +196,7 @@ function AmbassadorDetailDrawer({
   }
 
   const tabs: { key: typeof tab; label: string }[] = [
+    { key:'referrals', label:'Referrals' },
     { key:'works',    label:'Werke'    },
     { key:'projects', label:'Projekte' },
     { key:'messages', label:'Nachrichten'},
@@ -206,6 +283,20 @@ function AmbassadorDetailDrawer({
         <div style={{ padding:'16px 24px',flex:1 }}>
           {loading ? (
             <div style={{ color:'var(--text-muted)',textAlign:'center',paddingTop:40 }}>Lade…</div>
+          ) : tab === 'referrals' ? (
+            <div>
+              <div style={{ fontSize:12,color:'var(--text-muted)',marginBottom:12 }}>
+                {referrals.length} geworbene Nutzer — klicken für Details
+              </div>
+              {referrals.length === 0
+                ? <div style={{ color:'var(--text-muted)',fontSize:13 }}>Noch keine Referrals.</div>
+                : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                    {referrals.map((ref: any) => (
+                      <EdbReferralCard key={ref.id} ref={ref} />
+                    ))}
+                  </div>
+              }
+            </div>
           ) : tab === 'works' ? (
             <div>
               <div style={{ fontSize:12,color:'var(--text-muted)',marginBottom:12 }}>
