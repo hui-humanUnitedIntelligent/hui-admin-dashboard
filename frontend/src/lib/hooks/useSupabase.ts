@@ -58,16 +58,40 @@ export interface HuiProfile {
   username_lower: string | null;
 }
 
-export interface HuiPayment {
+export interface HuiTransaction {
+  row_id: string;
+  record_type: 'payment' | 'refund' | 'subscription' | 'commission' | 'payout';
+  category: string;
+  status: string;
+  amount: number;
+  currency: string;
+  user_id: string | null;
+  user_name: string | null;
+  user_username: string | null;
+  user_email: string | null;
+  ambassador_id: string | null;
+  ambassador_name: string | null;
+  ambassador_username: string | null;
+  work_id: string | null;
+  work_title: string | null;
+  talent_id: string | null;
+  project_id: string | null;
+  project_title: string | null;
+  impact_share: number | null;
+  commission_amount: number | null;
+  stripe_payment_intent_id: string | null;
+  stripe_charge_id: string | null;
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  // Backward-compat Aliase (alte Felder, die die UI ggf. noch referenziert)
   id: string;
-  payer_id: string | null;
-  recipient_id: string | null;
   amount_eur: number;
   impact_amount: number;
-  status: string;
-  currency: string;
-  created_at: string;
   booking_id: string | null;
+}
+// Backward-compat: alte Importe von HuiPayment funktionieren weiter
+export type HuiPayment = HuiTransaction;
 }
 
 export interface HuiWork {
@@ -393,38 +417,64 @@ export function useProfiles(opts: {
 export function usePayments(opts: {
   status?: string; days?: number; page?: number; limit?: number; refreshInterval?: number;
 } = {}) {
-  const { status, days, page = 0, limit = 50, refreshInterval = 0 } = opts;
-  const [payments, setPayments] = useState<HuiPayment[]>([]);
+  const { status = 'all', days, page = 0, limit = 50, refreshInterval = 0 } = opts;
+  const [payments, setPayments] = useState<HuiTransaction[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalVolume, setTotalVolume] = useState(0);
+  const [totalImpact, setTotalImpact] = useState(0);
+  const [completed, setCompleted] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = {};
-      if (status && status !== 'all') params['status'] = `eq.${status}`;
-      if (days) { const c = new Date(); c.setDate(c.getDate() - days); params['created_at'] = `gte.${c.toISOString()}`; }
-      const [rows, count] = await Promise.all([
-        sbQuery<HuiPayment>('payments', params, {
-          select: 'id,payer_id,recipient_id,amount_eur,impact_amount,status,currency,created_at,booking_id',
-          order: 'created_at.desc', limit, offset: page * limit }),
-        sbCount('payments', params),
-      ]);
-      setPayments(rows); setTotal(count); setError(null);
+      const params = new URLSearchParams({
+        filter: status, limit: String(limit), offset: String(page * limit),
+      });
+      if (days) params.set('days', String(days));
+      const token = getSessionToken();
+      const res = await globalThis.fetch(`/api/transactions?${params.toString()}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'unknown');
+
+      const rows: HuiTransaction[] = (json.transactions ?? []).map((t: Record<string, unknown>) => ({
+        ...t,
+        id: t.row_id,
+        amount_eur: t.amount,
+        impact_amount: t.impact_share ?? 0,
+        booking_id: (t.work_id ?? t.talent_id ?? t.project_id ?? null) as string | null,
+      }));
+
+      setPayments(rows);
+      setTotal(json.total ?? rows.length);
+      setTotalVolume(json.totalVolume ?? 0);
+      setTotalImpact(json.totalImpact ?? 0);
+      setCompleted(json.completed ?? 0);
+      setError(null);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally { setLoading(false); }
   }, [status, days, page, limit]);
 
-  useRealtimeTable('payments:realtime', ['payments', 'orders'], fetch);
+  // Live-Sync: sobald einer der 5 Stripe-Kern-Tabellen sich ändert (z.B. durch
+  // einen Webhook), lädt die Transaktionsliste automatisch neu — keine manuelle
+  // Aktualisierung nötig (ARCH-006.1, Punkt 7).
+  useRealtimeTable('transactions:realtime', [
+    'stripe_payments', 'stripe_refunds', 'stripe_subscriptions',
+    'stripe_ambassador_commissions', 'stripe_payouts',
+  ], fetch);
 
   useEffect(() => {
     fetch();
     if (refreshInterval > 0) { const id = setInterval(fetch, refreshInterval); return () => clearInterval(id); }
   }, [fetch, refreshInterval]);
 
-  return { payments, total, loading, error, refetch: fetch };
+  return { payments, total, totalVolume, totalImpact, completed, loading, error, refetch: fetch };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
