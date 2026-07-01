@@ -6,8 +6,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { statusToBadge } from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
-import { usePayments, HuiPayment } from '@/lib/hooks/useSupabase';
+import { usePayments, HuiTransaction } from '@/lib/hooks/useSupabase';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -19,10 +18,30 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE');
 }
 
+const CATEGORY_LABEL: Record<string, string> = {
+  payment: 'Zahlung', refund: 'Refund', subscription: 'Abo',
+  commission: 'Provision', payout: 'Auszahlung',
+  work: 'Werk', talent: 'Talent', project: 'Projekt', donation: 'Spende', one_time: 'Einmalig',
+};
+
+function recordTypeBadge(t: HuiTransaction) {
+  const label = t.record_type === 'payment' ? (CATEGORY_LABEL[t.category] || t.category) : CATEGORY_LABEL[t.record_type];
+  const color =
+    t.record_type === 'refund' ? 'var(--red, #e05252)' :
+    t.record_type === 'commission' ? 'var(--purple)' :
+    t.record_type === 'payout' ? 'var(--gold)' :
+    t.record_type === 'subscription' ? 'var(--accent)' : 'var(--text-secondary)';
+  return (
+    <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: `${color}18`, color }}>
+      {label}
+    </span>
+  );
+}
+
 function Skeleton() {
   return (
     <tr>
-      {[...Array(7)].map((_, i) => (
+      {[...Array(9)].map((_, i) => (
         <td key={i} style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ height: 11, background: 'var(--bg-tertiary)', borderRadius: 4, animation: 'pulse 2s ease-in-out infinite', width: `${40 + (i * 10) % 40}%` }} />
         </td>
@@ -31,27 +50,25 @@ function Skeleton() {
   );
 }
 
+const STATUS_FILTERS = ['all', 'completed', 'pending', 'failed', 'refund', 'subscription'];
+const CATEGORY_FILTERS = ['work', 'talent', 'project', 'donation'];
+
 export default function EmployeeTransactionsPage() {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   const [statusFilter, setStatusFilter] = useState('all');
   const [daysFilter, setDaysFilter] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState<HuiPayment | null>(null);
+  const [selected, setSelected] = useState<HuiTransaction | null>(null);
   const LIMIT = 50;
 
-  const { payments, total, loading, refetch } = usePayments({
+  const { payments, total, totalVolume, totalImpact, completed, loading, refetch } = usePayments({
     status: statusFilter,
     days: daysFilter,
     page,
     limit: LIMIT,
     refreshInterval: 0,
   });
-
-  // Stats
-  const totalEur    = payments.reduce((s, p) => s + (p.amount_eur || 0), 0);
-  const totalImpact = payments.reduce((s, p) => s + (p.impact_amount || 0), 0);
-  const completed   = payments.filter((p) => p.status === 'completed').length;
 
   const filterBtnStyle = (active: boolean): React.CSSProperties => ({
     padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500,
@@ -62,6 +79,12 @@ export default function EmployeeTransactionsPage() {
     fontFamily: 'var(--font-body)', transition: 'all 0.15s',
   });
 
+  const statusLabel: Record<string, string> = {
+    all: 'Alle', completed: 'Completed', pending: 'Pending', failed: 'Failed',
+    refund: 'Refunds', subscription: 'Abos',
+    work: 'Werke', talent: 'Talente', project: 'Projekte', donation: 'Spenden',
+  };
+
   return (
     <DashboardLayout
       employeeMode={true}
@@ -71,25 +94,23 @@ export default function EmployeeTransactionsPage() {
           onClick={refetch}
           style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5 }}
         >
-          
-      <PageHeader
-        title="Transaktionen"
-        subtitle="Zahlungs-Übersicht"
-        actionsRole="employee"
-        userRole={userRole}
-      />
-
-↻ Live Refresh
+          <PageHeader
+            title="Transaktionen"
+            subtitle="Zahlungs-Übersicht"
+            actionsRole="employee"
+            userRole={userRole}
+          />
+          ↻ Live Refresh
         </button>
       }
     >
       {/* ── Summary Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }} className="grid-4">
         {[
-          { label: 'Geladen',    value: loading ? '…' : total.toString(),                  color: 'var(--accent)',  icon: '📊' },
-          { label: 'Volumen',    value: loading ? '…' : `€${totalEur.toFixed(0)}`,          color: 'var(--gold)',    icon: '€' },
-          { label: 'Impact',     value: loading ? '…' : `€${totalImpact.toFixed(0)}`,       color: 'var(--green)',   icon: '🌱' },
-          { label: 'Completed',  value: loading ? '…' : `${completed} / ${payments.length}`,color: 'var(--purple)',  icon: '✓' },
+          { label: 'Geladen',    value: loading ? '…' : total.toString(),                       color: 'var(--accent)', icon: '📊' },
+          { label: 'Volumen',    value: loading ? '…' : `€${totalVolume.toFixed(2)}`,            color: 'var(--gold)',   icon: '€' },
+          { label: 'Impact',     value: loading ? '…' : `€${totalImpact.toFixed(2)}`,             color: 'var(--green)',  icon: '🌱' },
+          { label: 'Completed',  value: loading ? '…' : `${completed} / ${payments.length}`,     color: 'var(--purple)', icon: '✓' },
         ].map(({ label, value, color, icon }) => (
           <div key={label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{icon}</div>
@@ -103,13 +124,22 @@ export default function EmployeeTransactionsPage() {
 
       {/* ── Filter Bar ── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {['all','completed','pending','failed'].map((s) => (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {STATUS_FILTERS.map((s) => (
             <button key={s} style={filterBtnStyle(statusFilter === s)} onClick={() => { setStatusFilter(s); setPage(0); }}>
-              {s === 'all' ? 'Alle' : s.charAt(0).toUpperCase() + s.slice(1)}
+              {statusLabel[s]}
             </button>
           ))}
         </div>
+        <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {CATEGORY_FILTERS.map((s) => (
+            <button key={s} style={filterBtnStyle(statusFilter === s)} onClick={() => { setStatusFilter(s); setPage(0); }}>
+              {statusLabel[s]}
+            </button>
+          ))}
+        </div>
+        <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
         <div style={{ display: 'flex', gap: 6 }}>
           {[
             { label: 'Alles', val: undefined },
@@ -133,7 +163,7 @@ export default function EmployeeTransactionsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                {['ID', 'Betrag', 'Impact', 'Status', 'Währung', 'Buchung', 'Datum'].map((h) => (
+                {['ID', 'Typ', 'Betrag', 'Impact/Provision', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'].map((h) => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                     {h}
                   </th>
@@ -145,26 +175,29 @@ export default function EmployeeTransactionsPage() {
                 <><Skeleton /><Skeleton /><Skeleton /><Skeleton /><Skeleton /></>
               ) : payments.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                  <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
                     Keine Zahlungen gefunden
                   </td>
                 </tr>
               ) : (
                 payments.map((p) => (
                   <tr
-                    key={p.id}
+                    key={p.row_id}
                     className="tr-hover"
                     onClick={() => setSelected(p === selected ? null : p)}
-                    style={{ background: selected?.id === p.id ? 'var(--accent-dim)' : 'transparent' }}
+                    style={{ background: selected?.row_id === p.row_id ? 'var(--accent-dim)' : 'transparent', cursor: 'pointer' }}
                   >
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>
-                      {p.id.slice(0, 8)}…
+                      {p.row_id.slice(0, 10)}…
+                    </td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                      {recordTypeBadge(p)}
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
-                      €{(p.amount_eur || 0).toFixed(2)}
+                      €{(p.amount || 0).toFixed(2)}
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
-                      €{(p.impact_amount || 0).toFixed(2)}
+                      {p.impact_share != null ? `€${p.impact_share.toFixed(2)}` : p.commission_amount != null ? `€${p.commission_amount.toFixed(2)}` : '—'}
                     </td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                       {statusToBadge(p.status)}
@@ -172,8 +205,11 @@ export default function EmployeeTransactionsPage() {
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid var(--border)' }}>
                       {p.currency || 'eur'}
                     </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>
-                      {p.booking_id ? p.booking_id.slice(0, 6) + '…' : '—'}
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
+                      {p.user_name || p.user_username || '—'}
+                    </td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
+                      {p.ambassador_name || p.ambassador_username || '—'}
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
                       {timeAgo(p.created_at)}
@@ -185,25 +221,43 @@ export default function EmployeeTransactionsPage() {
           </table>
         </div>
 
-        {/* Expanded detail */}
+        {/* Expanded detail — alle Pflichtfelder gemäß ARCH-006.1 */}
         {selected && (
           <div style={{ padding: '14px 20px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
               {[
-                ['Volle ID',     selected.id],
-                ['Zahler ID',    selected.payer_id || '—'],
-                ['Empfänger ID', selected.recipient_id || '—'],
-                ['Buchungs-ID',  selected.booking_id || '—'],
-                ['Betrag',       `€${(selected.amount_eur || 0).toFixed(2)}`],
-                ['Impact Anteil',`€${(selected.impact_amount || 0).toFixed(2)}`],
-                ['Status',       selected.status],
-                ['Erstellt',     new Date(selected.created_at).toLocaleString('de-DE')],
+                ['Stripe Payment Intent ID', selected.stripe_payment_intent_id || selected.row_id],
+                ['Stripe Charge ID',         selected.stripe_charge_id || '—'],
+                ['Betrag',                   `€${(selected.amount || 0).toFixed(2)}`],
+                ['Währung',                  (selected.currency || 'eur').toUpperCase()],
+                ['Status',                   selected.status],
+                ['Buchungstyp',              CATEGORY_LABEL[selected.category] || selected.category],
+                ['Nutzer',                   selected.user_name || selected.user_username || selected.user_id || '—'],
+                ['Nutzer E-Mail',            selected.user_email || '—'],
+                ['Ambassador',               selected.ambassador_name || selected.ambassador_username || '—'],
+                ['Werk-ID',                  selected.work_id || '—'],
+                ['Werk-Titel',               selected.work_title || '—'],
+                ['Talent-ID',                selected.talent_id || '—'],
+                ['Projekt-ID',               selected.project_id || '—'],
+                ['Projekt-Titel',            selected.project_title || '—'],
+                ['Impact-Anteil',            selected.impact_share != null ? `€${selected.impact_share.toFixed(2)}` : '—'],
+                ['Provision',                selected.commission_amount != null ? `€${selected.commission_amount.toFixed(2)}` : '—'],
+                ['Beschreibung',             selected.description || '—'],
+                ['Erstellt',                 new Date(selected.created_at).toLocaleString('de-DE')],
               ].map(([k, v]) => (
                 <div key={k}>
                   <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 3 }}>{k}</div>
                   <div style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{v}</div>
                 </div>
               ))}
+              {selected.metadata && Object.keys(selected.metadata).length > 0 && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 3 }}>Metadaten</div>
+                  <pre style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--bg-secondary)', padding: 8, borderRadius: 6, overflowX: 'auto' }}>
+                    {JSON.stringify(selected.metadata, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
         )}
