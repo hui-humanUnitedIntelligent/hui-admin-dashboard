@@ -317,14 +317,27 @@ export default function AmbassadorsPage() {
                     <span style={{ color:'var(--text-muted)', fontSize:11 }}> / {a.sleepingCount}</span>
                   </td>
                   <td style={{ ...td, fontFamily:'var(--font-mono)', fontWeight:700, color: a.revenueEur > 0 ? '#51cf66' : 'var(--text-muted)' }}>{fmtEur(a.revenueEur)}</td>
-                  <td style={td}>
-                    {a.referralLink ? (
-                      <a href={a.referralLink} target="_blank" rel="noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{ color:'var(--accent)', fontSize:11, textDecoration:'none' }}>
-                        {a.referralCode ?? a.referralLink.split('/').pop()}
-                      </a>
-                    ) : <span style={{ color:'var(--text-muted)', fontSize:11 }}>—</span>}
+                  <td style={td} onClick={e => e.stopPropagation()}>
+                    {(() => {
+                      // Autoritative Quelle: profiles.username → https://be-hui.com/<username>
+                      const link = a.referralLink || (a.username ? `https://be-hui.com/${a.username}` : null);
+                      if (!link) return <span style={{ color:'var(--text-muted)', fontSize:11 }}>—</span>;
+                      const displayText = link.replace('https://be-hui.com/', 'be-hui.com/');
+                      return (
+                        <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                          <a href={link} target="_blank" rel="noreferrer"
+                            style={{ color:'var(--accent)', fontSize:11, textDecoration:'none', wordBreak:'break-all' }}>
+                            {displayText}
+                          </a>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(link)}
+                            title="Link kopieren"
+                            style={{ border:'none', background:'transparent', cursor:'pointer', color:'var(--text-muted)', fontSize:12, padding:'0 2px', flexShrink:0 }}>
+                            📋
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ ...td, color:'var(--text-muted)', fontSize:12 }}>{fmtDate(a.createdAt)}</td>
                   {userRole === 'superadmin' && (
