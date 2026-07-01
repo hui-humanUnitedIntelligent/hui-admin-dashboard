@@ -168,11 +168,14 @@ export async function POST(req: NextRequest) {
       }
 
       case "charge.refunded": {
-        // rpc_handle_refund: korrigiert Pool + Ambassador-Provision atomisch
+        // rpc_record_refund: speichert in stripe_refunds + korrigiert Pool + Ambassador-Provision atomisch
         if (data.payment_intent) {
-          await sb.rpc("rpc_handle_refund", {
+          const refundObj = data.refunds?.data?.[0];
+          await sb.rpc("rpc_record_refund", {
             p_stripe_payment_id: data.payment_intent,
             p_refund_amount:     data.amount_refunded ?? null,
+            p_stripe_refund_id:  refundObj?.id ?? null,
+            p_reason:            refundObj?.reason ?? null,
           });
         }
         break;
