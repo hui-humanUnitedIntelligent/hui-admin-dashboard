@@ -65,7 +65,7 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── EDB Referral Card mit aufklappbaren Details ──────────────────────────────
 function EdbReferralCard({ ref: r }: { ref: any }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const initials = (r.display_name || r.username || '?').slice(0, 2).toUpperCase();
   return (
     <div>
