@@ -92,7 +92,6 @@ export interface HuiTransaction {
 }
 // Backward-compat: alte Importe von HuiPayment funktionieren weiter
 export type HuiPayment = HuiTransaction;
-}
 
 export interface HuiWork {
   id: string;
