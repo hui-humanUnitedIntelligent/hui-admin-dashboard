@@ -59,7 +59,7 @@ export default function EmployeeAmbassadorsPage() {
   const td: React.CSSProperties = { padding:'10px 14px', fontSize:12, color:'var(--text-primary)' };
 
   return (
-    <EmployeeLayout>
+    <EmployeeLayout title="Ambassadors">
       <div style={{ padding:'24px 28px', display:'flex', flexDirection:'column', gap:20 }}>
 
         {/* Header */}
