@@ -92,6 +92,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, data: data ?? [] });
   }
 
+  if (type === "impact_pool_current") {
+    const { data } = await sb.rpc("rpc_get_impact_pool_current");
+    return NextResponse.json({ ok: true, data: data ?? {} });
+  }
+
+  if (type === "impact_pool_history") {
+    const limit = parseInt(searchParams.get("limit") || "12");
+    const { data } = await sb.rpc("rpc_get_impact_pool_history", { p_limit: limit });
+    return NextResponse.json({ ok: true, data: data ?? [] });
+  }
+
+  if (type === "impact_pool_events") {
+    const month  = searchParams.get("month") || undefined;
+    const limit  = parseInt(searchParams.get("limit") || "50");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const { data } = await sb.rpc("rpc_get_impact_pool_events", {
+      p_month: month ?? null, p_limit: limit, p_offset: offset,
+    });
+    return NextResponse.json({ ok: true, data: data ?? [] });
+  }
+
   return NextResponse.json({ ok: false, error: "Unknown type" }, { status: 400 });
 }
 
