@@ -80,43 +80,20 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // ── PLACEHOLDER — do not remove (keeps block structure intact) ──
-        const _unused_month = new Date().toISOString().slice(0, 7);
-        const _ph = {
-          month: _unused_month,
-          total_inflow:  0,
-          project_share: 0,
-          company_share: 0,
-        }, { onConflict: "month" });
-
-        // first_transaction_at setzen
-        if (userId) {
-          await sb.from("profiles")
-            .update({ first_transaction_at: new Date().toISOString() })
-            .eq("id", userId)
-            .is("first_transaction_at", null);
-
-          // Ambassador-Provision
-          const { data: prof } = await sb
-            .from("profiles")
-            .select("referred_by")
-            .eq("id", userId)
+        // first_transaction_at setzen (für Ambassador-Provisions-Startpunkt)
+        // ARCH-006.1: rpc_record_payment hat bereits Pool + Provision berechnet.
+        // Hier nur noch first_transaction_at nachziehen, falls User bekannt ist.
+        if (data.customer) {
+          const { data: cust } = await sb
+            .from("stripe_customers")
+            .select("user_id")
+            .eq("stripe_customer_id", data.customer)
             .single();
-
-          if (prof?.referred_by) {
-            const ambCommission = Math.floor(amount * 0.05);
-            await sb.from("stripe_ambassador_commissions").insert({
-              ambassador_id:     prof.referred_by,
-              referred_user_id:  userId,
-              stripe_payment_id: data.id,
-              amount:            ambCommission,
-              currency,
-              status:            "pending",
-            });
-            // Ambassador-Share in payment speichern
-            await sb.from("stripe_payments")
-              .update({ ambassador_id: prof.referred_by, ambassador_share: ambCommission })
-              .eq("stripe_payment_id", data.id);
+          if (cust?.user_id) {
+            await sb.from("profiles")
+              .update({ first_transaction_at: new Date().toISOString() })
+              .eq("id", cust.user_id)
+              .is("first_transaction_at", null);
           }
         }
         break;
