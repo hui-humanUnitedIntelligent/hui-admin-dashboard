@@ -176,6 +176,7 @@ export default function StripeDashboardPage() {
                 {payments.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'var(--text-muted)', padding:'40px' }}>Noch keine Zahlungen</td></tr>}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
