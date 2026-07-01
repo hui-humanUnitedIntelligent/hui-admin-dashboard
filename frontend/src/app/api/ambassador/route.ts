@@ -221,8 +221,12 @@ export async function GET(req: NextRequest) {
         isWirker:      ['ambassador','talent','wirker'].includes(p.role ?? ''),
         impactEur:     p.impact_eur ?? 0,
         createdAt:     p.created_at,
+        // Autoritative Quelle: profiles.username → https://be-hui.com/<username>
+        // ambassador_ref_links ist Fallback/Cache, aber Link wird immer aus username berechnet
         referralCode:  refMap.get(p.id)?.referral_code ?? ambMod.referral_code ?? null,
-        referralLink:  refMap.get(p.id)?.ref_link ?? ambMod.ref_link ?? null,
+        referralLink:  p.username
+          ? `https://be-hui.com/${p.username}`
+          : (refMap.get(p.id)?.ref_link ?? ambMod.ref_link ?? null),
         referralCount: refCount,
         activeCount:   refData.active,
         sleepingCount: refData.sleeping,
