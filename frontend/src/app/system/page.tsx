@@ -3,6 +3,7 @@
 // System Status + Stripe Datenfluss-Grafik
 import { useCallback, useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import WebhookMapping from './WebhookMapping';
 import PageHeader from '@/components/layout/PageHeader';
 
 type CheckStatus = 'ok' | 'error' | 'unknown' | 'checking';
@@ -349,7 +350,7 @@ export default function SystemPage() {
   const [lastRun,      setLastRun]     = useState<string | null>(null);
   const [autoRefresh,  setAutoRefresh] = useState(false);
   const [envVars,      setEnvVars]     = useState<{ key: string; value: string }[]>([]);
-  const [activeTab,    setActiveTab]   = useState<'status'|'stripe'>('status');
+  const [activeTab,    setActiveTab]   = useState<'status'|'stripe'|'webhooks'>('status');
 
   useEffect(() => {
     fetch('/api/system/env', { credentials: 'include' })
@@ -422,7 +423,7 @@ export default function SystemPage() {
 
         {/* Tab-Leiste */}
         <div style={{ display:'flex', gap:4, borderBottom:'1px solid var(--border)', paddingBottom:1 }}>
-          {([['status','🖥️ System Status'],['stripe','💳 Stripe Datenfluss']] as const).map(([id,label]) => (
+          {([['status','🖥️ System Status'],['stripe','💳 Stripe Datenfluss'],['webhooks','📡 Webhook Mapping']] as const).map(([id,label]) => (
             <button key={id} onClick={() => setActiveTab(id)}
               style={{ padding:'8px 18px', borderRadius:'8px 8px 0 0', border:'1px solid var(--border)',
                 borderBottom: activeTab===id ? '1px solid var(--bg-secondary)' : '1px solid var(--border)',
@@ -500,6 +501,9 @@ export default function SystemPage() {
 
         {/* ── TAB: Stripe Datenfluss ── */}
         {activeTab === 'stripe' && <StripeDataflow />}
+
+        {/* ── TAB: Webhook Mapping ── */}
+        {activeTab === 'webhooks' && <WebhookMapping />}
 
       </div>
     </DashboardLayout>
