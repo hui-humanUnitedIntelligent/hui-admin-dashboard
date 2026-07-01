@@ -140,8 +140,8 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 18 }} className="grid-4">
         <KPICard label="Gesamt-User"       value={db.loading ? '—' : fmtNum(kpis.totalUsers)}         delta={`${kpis.activeWirker} Wirker`}              deltaPositive icon="👥" variant="teal" />
         <KPICard label="Umsatz (Monat)"    value={db.loading ? '—' : fmtEur(kpis.monthlyRevenue)}     delta={`${kpis.totalPayments} Zahlungen`}           deltaPositive icon="€"  variant="gold" />
-        <KPICard label="Netto Impact Pool" value={db.loading ? '—' : fmtEur(kpis.impactPool * 0.85)} delta="85 % der 15 %"                               deltaPositive icon="🌱" variant="green" />
-        <KPICard label="Firmenanteil"      value={db.loading ? '—' : fmtEur(kpis.impactPool * 0.15)} delta="15 % der 15 %"                               deltaPositive icon="🏢" variant="blue" />
+        <KPICard label="Projekt-Anteil"    value={db.loading ? '—' : fmtEur(kpis.projectShareEur)} delta="15 % des Pools"                              deltaPositive icon="🌱" variant="green" />
+        <KPICard label="Firmenanteil"      value={db.loading ? '—' : fmtEur(kpis.companyShareEur)} delta="85 % des Pools"                                 deltaPositive icon="🏢" variant="blue" />
         <KPICard label="Aktive Mitglieder" value={db.loading ? '—' : fmtNum(kpis.activeMembers)}      delta={`${kpis.activeBookings} Buchungen aktiv`}    deltaPositive icon="🏅" variant="purple" />
         <KPICard label="Ambassadors aktiv" value={db.loading ? '—' : fmtNum(kpis.activeAmbassadors)}  delta={kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen'} deltaPositive={kpis.pendingAmbassadors === 0} icon="🤝" variant="teal" />
         <KPICard label="Offene Anträge"    value={db.loading ? '—' : fmtNum(kpis.pendingAmbassadors)} delta={`${kpis.totalReferrals} Referrals`}          deltaPositive icon="📋" variant="red" />
