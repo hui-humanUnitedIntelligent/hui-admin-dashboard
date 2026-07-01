@@ -14,7 +14,7 @@ interface PoolOverview {
   firmenanteil: number;
   distributed: number;
   openImpact: number;
-  revenueByType: { works: number; experiences: number; bookings: number; other: number };
+  revenueByType: { work: number; talent: number; donation: number; subscription: number; impact_subscription: number };
   paymentCount: number;
   applications: { total: number; approved: number; pending: number };
   poolState: string;
@@ -167,10 +167,10 @@ export default function ImpactPage() {
             <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Impact Pool</h1>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
               {(IMPACT_RATE * 100).toFixed(0)}% jedes Umsatzes fliessen in den gemeinsamen Impact-Pool
-              {o?.stripeReady === false && (
+              {o?.stripeReady && (
                 <span style={{ marginLeft: 10, padding: '2px 8px', borderRadius: 4, fontSize: 11,
-                  background: 'rgba(99,102,241,0.1)', color: '#818CF8' }}>
-                  Stripe noch nicht verbunden — alle Werte korrekt auf EUR 0,00
+                  background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}>
+                  ✓ Stripe verbunden — Live-Daten
                 </span>
               )}
             </p>
@@ -188,8 +188,8 @@ export default function ImpactPage() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
               <Kachel label="Gesamtumsatz" value={eur(o.totalRevenue)} sub={`${o.paymentCount} Zahlungen`} stripe />
               <Kachel label="Brutto-Pool (15%)" value={eur(o.bruttoPool)} color="var(--accent)" stripe />
-              <Kachel label="Netto-Impact (85%)" value={eur(o.nettoImpact)} color="#22C55E" stripe />
-              <Kachel label="Firmenanteil (15%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe />
+              <Kachel label="Projekt-Anteil (15%)" value={eur(o.nettoImpact)} color="#22C55E" stripe />
+              <Kachel label="Firmenanteil (85%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe />
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
               <Kachel label="Vergeben" value={eur(o.distributed)} />
@@ -207,10 +207,11 @@ export default function ImpactPage() {
               </p>
               <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                 {[
-                  { label: 'Werke', key: 'works', color: 'var(--accent)' },
-                  { label: 'Erlebnisse', key: 'experiences', color: '#22C55E' },
-                  { label: 'Buchungen', key: 'bookings', color: '#F59E0B' },
-                  { label: 'Sonstiges', key: 'other', color: 'var(--text-muted)' },
+                  { label: '🎨 Werke', key: 'work', color: '#6C63FF' },
+                  { label: '✨ Talente', key: 'talent', color: '#3ECF8E' },
+                  { label: '🌱 Spenden', key: 'donation', color: '#F59E0B' },
+                  { label: '📋 Abos', key: 'subscription', color: '#06B6D4' },
+                  { label: '♻️ Impact-Abo', key: 'impact_subscription', color: '#8B5CF6' },
                 ].map(({ label, key, color }) => {
                   const val = o.revenueByType[key as keyof typeof o.revenueByType] ?? 0;
                   return (
