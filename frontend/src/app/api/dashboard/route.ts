@@ -33,15 +33,15 @@ export async function GET(req: NextRequest) {
       // 2) Werke (published)
       sb.from('works').select('id', { count: 'exact' }).eq('status', 'published'),
 
-      // 3) Payments diesen Monat
-      sb.from('payments')
-        .select('id, amount_eur, status, created_at')
-        .eq('status', 'completed')
+      // 3) Payments diesen Monat — Single Source of Truth: stripe_payments
+      sb.from('stripe_payments')
+        .select('id, amount, status, created_at')
+        .eq('status', 'succeeded')
         .gte('created_at', startOfMonth)
         .limit(5000),
 
-      // 4) Alle Payments total
-      sb.from('payments').select('id', { count: 'exact' }),
+      // 4) Alle Payments total (succeeded)
+      sb.from('stripe_payments').select('id', { count: 'exact' }).eq('status', 'succeeded'),
 
       // 5) Impact Projekte
       sb.from('impact_projects')
@@ -66,9 +66,9 @@ export async function GET(req: NextRequest) {
         .gte('created_at', startOf12Months)
         .limit(5000),
 
-      // 9) Letzte 8 Zahlungen
-      sb.from('payments')
-        .select('id, amount_eur, status, created_at')
+      // 9) Letzte 8 Zahlungen — Single Source of Truth: stripe_payments
+      sb.from('stripe_payments')
+        .select('id, stripe_payment_id, amount, status, created_at')
         .order('created_at', { ascending: false })
         .limit(8),
     ]);
@@ -104,10 +104,21 @@ export async function GET(req: NextRequest) {
     const activeWirker  = profiles.filter(p => p.is_wirker).length;
     const activeMembers = profiles.filter(p => p.is_member || p.membership_active).length;
 
-    const monthlyRevenue = (paymentsMonthRes.data ?? []).reduce((s, p) => s + (p.amount_eur ?? 0), 0);
-    const impactPool     = monthlyRevenue * 0.15;
+    // Stripe-Beträge sind in Cent gespeichert → /100 für EUR
+    const monthlyRevenue = (paymentsMonthRes.data ?? []).reduce((s, p) => s + ((p.amount ?? 0) / 100), 0);
     const totalPayments  = paymentsAllRes.count ?? 0;
     const activeAmbassadors = ambassadorsRes.count ?? 0;
+
+    // Impact Pool: live aus stripe_impact_pool (aktueller Monat) — keine lokale Berechnung
+    const currentPoolMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { data: poolRow } = await sb
+      .from('stripe_impact_pool')
+      .select('total_inflow, project_share, company_share')
+      .eq('month', currentPoolMonth)
+      .maybeSingle();
+    const impactPool     = (poolRow?.total_inflow   ?? 0) / 100; // Brutto-Pool (15% vom Umsatz)
+    const projectShareEur = (poolRow?.project_share ?? 0) / 100; // 15% davon → Projekte
+    const companyShareEur = (poolRow?.company_share ?? 0) / 100; // 85% davon → Firma
 
     // ── Growth Chart ─────────────────────────────────────────────────────────
     const growthData = growthRes.data ?? [];
@@ -129,6 +140,14 @@ export async function GET(req: NextRequest) {
       newUsersPerMonth.slice(0, i + 1).reduce((s, v) => s + v, 0)
     );
 
+    // Für's UI-Format (id, amount_eur, status, created_at) auf stripe_payments mappen
+    const recentPaymentsMapped = (recentPaymentsRes.data ?? []).map((p: { id: string; stripe_payment_id?: string; amount?: number; status: string; created_at: string }) => ({
+      id:         p.stripe_payment_id ?? p.id,
+      amount_eur: (p.amount ?? 0) / 100,
+      status:     p.status,
+      created_at: p.created_at,
+    }));
+
     return NextResponse.json({
       kpis: {
         totalUsers,      // auth.users — Single Source of Truth
@@ -139,6 +158,8 @@ export async function GET(req: NextRequest) {
         totalWorks:      worksRes.count ?? 0,
         monthlyRevenue,
         impactPool,
+        projectShareEur,
+        companyShareEur,
         totalPayments,
         activeBookings:  0,
         activeAmbassadors,
@@ -146,7 +167,7 @@ export async function GET(req: NextRequest) {
         totalReferrals:  0,
       },
       recentUsers:    recentUsersRes.data ?? [],
-      recentPayments: recentPaymentsRes.data ?? [],
+      recentPayments: recentPaymentsMapped,
       impactProjects: impactProjectsRes.data ?? [],
       growth: {
         labels:      months.map(m => m.label),
