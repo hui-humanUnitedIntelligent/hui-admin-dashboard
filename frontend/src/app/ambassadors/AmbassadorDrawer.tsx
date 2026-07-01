@@ -45,7 +45,7 @@ interface DrawerProps {
 
 // ── Referral Tab mit aufklappbaren Nutzer-Details ──────────────────────────
 function ReferralUserCard({ ref: r }: { ref: any }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const initials = (r.display_name || r.username || '?').slice(0, 2).toUpperCase();
   const hasDetails = r.email || r.phone || r.username;
   return (
