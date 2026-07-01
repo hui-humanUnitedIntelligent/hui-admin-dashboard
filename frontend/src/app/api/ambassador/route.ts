@@ -110,18 +110,17 @@ export async function GET(req: NextRequest) {
     // ── Typ: detail — Vollprofil eines Ambassadors (für AmbassadorDrawer) ──
     if ((type === 'detail' || searchParams.get('action') === 'detail') && (ambassadorId || searchParams.get('user_id'))) {
       const uid = ambassadorId || searchParams.get('user_id') || '';
-      const [profRes, refRes, referredRes, worksRes, projectsRes] = await Promise.allSettled([
+      const [profRes, referredRes, worksRes, projectsRes] = await Promise.allSettled([
         sb.from('profiles').select('*').eq('id', uid).single(),
-        Promise.resolve({ status: 'fulfilled', value: { data: [] } }), // ref_links deprecated
         sb.from('profiles').select('id,display_name,username,avatar_url,email,phone,role,first_transaction_at,created_at').eq('referred_by', uid),
         sb.from('works').select('id,title,status,approval_status,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
         sb.from('impact_applications').select('id,project_name,status,funding_goal,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
       ]);
 
-      const profile   = profRes.status    === 'fulfilled' ? profRes.value.data    : null;
-      const refLinks  = refRes.status     === 'fulfilled' ? refRes.value.data     ?? [] : [];
+      const profile   = profRes.status     === 'fulfilled' ? profRes.value.data     : null;
+      const refLinks: any[] = []; // ambassador_ref_links deprecated — reflink aus profiles.username
       const referred  = referredRes.status === 'fulfilled' ? referredRes.value.data ?? [] : [];
-      const works     = worksRes.status   === 'fulfilled' ? worksRes.value.data   ?? [] : [];
+      const works     = worksRes.status    === 'fulfilled' ? worksRes.value.data    ?? [] : [];
       const projects  = projectsRes.status === 'fulfilled' ? projectsRes.value.data ?? [] : [];
 
       const active   = referred.filter((u: any) => u.first_transaction_at).length;
