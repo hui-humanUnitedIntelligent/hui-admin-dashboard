@@ -43,6 +43,114 @@ interface DrawerProps {
   onRefresh: () => void;
 }
 
+// ── Referral Tab mit aufklappbaren Nutzer-Details ──────────────────────────
+function ReferralUserCard({ ref: r }: { ref: any }) {
+  const [open, setOpen] = React.useState(false);
+  const initials = (r.display_name || r.username || '?').slice(0, 2).toUpperCase();
+  const hasDetails = r.email || r.phone || r.username;
+  return (
+    <div>
+      <div
+        onClick={() => hasDetails && setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', background: 'var(--bg-secondary)',
+          borderRadius: open ? '8px 8px 0 0' : 8,
+          border: '1px solid var(--border)',
+          borderBottom: open ? '1px solid var(--accent)' : '1px solid var(--border)',
+          cursor: hasDetails ? 'pointer' : 'default',
+          transition: 'border-radius .15s',
+        }}
+      >
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#0F1117', flexShrink: 0 }}>
+          {initials}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {r.display_name || r.username || '—'}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+            {r.username && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>@{r.username}</span>}
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              Reg. {r.joined_at ? new Date(r.joined_at).toLocaleDateString('de-DE') : '—'}
+            </span>
+            {r.is_active
+              ? <span style={{ fontSize: 10, fontWeight: 700, color: '#22C55E' }}>⚡ aktiv</span>
+              : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>😴 schlafend</span>
+            }
+          </div>
+        </div>
+        {hasDetails && (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', transition: 'transform .15s', display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
+        )}
+      </div>
+
+      {/* Detail-Panel */}
+      {open && (
+        <div style={{
+          padding: '10px 16px 12px', background: 'rgba(99,102,241,0.05)',
+          border: '1px solid var(--border)', borderTop: 'none',
+          borderRadius: '0 0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7,
+        }}>
+          {/* E-Mail */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 80, flexShrink: 0 }}>E-Mail</span>
+            {r.email
+              ? <a href={`mailto:${r.email}`} style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</a>
+              : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+            }
+          </div>
+          {/* Telefon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 80, flexShrink: 0 }}>Telefon</span>
+            {r.phone
+              ? <a href={`tel:${r.phone}`} style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}>{r.phone}</a>
+              : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+            }
+          </div>
+          {/* Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 80, flexShrink: 0 }}>Rolle</span>
+            <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>{r.role || 'basisuser'}</span>
+          </div>
+          {/* Erste Zahlung */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 80, flexShrink: 0 }}>Erste Zahlung</span>
+            <span style={{ fontSize: 12, color: r.first_transaction_at ? '#22C55E' : 'var(--text-muted)', fontWeight: 600 }}>
+              {r.first_transaction_at ? new Date(r.first_transaction_at).toLocaleDateString('de-DE') : 'Noch keine'}
+            </span>
+          </div>
+          {/* Nutzer-ID */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 80, flexShrink: 0 }}>Nutzer-ID</span>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.id}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReferralTabContent({ referrals }: { referrals: any[] }) {
+  return (
+    <div style={{ padding: 16 }}>
+      {referrals.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>Noch keine Referrals</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+            {referrals.length} geworbene Nutzer — klicken für Details
+          </div>
+          {referrals.map((ref: any) => (
+            <ReferralUserCard key={ref.id} ref={ref} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerProps) {
   const [detail, setDetail] = useState<AmbDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,25 +364,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
 
             {/* Tab: Referrals */}
             {drawerTab === 'referrals' && (
-              <div style={{ padding: 16 }}>
-                {referrals.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>Noch keine Referrals</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {referrals.map(ref => (
-                      <div key={ref.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#0F1117' }}>
-                          {(ref.display_name || '?').slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{ref.display_name || ref.username}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Registriert {fmtDate(ref.joined_at)}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ReferralTabContent referrals={referrals} />
             )}
 
             {/* Tab: Werke */}
