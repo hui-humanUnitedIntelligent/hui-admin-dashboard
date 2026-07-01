@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseRealtime } from './useSupabaseRealtime';
 
 // Spiegelt exakt die API-Response wider
+export interface BookingPeriodStat { count: number; revenue: number; }
 export interface DashboardData {
   kpis: {
     totalUsers: number; activeWirker: number; activeMembers: number;
@@ -15,6 +16,13 @@ export interface DashboardData {
   recentUsers:    Array<Record<string,unknown>>;
   recentPayments: Array<Record<string,unknown>>;
   impactProjects: Array<Record<string,unknown>>;
+  bookingStats: { last7: BookingPeriodStat; last30: BookingPeriodStat; last90: BookingPeriodStat };
+  talentStats:  { total: number; percentOfUsers: number };
+  workStats:    { published: number; pending: number; rejected: number; deleted: number; total: number };
+  projectStats: {
+    applicationsPending: number; applicationsApproved: number; applicationsRejected: number;
+    liveCount: number; totalVotes: number; totalAwardedEur: number;
+  };
   loading:     boolean;
   error:       string | null;
   lastUpdated: Date | null;
@@ -33,6 +41,17 @@ const EMPTY: Omit<DashboardData, 'refetch'> = {
   recentUsers:    [],
   recentPayments: [],
   impactProjects: [],
+  bookingStats: {
+    last7:  { count: 0, revenue: 0 },
+    last30: { count: 0, revenue: 0 },
+    last90: { count: 0, revenue: 0 },
+  },
+  talentStats:  { total: 0, percentOfUsers: 0 },
+  workStats:    { published: 0, pending: 0, rejected: 0, deleted: 0, total: 0 },
+  projectStats: {
+    applicationsPending: 0, applicationsApproved: 0, applicationsRejected: 0,
+    liveCount: 0, totalVotes: 0, totalAwardedEur: 0,
+  },
   loading: true, error: null, lastUpdated: null,
 };
 
@@ -55,6 +74,10 @@ export function useDashboard(refreshInterval = 30000): DashboardData {
         recentUsers:    j.recentUsers    ?? [],
         recentPayments: j.recentPayments ?? [],
         impactProjects: j.impactProjects ?? [],
+        bookingStats:   j.bookingStats   ?? EMPTY.bookingStats,
+        talentStats:    j.talentStats    ?? EMPTY.talentStats,
+        workStats:      j.workStats      ?? EMPTY.workStats,
+        projectStats:   j.projectStats   ?? EMPTY.projectStats,
         loading:     false,
         error:       null,
         lastUpdated: new Date(),
