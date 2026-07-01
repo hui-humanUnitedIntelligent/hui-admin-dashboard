@@ -1,12 +1,12 @@
 // frontend/src/app/employee/bookings/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { statusToBadge } from '@/components/ui/Badge';
-import { useBookings } from '@/lib/hooks/useSupabase';
+import { useBookings, getBookingDetails, HuiBooking } from '@/lib/hooks/useSupabase';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -15,6 +15,14 @@ function timeAgo(iso: string) {
   if (days < 7)  return `Vor ${days} Tagen`;
   return new Date(iso).toLocaleDateString('de-DE');
 }
+
+const TYPE_LABEL: Record<string, string> = {
+  work: 'Werk', talent: 'Talent', project: 'Projekt', donation: 'Spende', subscription: 'Abo',
+};
+
+const TIER_LABEL: Record<string, string> = {
+  bronze: 'Bronze', silber: 'Silber', silver: 'Silber', gold: 'Gold', platin: 'Platin', platinum: 'Platin',
+};
 
 function Skeleton() {
   return (
@@ -28,14 +36,96 @@ function Skeleton() {
   );
 }
 
+function DetailPanel({ booking, loadingDetail }: { booking: HuiBooking; loadingDetail: boolean }) {
+  const stripeUrl = booking.payment_id && !booking.payment_id.startsWith('dummy')
+    ? `https://dashboard.stripe.com/payments/${booking.payment_id}`
+    : null;
+
+  const rows: [string, React.ReactNode][] = [
+    ['Buchungs-ID', booking.booking_id],
+    ['Status', statusToBadge(booking.status)],
+    ['Erstellt', new Date(booking.created_at).toLocaleString('de-DE')],
+    ['Aktualisiert', booking.updated_at ? new Date(booking.updated_at).toLocaleString('de-DE') : '—'],
+
+    ['Nutzer', <a key="u" href={`/users?search=${booking.user_id}`} style={{ color: 'var(--accent)' }}>{booking.user_name || booking.user_id}</a>],
+    ['Nutzer E-Mail', booking.user_email || '—'],
+
+    ['Wirker', <a key="w" href={`/users?search=${booking.wirker_id}`} style={{ color: 'var(--accent)' }}>{booking.wirker_name || booking.wirker_id}</a>],
+    ['Wirker E-Mail', booking.wirker_email || '—'],
+
+    ['Typ', TYPE_LABEL[booking.type || 'work'] || booking.type],
+    ['Werk/Talent/Projekt', booking.item_title
+      ? <a key="it" href={booking.type === 'project' ? '/impact-projekte' : '/works'} style={{ color: 'var(--accent)' }}>{booking.item_title}</a>
+      : '—'],
+
+    ['Zahlungs-ID (Stripe)', stripeUrl
+      ? <a key="p" href={stripeUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{booking.payment_id}</a>
+      : (booking.payment_id || '—')],
+    ['Betrag', `€${(booking.payment_amount ?? booking.amount ?? 0).toFixed(2)} ${(booking.currency || 'eur').toUpperCase()}`],
+    ['Plattform-Gebühr', `€${(booking.platform_fee || 0).toFixed(2)}`],
+    ['Impact-Gebühr', `€${(booking.impact_fee || 0).toFixed(2)}`],
+    ['Ambassador-Provision', `€${(booking.ambassador_commission ?? booking.commission_amount ?? 0).toFixed(2)}`],
+    ['Stripe Charge ID', booking.stripe_charge_id || '—'],
+    ['Zahlungsstatus', statusToBadge(booking.payment_status_live || booking.payment_status)],
+
+    ['Impact-Pool-Eintrag', booking.impact_pool_entry_id || '—'],
+    ['Impact-Betrag', booking.impact_amount != null ? `€${booking.impact_amount.toFixed(2)}` : '—'],
+    ['Impact-Quelle', booking.impact_source || '—'],
+
+    ['Ambassador', booking.ambassador_name
+      ? <a key="a" href={`/ambassadors`} style={{ color: 'var(--accent)' }}>{booking.ambassador_name}</a>
+      : '—'],
+    ['Ambassador-Tier', booking.ambassador_tier ? (TIER_LABEL[booking.ambassador_tier] || booking.ambassador_tier) : '—'],
+  ];
+
+  return (
+    <div style={{ padding: '14px 20px', background: 'var(--bg-tertiary)', borderTop: '1px solid var(--border)', fontSize: 12 }}>
+      {loadingDetail ? (
+        <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>Lade Details…</div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+            {rows.map(([k, v]) => (
+              <div key={k}>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 3 }}>{k}</div>
+                <div style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' }}>{v}</div>
+              </div>
+            ))}
+          </div>
+          {booking.metadata && Object.keys(booking.metadata).length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 3 }}>Metadaten</div>
+              <pre style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--bg-secondary)', padding: 8, borderRadius: 6, overflowX: 'auto' }}>
+                {JSON.stringify(booking.metadata, null, 2)}
+              </pre>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EmployeeBookingsPage() {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<HuiBooking | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 100, refreshInterval: 0 });
 
   const totalAmount = bookings.reduce((s, b) => s + (b.amount || 0), 0);
   const totalImpact = bookings.reduce((s, b) => s + (b.impact_fee || 0), 0);
+
+  const handleRowClick = async (b: HuiBooking) => {
+    if (selectedId === b.booking_id) { setSelectedId(null); setDetail(null); return; }
+    setSelectedId(b.booking_id);
+    setLoadingDetail(true);
+    const full = await getBookingDetails(b.booking_id);
+    setDetail(full || b);
+    setLoadingDetail(false);
+  };
 
   const filterBtnStyle = (active: boolean): React.CSSProperties => ({
     padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, cursor: 'pointer',
@@ -74,7 +164,7 @@ export default function EmployeeBookingsPage() {
       {/* Filter */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['all','confirmed','pending','cancelled','completed'].map((s) => (
-          <button key={s} style={filterBtnStyle(statusFilter === s)} onClick={() => setStatusFilter(s)}>
+          <button key={s} style={filterBtnStyle(statusFilter === s)} onClick={() => { setStatusFilter(s); setSelectedId(null); }}>
             {s === 'all' ? 'Alle' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
@@ -86,7 +176,7 @@ export default function EmployeeBookingsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                {['ID', 'User ID', 'Wirker ID', 'Betrag', 'Plattform', 'Impact', 'Status', 'Zahlung', 'Datum'].map((h) => (
+                {['ID', 'User', 'Wirker', 'Betrag', 'Plattform', 'Impact', 'Status', 'Zahlung', 'Datum'].map((h) => (
                   <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
                 ))}
               </tr>
@@ -97,17 +187,27 @@ export default function EmployeeBookingsPage() {
               ) : bookings.length === 0 ? (
                 <tr><td colSpan={9} style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Keine Buchungen</td></tr>
               ) : bookings.map((b) => (
-                <tr key={b.id} className="tr-hover">
-                  <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>{b.id.slice(0,8)}…</td>
-                  <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>{b.user_id.slice(0,8)}…</td>
-                  <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>{b.wirker_id.slice(0,8)}…</td>
-                  <td style={{ padding: '9px 14px', color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>€{(b.amount||0).toFixed(2)}</td>
-                  <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>€{(b.platform_fee||0).toFixed(2)}</td>
-                  <td style={{ padding: '9px 14px', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>€{(b.impact_fee||0).toFixed(2)}</td>
-                  <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>{statusToBadge(b.status)}</td>
-                  <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>{statusToBadge(b.payment_status)}</td>
-                  <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{timeAgo(b.created_at)}</td>
-                </tr>
+                <Fragment key={b.booking_id}>
+                  <tr key={b.booking_id} className="tr-hover" onClick={() => handleRowClick(b)}
+                    style={{ background: selectedId === b.booking_id ? 'var(--accent-dim)' : 'transparent', cursor: 'pointer' }}>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>{b.booking_id.slice(0,8)}…</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{b.user_name || b.user_id.slice(0,8)+'…'}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{b.wirker_name || b.wirker_id.slice(0,8)+'…'}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>€{(b.amount||0).toFixed(2)}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>€{(b.platform_fee||0).toFixed(2)}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>€{(b.impact_fee||0).toFixed(2)}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>{statusToBadge(b.status)}</td>
+                    <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border)' }}>{statusToBadge(b.payment_status)}</td>
+                    <td style={{ padding: '9px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>{timeAgo(b.created_at)}</td>
+                  </tr>
+                  {selectedId === b.booking_id && (
+                    <tr>
+                      <td colSpan={9} style={{ padding: 0 }}>
+                        <DetailPanel booking={detail || b} loadingDetail={loadingDetail} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
