@@ -23,6 +23,16 @@ export interface DashboardData {
     applicationsPending: number; applicationsApproved: number; applicationsRejected: number;
     liveCount: number; totalVotes: number; totalAwardedEur: number;
   };
+  pieData: {
+    userComposition: { wirker: number; member: number; admin: number; basisuser: number };
+    membershipTypes: { basisuser: number; talent: number; member: number };
+    topCities: Array<{ label: string; count: number }>;
+    bookingDistribution: { work: number; talent: number; project: number };
+    purchaseDistribution: { work: number; talent: number; project: number; donation: number; subscription: number };
+    impactDistribution: { work: number; talent: number; project: number; donation: number };
+    ambassadorTiers: { bronze: number; silber: number; gold: number; platin: number };
+    paymentStatusDistribution: { succeeded: number; pending: number; failed: number; refunded: number };
+  };
   loading:     boolean;
   error:       string | null;
   lastUpdated: Date | null;
@@ -52,6 +62,16 @@ const EMPTY: Omit<DashboardData, 'refetch'> = {
     applicationsPending: 0, applicationsApproved: 0, applicationsRejected: 0,
     liveCount: 0, totalVotes: 0, totalAwardedEur: 0,
   },
+  pieData: {
+    userComposition: { wirker: 0, member: 0, admin: 0, basisuser: 0 },
+    membershipTypes: { basisuser: 0, talent: 0, member: 0 },
+    topCities: [],
+    bookingDistribution: { work: 0, talent: 0, project: 0 },
+    purchaseDistribution: { work: 0, talent: 0, project: 0, donation: 0, subscription: 0 },
+    impactDistribution: { work: 0, talent: 0, project: 0, donation: 0 },
+    ambassadorTiers: { bronze: 0, silber: 0, gold: 0, platin: 0 },
+    paymentStatusDistribution: { succeeded: 0, pending: 0, failed: 0, refunded: 0 },
+  },
   loading: true, error: null, lastUpdated: null,
 };
 
@@ -78,6 +98,7 @@ export function useDashboard(refreshInterval = 30000): DashboardData {
         talentStats:    j.talentStats    ?? EMPTY.talentStats,
         workStats:      j.workStats      ?? EMPTY.workStats,
         projectStats:   j.projectStats   ?? EMPTY.projectStats,
+        pieData:        j.pieData        ?? EMPTY.pieData,
         loading:     false,
         error:       null,
         lastUpdated: new Date(),
