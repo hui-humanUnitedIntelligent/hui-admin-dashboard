@@ -7,6 +7,7 @@ export interface DashboardData {
   kpis: {
     totalUsers: number; activeWirker: number; activeMembers: number;
     totalWorks: number; monthlyRevenue: number; impactPool: number;
+    projectShareEur: number; companyShareEur: number;
     totalPayments: number; activeBookings: number;
     activeAmbassadors: number; pendingAmbassadors: number; totalReferrals: number;
   };
@@ -24,6 +25,7 @@ const EMPTY: Omit<DashboardData, 'refetch'> = {
   kpis: {
     totalUsers:0, activeWirker:0, activeMembers:0,
     totalWorks:0, monthlyRevenue:0, impactPool:0,
+    projectShareEur:0, companyShareEur:0,
     totalPayments:0, activeBookings:0,
     activeAmbassadors:0, pendingAmbassadors:0, totalReferrals:0,
   },
