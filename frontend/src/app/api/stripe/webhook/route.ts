@@ -183,16 +183,20 @@ export async function POST(req: NextRequest) {
           p_payout_type:      data.metadata?.payout_type ?? "platform",
           p_arrival_date:     data.arrival_date
             ? new Date(data.arrival_date * 1000).toISOString() : null,
+          p_ambassador_id:    data.metadata?.ambassador_id ?? null,
         });
         break;
       }
 
       case "payout.failed": {
+        const failReason = data.failure_message || data.failure_code || "unknown";
         await sb.rpc("rpc_record_payout", {
           p_stripe_payout_id: data.id,
           p_amount:           data.amount ?? 0,
           p_currency:         data.currency ?? "eur",
           p_status:           "failed",
+          p_failed_reason:    failReason,
+          p_ambassador_id:    data.metadata?.ambassador_id ?? null,
         });
         break;
       }
