@@ -1,6 +1,6 @@
 // frontend/src/app/api/ambassador/route.ts
 // Ambassador-API — ARCH-006.1
-// Ambassadors = profiles WHERE (role = 'ambassador' OR is_ambassador = true)
+// Ambassadors = profiles WHERE (role = 'ambassador' OR is_ambassador = true) — v2 mit Referral-Details
 // Keine neue Tabelle. Bestehende Datenquellen: profiles, works, messages, impact_applications
 import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
