@@ -62,16 +62,18 @@ function Kachel({ label, value, sub, color, stripe }: {
   label: string; value: string; sub?: string; color?: string; stripe?: boolean;
 }) {
   return (
-    <div style={{ ...KACHEL_STYLE, borderTop: color ? `3px solid ${color}` : undefined, position: 'relative' }}>
-      {stripe && (
-        <span style={{ position: 'absolute', top: 8, right: 10, fontSize: 9, padding: '2px 6px',
-          borderRadius: 4, background: 'rgba(99,102,241,0.12)', color: '#818CF8', fontWeight: 600 }}>
-          STRIPE READY
-        </span>
-      )}
-      <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>
-        {label}
-      </p>
+    <div style={{ ...KACHEL_STYLE, borderTop: color ? `3px solid ${color}` : undefined }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0, flex: '1 1 auto', minWidth: 0 }}>
+          {label}
+        </p>
+        {stripe && (
+          <span style={{ flexShrink: 0, fontSize: 9, padding: '2px 6px', lineHeight: 1.4,
+            borderRadius: 4, background: 'rgba(99,102,241,0.12)', color: '#818CF8', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            STRIPE READY
+          </span>
+        )}
+      </div>
       <p style={{ fontSize: 24, fontWeight: 700, color: color || 'var(--text-primary)', margin: 0 }}>
         {value}
       </p>
