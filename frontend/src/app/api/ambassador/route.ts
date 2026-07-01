@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
       const uid = ambassadorId || searchParams.get('user_id') || '';
       const [profRes, refRes, referredRes, worksRes, projectsRes] = await Promise.allSettled([
         sb.from('profiles').select('*').eq('id', uid).single(),
-        sb.from('ambassador_ref_links').select('*').eq('user_id', uid),
+        Promise.resolve({ status: 'fulfilled', value: { data: [] } }), // ref_links deprecated
         sb.from('profiles').select('id,display_name,username,avatar_url,email,phone,role,first_transaction_at,created_at').eq('referred_by', uid),
         sb.from('works').select('id,title,status,approval_status,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
         sb.from('impact_applications').select('id,project_name,status,funding_goal,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
@@ -172,20 +172,20 @@ export async function GET(req: NextRequest) {
       return true;
     });
 
-    // Ref-Links
-    const { data: refLinks } = await sb
-      .from('ambassador_ref_links')
-      .select('user_id,ref_link,referral_code,created_at');
+    // Ref-Links: ambassador_ref_links NICHT mehr primäre Quelle
+    // Reflink wird autoritativ aus profiles.username berechnet
+    const refLinks: any[] = [];
 
     // Geworbene Nutzer
     const ambassadorIds = profiles.map((p: any) => p.id);
     const referredMap: Record<string, { count: number; active: number; sleeping: number; users: any[] }> = {};
 
     if (ambassadorIds.length > 0) {
+      // referred_by ist TEXT-Spalte — UUID-Strings direkt vergleichbar
       const { data: referred } = await sb
         .from('profiles')
         .select('id,display_name,username,avatar_url,email,phone,role,referred_by,created_at,first_transaction_at')
-        .in('referred_by', ambassadorIds);
+        .in('referred_by', ambassadorIds.map(String));
 
       for (const u of (referred ?? [])) {
         const ambId = u.referred_by;
@@ -231,9 +231,8 @@ export async function GET(req: NextRequest) {
         // Autoritative Quelle: profiles.username → https://be-hui.com/<username>
         // ambassador_ref_links ist Fallback/Cache, aber Link wird immer aus username berechnet
         referralCode:  refMap.get(p.id)?.referral_code ?? ambMod.referral_code ?? null,
-        referralLink:  p.username
-          ? `https://be-hui.com/${p.username}`
-          : (refMap.get(p.id)?.ref_link ?? ambMod.ref_link ?? null),
+        // Single Source of Truth: profiles.username
+        referralLink:  p.username ? `https://be-hui.com/${p.username}` : null,
         referralCount: refCount,
         activeCount:   refData.active,
         sleepingCount: refData.sleeping,
