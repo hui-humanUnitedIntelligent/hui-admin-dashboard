@@ -107,6 +107,47 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // ── Typ: detail — Vollprofil eines Ambassadors (für AmbassadorDrawer) ──
+    if ((type === 'detail' || searchParams.get('action') === 'detail') && (ambassadorId || searchParams.get('user_id'))) {
+      const uid = ambassadorId || searchParams.get('user_id') || '';
+      const [profRes, refRes, referredRes, worksRes, projectsRes] = await Promise.allSettled([
+        sb.from('profiles').select('*').eq('id', uid).single(),
+        sb.from('ambassador_ref_links').select('*').eq('user_id', uid),
+        sb.from('profiles').select('id,display_name,username,avatar_url,email,first_transaction_at,created_at').eq('referred_by', uid),
+        sb.from('works').select('id,title,status,approval_status,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
+        sb.from('impact_applications').select('id,project_name,status,funding_goal,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
+      ]);
+
+      const profile   = profRes.status    === 'fulfilled' ? profRes.value.data    : null;
+      const refLinks  = refRes.status     === 'fulfilled' ? refRes.value.data     ?? [] : [];
+      const referred  = referredRes.status === 'fulfilled' ? referredRes.value.data ?? [] : [];
+      const works     = worksRes.status   === 'fulfilled' ? worksRes.value.data   ?? [] : [];
+      const projects  = projectsRes.status === 'fulfilled' ? projectsRes.value.data ?? [] : [];
+
+      const active   = referred.filter((u: any) => u.first_transaction_at).length;
+      const sleeping = referred.length - active;
+
+      return NextResponse.json({
+        ok: true,
+        data: {
+          profile,
+          refLinks,
+          applications: projects,
+          referrals: referred.map((u: any) => ({
+            id: u.id,
+            display_name: u.display_name ?? u.username ?? '—',
+            username: u.username ?? '',
+            avatar_url: u.avatar_url ?? null,
+            is_active: !!u.first_transaction_at,
+            joined_at: u.created_at,
+          })),
+          stats: { total: referred.length, active, sleeping },
+          works,
+          projects,
+        },
+      });
+    }
+
     // ── Standard: Ambassador-Liste ─────────────────────────────────────────
     // WICHTIG: Beide Felder prüfen (role='ambassador' ODER is_ambassador=true)
     const { data: byRole } = await sb
