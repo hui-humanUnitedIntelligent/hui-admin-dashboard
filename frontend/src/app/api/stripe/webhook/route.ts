@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
           p_description:        data.description ?? null,
         });
 
+        // ARCH-006.1 Punkt 7 (Buchungs-Detailansicht): falls diese Zahlung zu einer
+        // Buchung gehoert (bookings.stripe_payment_id = data.id), Buchung live nachziehen
+        // (status, payment_status, platform_fee, impact_fee, ambassador_commission).
+        await sb.rpc("rpc_sync_booking_payment", { p_stripe_payment_id: data.id });
+
         // Pending Checkout bestätigen (falls vorhanden)
         if (pendingId) {
           await sb.rpc("rpc_confirm_checkout", {
@@ -108,6 +113,9 @@ export async function POST(req: NextRequest) {
           status:             "failed",
           stripe_event_id:    eventId,
         }, { onConflict: "stripe_payment_id" });
+
+        // Buchung live nachziehen, falls verknuepft (ARCH-006.1 Punkt 7)
+        await sb.rpc("rpc_sync_booking_payment", { p_stripe_payment_id: data.id });
         break;
       }
 
@@ -177,6 +185,9 @@ export async function POST(req: NextRequest) {
             p_stripe_refund_id:  refundObj?.id ?? null,
             p_reason:            refundObj?.reason ?? null,
           });
+
+          // Buchung live nachziehen, falls verknuepft (ARCH-006.1 Punkt 7)
+          await sb.rpc("rpc_sync_booking_payment", { p_stripe_payment_id: data.payment_intent });
         }
         break;
       }
