@@ -1,41 +1,28 @@
 // frontend/src/app/employee/dashboard/page.tsx
+// ARCH-006.1 Analytics-Konsolidierung: nutzt jetzt denselben useDashboard()-Hook
+// wie das SADB-Hauptdashboard (Single Source of Truth) statt einer eigenen,
+// separat berechneten /api/kpis-Route. Keine zweite Wahrheit, keine doppelte
+// Berechnung derselben Kennzahlen.
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
-
-interface KPIs {
-  totalUsers:    number;
-  activeUsers:   number;
-  totalWorks:    number;
-  activeMembers: number;
-  activeBookings:number;
-  monthlyRevenue:number;
-  impactPool:    number;
-  growth: { month: string; count: number }[];
-}
+import { useDashboard } from '@/lib/hooks/useDashboard';
 
 function fmtEur(n: number) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 }
+function fmtNum(n: number) { return n.toLocaleString('de-DE'); }
 
 export default function EmployeeDashboard() {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
-  const [kpis,    setKpis]    = useState<KPIs | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/kpis', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { setKpis(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+  const db = useDashboard(30000);
+  const { kpis } = db;
 
   const val = (v: number | undefined, fmt?: 'eur') =>
-    loading ? '—' : fmt === 'eur' ? fmtEur(v ?? 0) : String(v ?? 0);
+    db.loading ? '—' : fmt === 'eur' ? fmtEur(v ?? 0) : fmtNum(v ?? 0);
 
   const card = (icon: string, label: string, value: string, sub?: string, color = 'var(--accent)') => (
     <div style={{
@@ -54,8 +41,8 @@ export default function EmployeeDashboard() {
     </div>
   );
 
-  const months   = kpis?.growth?.map(g => g.month)  ?? [];
-  const userData = kpis?.growth?.map(g => g.count)   ?? [];
+  const months   = db.growth.labels;
+  const userData = db.growth.newUsers;
   const maxU     = Math.max(...userData.map(Number), 1);
 
   return (
@@ -79,18 +66,26 @@ export default function EmployeeDashboard() {
 
         {/* KPI Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
-          {card('👥', 'Nutzer Gesamt',     val(kpis?.totalUsers),                          'Registrierte Accounts')}
-          {card('✅', 'Aktive Nutzer',     val(kpis?.activeUsers),                         'Aktiv in 30 Tagen')}
-          {card('🎨', 'Werke',             val(kpis?.totalWorks),                          'Veröffentlichte Werke')}
-          {card('📅', 'Buchungen',         val(kpis?.activeBookings),                      'Gesamt Buchungen')}
-          {card('💳', 'Transaktionen',     val(kpis?.monthlyRevenue, 'eur'),               'Abgeschlossene Zahlungen')}
-          {card('🏆', 'Mitgliedschaften',  val(kpis?.activeMembers),                       'Aktive Mitgliedschaften')}
+          {card('👥', 'Nutzer Gesamt',     val(kpis.totalUsers),                          `${kpis.activeWirker} Wirker`)}
+          {card('🏅', 'Aktive Mitglieder', val(kpis.activeMembers),                        `${kpis.activeBookings} Buchungen aktiv`)}
+          {card('🎨', 'Werke',             val(kpis.totalWorks),                           'Veröffentlichte Werke')}
+          {card('📅', 'Buchungen',         val(db.bookingStats.last30.count),              'Letzte 30 Tage')}
+          {card('💳', 'Umsatz (Monat)',    val(kpis.monthlyRevenue, 'eur'),                `${kpis.totalPayments} Zahlungen gesamt`)}
+          {card('🤝', 'Ambassadors aktiv', val(kpis.activeAmbassadors),                     kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen')}
         </div>
 
-        {/* Monats-Umsatz */}
+        {/* Impact Pool */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
-          {card('💰', 'Monats-Umsatz',  val(kpis?.monthlyRevenue, 'eur'), 'Umsatz im aktuellen Monat', '#51CF66')}
-          {card('🌱', 'Impact Pool',    val(kpis?.impactPool, 'eur'),     '15% des Umsatzes',          '#4ECDC4')}
+          {card('🌱', 'Impact Pool Netto', val(kpis.impactPool, 'eur'), '15% des Umsatzes', '#4ECDC4')}
+          {card('🏢', 'Firmenanteil',      val(kpis.companyShareEur, 'eur'), '85% des Pools', '#5C7CFA')}
+          {card('🌍', 'Projekt-Anteil',    val(kpis.projectShareEur, 'eur'), '15% des Pools', '#51CF66')}
+        </div>
+
+        {/* Talente / Werke / Projekte — konsolidiert aus Analytics */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
+          {card('⭐', 'Talente', val(db.talentStats.total), db.loading ? '' : `${db.talentStats.percentOfUsers}% der User`, 'var(--purple)')}
+          {card('🎨', 'Werke offen', val(db.workStats.pending), 'Warten auf Freigabe', 'var(--gold)')}
+          {card('📋', 'Projekt-Anträge offen', val(db.projectStats.applicationsPending), `${db.projectStats.liveCount} Projekte live`, 'var(--gold)')}
         </div>
 
         {/* Nutzerwachstum Chart */}
