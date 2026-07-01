@@ -261,6 +261,63 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* ── Buchungen (7/30/90 Tage) — konsolidiert aus Analytics, ARCH-006.1 ── */}
+      <div style={{ ...card, marginTop: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Buchungen</span>
+          <a href="/bookings" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {[
+            { label: '7 Tage',  stat: db.bookingStats.last7  },
+            { label: '30 Tage', stat: db.bookingStats.last30 },
+            { label: '90 Tage', stat: db.bookingStats.last90 },
+          ].map(({ label, stat }) => (
+            <div key={label} style={{ background: 'var(--bg-tertiary)', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(stat.count)}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>{db.loading ? '' : fmtEur(stat.revenue)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Talente / Werke / Projekte — konsolidiert aus Analytics, ARCH-006.1 ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }} className="grid-3">
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Talente</span>
+            <a href="/talents" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.talentStats.total)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>{db.loading ? '' : `${db.talentStats.percentOfUsers}% der User`}</div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Werke</span>
+            <a href="/works" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.workStats.published)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Live</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.workStats.pending)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Ausstehend</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.workStats.rejected)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Abgelehnt</div></div>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Projekte</span>
+            <a href="/impact-projekte" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.projectStats.liveCount)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Live</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.projectStats.applicationsPending)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Anträge offen</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtEur(db.projectStats.totalAwardedEur)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Ausgeschüttet</div></div>
+          </div>
+        </div>
+      </div>
     </DashboardLayout>
   );
 }
