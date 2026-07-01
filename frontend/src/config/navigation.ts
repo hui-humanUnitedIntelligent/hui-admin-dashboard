@@ -95,7 +95,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     items: [
       { href: '/employee/users',        label_de: 'User-Management',       label_en: 'User Management',       icon: '👥', roles: ['superadmin', 'employee'] },
       { href: '/employee/tickets',      label_de: 'Support-Tickets',       label_en: 'Support Tickets',       icon: '🎫', roles: ['superadmin', 'employee'] },
-      { href: '/employee/payouts',    label: { de: 'Auszahlungen', en: 'Payouts' }, icon: '💸' },
+      { href: '/employee/payouts',    label_de: 'Auszahlungen',   label_en: 'Payouts',      icon: '💸' },
     { href: '/employee/ambassadors',  label_de: 'Ambassadors',           label_en: 'Ambassadors',           icon: '🤝', roles: ['superadmin'] },
       { href: '/employee/talents',      label_de: 'Talent-Pool',           label_en: 'Talent Pool',           icon: '⭐', roles: ['superadmin'] },
       { href: '/employee/transactions', label_de: 'Transaktionen',         label_en: 'Transactions',          icon: '⇄',  roles: ['superadmin'] },
