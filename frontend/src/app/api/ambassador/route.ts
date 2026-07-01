@@ -210,11 +210,26 @@ export async function GET(req: NextRequest) {
 
     const refMap = new Map((refLinks ?? []).map((r: any) => [r.user_id, r]));
 
+    // Live-Umsatz: Single Source of Truth ist stripe_payments.ambassador_id (ARCH-006.1)
+    // Ersetzt das nie befüllte Shadow-Feld profile_modules.ambassador.revenue_generated
+    const revenueMap: Record<string, number> = {};
+    if (ambassadorIds.length > 0) {
+      const { data: ambPayments } = await sb
+        .from('stripe_payments')
+        .select('ambassador_id, amount')
+        .in('ambassador_id', ambassadorIds)
+        .eq('status', 'succeeded');
+      for (const pay of (ambPayments ?? [])) {
+        const aid = (pay as { ambassador_id: string; amount: number }).ambassador_id;
+        revenueMap[aid] = (revenueMap[aid] ?? 0) + (pay as { amount: number }).amount / 100;
+      }
+    }
+
     let data = profiles.map((p: any) => {
       const ambMod   = (p.profile_modules as any)?.ambassador ?? {};
       const refData  = referredMap[p.id] ?? { count: 0, active: 0, sleeping: 0, users: [] };
       const refCount = Math.max(refData.count, Number(ambMod.referral_count ?? 0));
-      const revenue  = Number(ambMod.revenue_generated ?? ambMod.revenue_total ?? 0);
+      const revenue  = revenueMap[p.id] ?? 0; // live aus stripe_payments, keine Shadow-States
       const level    = calcLevel(refCount);
 
       return {
