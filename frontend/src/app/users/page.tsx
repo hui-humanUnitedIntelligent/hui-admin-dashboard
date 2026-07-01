@@ -2,6 +2,7 @@
 // frontend/src/app/users/page.tsx
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
@@ -556,10 +557,19 @@ function BlockedCard({
 
 // ── Hauptseite ───────────────────────────────────────────────────────────────
 export default function UsersPage() {
+  const urlSearchParams = useSearchParams();
   const [activeTab,    setActiveTab]    = useState<TabKey>('active');
   const [roleFilter,   setRoleFilter]   = useState<RoleFilter>('all');
-  const [search,       setSearch]       = useState('');
+  const [search,       setSearch]       = useState(() => urlSearchParams.get('search') || '');
   const [viewUser,     setViewUser]     = useState<MergedUser | null>(null);
+
+  // Deep-Link-Unterstuetzung: z.B. Klick auf User/Wirker in der Buchungs-Detailansicht
+  // navigiert hierher mit ?search=<user_id> und filtert automatisch (additiv, ARCH-006.1).
+  useEffect(() => {
+    const q = urlSearchParams.get('search');
+    if (q) { setSearch(q); setActiveTab('active'); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSearchParams]);
 
   const { users: allUsers, counts, loading, error, refetch } = useUsers({
     filter: 'all', search, limit: 1000, refreshInterval: 30_000,
