@@ -35,6 +35,7 @@ export default function StripeDashboardPage() {
   const [tab,       setTab]       = useState<'overview'|'payments'|'subs'|'commissions'|'payouts'|'webhooks'|'pool'>('overview');
   const [overview,  setOverview]  = useState<any>(null);
   const [payments,  setPayments]  = useState<any[]>([]);
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('');
   const [subs,      setSubs]      = useState<any[]>([]);
   const [commissions,setCommissions] = useState<any[]>([]);
   const [payouts,   setPayouts]   = useState<any[]>([]);
@@ -50,7 +51,7 @@ export default function StripeDashboardPage() {
     try {
       const [ovRes, payRes, subRes, comRes, outRes, whRes, poolRes] = await Promise.all([
         fetch('/api/stripe?type=overview', { credentials:'include' }).then(r => r.json()),
-        fetch('/api/stripe?type=payments&limit=100', { credentials:'include' }).then(r => r.json()),
+        fetch(`/api/stripe?type=payments&limit=100${paymentTypeFilter ? '&filter_type='+paymentTypeFilter : ''}`, { credentials:'include' }).then(r => r.json()),
         fetch('/api/stripe?type=subscriptions', { credentials:'include' }).then(r => r.json()),
         fetch('/api/stripe?type=commissions', { credentials:'include' }).then(r => r.json()),
         fetch('/api/stripe?type=payouts', { credentials:'include' }).then(r => r.json()),
@@ -134,27 +135,45 @@ export default function StripeDashboardPage() {
 
       {/* ZAHLUNGEN */}
       {tab === 'payments' && (
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-            <thead><tr>
-              {['ID','Nutzer','Betrag','Typ','Status','Pool-Anteil','Amb-Anteil','Datum'].map(h => (
-                <th key={h} style={th}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {payments.map(p => (
-                <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}>
-                  <td style={td}><code style={{ fontSize:10 }}>{(p.id||'').slice(0,20)}…</code></td>
-                  <td style={td}>{p.username ? `@${p.username}` : p.email || '—'}</td>
-                  <td style={td}>{eurDec(p.amount_eur)}</td>
-                  <td style={td}>{p.payment_type || '—'}</td>
-                  <td style={td}><StatusBadge status={p.status} /></td>
-                  <td style={td}>{eurDec(p.pool_share_eur)}</td>
-                  <td style={td}>{eurDec(p.amb_share_eur)}</td>
-                  <td style={td}>{fmtDate(p.created_at)}</td>
-                </tr>
-              ))}
-              {payments.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'var(--text-muted)' }}>Noch keine Zahlungen</td></tr>}
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {/* Type-Filter */}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+            {(['','work','talent','donation','subscription','impact_subscription'] as const).map(t => (
+              <button key={t||'all'} onClick={() => setPaymentTypeFilter(t)}
+                style={{ padding:'5px 14px', borderRadius:8, cursor:'pointer', fontSize:11,
+                  fontWeight:600, border:'1px solid var(--border)',
+                  background: paymentTypeFilter===t ? 'var(--accent)' : 'var(--bg-secondary)',
+                  color:       paymentTypeFilter===t ? '#fff' : 'var(--text-muted)',
+                }}>
+                {t===''?'Alle':t==='work'?'🎨 Werke':t==='talent'?'✨ Talente':t==='donation'?'🌱 Spenden':t==='subscription'?'📋 Abos':t==='impact_subscription'?'♻️ Impact-Abo':t}
+              </button>
+            ))}
+            <span style={{ fontSize:11, color:'var(--text-muted)', marginLeft:'auto' }}>{payments.length} Einträge</span>
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <thead><tr>
+                {['Nutzer','E-Mail','Betrag','Typ','Ambassador','Status','Beschreibung','Datum'].map(h => (
+                  <th key={h} style={th}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {payments.map(p => {
+                  const tc = ({work:'#6C63FF',talent:'#3ECF8E',donation:'#F59E0B',subscription:'#06B6D4',impact_subscription:'#8B5CF6'} as Record<string,string>)[p.payment_type||'work'] ?? '#888';
+                  return (
+                    <tr key={p.id} style={{ borderBottom:'1px solid var(--border)' }}>
+                      <td style={td}><div style={{fontWeight:600}}>@{p.username||'—'}</div></td>
+                      <td style={{...td,fontSize:11,color:'var(--text-muted)'}}>{p.email||'—'}</td>
+                      <td style={{...td,fontWeight:700,color:'#51cf66',fontFamily:'var(--font-mono)'}}>{eurDec(p.amount_eur)}</td>
+                      <td style={td}><span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:tc+'22',color:tc,border:`1px solid ${tc}44`}}>{p.payment_type||'—'}</span></td>
+                      <td style={td}>{p.amb_username ? `@${p.amb_username}` : '—'}</td>
+                      <td style={td}><StatusBadge status={p.status} /></td>
+                      <td style={{...td,fontSize:11,color:'var(--text-muted)',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={p.description||''}>{p.description||'—'}</td>
+                      <td style={{...td,whiteSpace:'nowrap',fontSize:11,color:'var(--text-muted)'}}>{fmtDate(p.created_at)}</td>
+                    </tr>
+                  );
+                })}
+                {payments.length === 0 && <tr><td colSpan={8} style={{ ...td, textAlign:'center', color:'var(--text-muted)' }}>Noch keine Zahlungen</td></tr>}
             </tbody>
           </table>
         </div>
