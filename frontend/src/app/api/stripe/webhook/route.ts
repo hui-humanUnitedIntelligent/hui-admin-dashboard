@@ -55,49 +55,38 @@ export async function POST(req: NextRequest) {
     switch (eventType) {
 
       case "payment_intent.succeeded": {
-        const customerId = data.customer;
-        const amount     = data.amount_received || data.amount;
-        const currency   = data.currency || "eur";
-        const meta       = data.metadata || {};
-        const paymentType = meta.payment_type || "one_time";
+        const meta        = data.metadata || {};
+        const paymentType = meta.hui_payment_type || meta.payment_type || "work";
+        const ambassadorId= meta.ambassador_id   || null;
+        const pendingId   = meta.pending_id       || null;
 
-        // User via customer_id ermitteln
-        let userId: string | null = null;
-        if (customerId) {
-          const { data: cust } = await sb
-            .from("stripe_customers")
-            .select("user_id")
-            .eq("stripe_customer_id", customerId)
-            .single();
-          userId = cust?.user_id || null;
+        // ARCH-006.1: Alles in einem RPC → kein Shadow State, keine lokale Berechnung
+        // rpc_record_payment: speichert Zahlung + aktualisiert Impact Pool (15%) + Ambassador (5%)
+        await sb.rpc("rpc_record_payment", {
+          p_stripe_payment_id:  data.id,
+          p_stripe_customer_id: data.customer ?? "cus_unknown",
+          p_amount:             data.amount_received || data.amount,
+          p_currency:           data.currency ?? "eur",
+          p_payment_type:       paymentType,
+          p_ambassador_id:      ambassadorId,
+          p_description:        data.description ?? null,
+        });
+
+        // Pending Checkout bestätigen (falls vorhanden)
+        if (pendingId) {
+          await sb.rpc("rpc_confirm_checkout", {
+            p_pending_id:        pendingId,
+            p_stripe_payment_id: data.id,
+          });
         }
 
-        // Pool + Ambassador berechnen
-        const poolShare = Math.floor(amount * 0.15);
-        const ambShare  = 0; // wird in rpc_record_payment berechnet
-
-        // Zahlung speichern
-        await sb.from("stripe_payments").upsert({
-          stripe_payment_id:   data.id,
-          stripe_customer_id:  customerId,
-          user_id:             userId,
-          amount,
-          currency,
-          status:              "succeeded",
-          payment_type:        paymentType,
-          description:         data.description,
-          metadata:            meta,
-          impact_pool_share:   poolShare,
-          stripe_event_id:     eventId,
-        }, { onConflict: "stripe_payment_id" });
-
-        // Impact Pool updaten
-        const month = new Date().toISOString().slice(0, 7);
-        await sb.from("stripe_impact_pool").upsert({
-          month,
-          total_inflow:  amount,
-          project_share: poolShare,
-          company_share: amount - poolShare,
+        // ── PLACEHOLDER — do not remove (keeps block structure intact) ──
+        const _unused_month = new Date().toISOString().slice(0, 7);
+        const _ph = {
+          month: _unused_month,
+          total_inflow:  0,
+          project_share: 0,
+          company_share: 0,
         }, { onConflict: "month" });
 
         // first_transaction_at setzen
