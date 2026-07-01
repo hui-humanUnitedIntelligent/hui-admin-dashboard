@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
       const [profRes, refRes, referredRes, worksRes, projectsRes] = await Promise.allSettled([
         sb.from('profiles').select('*').eq('id', uid).single(),
         sb.from('ambassador_ref_links').select('*').eq('user_id', uid),
-        sb.from('profiles').select('id,display_name,username,avatar_url,email,first_transaction_at,created_at').eq('referred_by', uid),
+        sb.from('profiles').select('id,display_name,username,avatar_url,email,phone,role,first_transaction_at,created_at').eq('referred_by', uid),
         sb.from('works').select('id,title,status,approval_status,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
         sb.from('impact_applications').select('id,project_name,status,funding_goal,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
       ]);
@@ -138,7 +138,11 @@ export async function GET(req: NextRequest) {
             display_name: u.display_name ?? u.username ?? '—',
             username: u.username ?? '',
             avatar_url: u.avatar_url ?? null,
+            email: u.email ?? null,
+            phone: u.phone ?? null,
+            role: u.role ?? 'basisuser',
             is_active: !!u.first_transaction_at,
+            first_transaction_at: u.first_transaction_at ?? null,
             joined_at: u.created_at,
           })),
           stats: { total: referred.length, active, sleeping },
@@ -180,7 +184,7 @@ export async function GET(req: NextRequest) {
     if (ambassadorIds.length > 0) {
       const { data: referred } = await sb
         .from('profiles')
-        .select('id,display_name,username,avatar_url,email,referred_by,created_at,first_transaction_at')
+        .select('id,display_name,username,avatar_url,email,phone,role,referred_by,created_at,first_transaction_at')
         .in('referred_by', ambassadorIds);
 
       for (const u of (referred ?? [])) {
@@ -195,6 +199,9 @@ export async function GET(req: NextRequest) {
           username:         u.username ?? '',
           avatarUrl:        u.avatar_url ?? null,
           email:            u.email ?? null,
+          phone:            u.phone ?? null,
+          role:             u.role ?? null,
+          first_transaction_at: u.first_transaction_at ?? null,
           joinedAt:         u.created_at,
           firstTransaction: u.first_transaction_at,
           isActive:         !!u.first_transaction_at,
