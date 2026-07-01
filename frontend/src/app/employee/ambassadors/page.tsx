@@ -2,7 +2,7 @@
 // frontend/src/app/employee/ambassadors/page.tsx
 // EDB: Ambassador-Übersicht mit Stripe-Provisionen
 import { useState, useEffect, useCallback } from 'react';
-import EmployeeDashboardLayout from '@/components/layout/EmployeeDashboardLayout';
+import EmployeeLayout from '@/components/layout/EmployeeLayout';
 
 function eur(val: number | null | undefined) {
   return `€${(val ?? 0).toFixed(2)}`;
@@ -59,7 +59,7 @@ export default function EmployeeAmbassadorsPage() {
   const td: React.CSSProperties = { padding:'10px 14px', fontSize:12, color:'var(--text-primary)' };
 
   return (
-    <EmployeeDashboardLayout title="Ambassadors">
+    <EmployeeLayout>
       <div style={{ padding:'24px 28px', display:'flex', flexDirection:'column', gap:20 }}>
 
         {/* Header */}
@@ -179,6 +179,6 @@ export default function EmployeeAmbassadorsPage() {
           )}
         </div>
       </div>
-    </EmployeeDashboardLayout>
+    </EmployeeLayout>
   );
 }
