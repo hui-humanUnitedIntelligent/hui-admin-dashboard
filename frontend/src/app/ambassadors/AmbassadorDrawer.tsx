@@ -48,7 +48,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [showLevelMenu, setShowLevelMenu] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<'overview' | 'referrals' | 'logs'>('overview');
+  const [drawerTab, setDrawerTab] = useState<'overview' | 'referrals' | 'works' | 'projects' | 'logs'>('overview');
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -88,6 +88,8 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
   const referrals  = detail?.referrals      || [];
   const stats      = detail?.stats          || { total: 0, active: 0, sleeping: 0 };
   const logs: { id: string; type: string; metadata: Record<string,unknown>; created_at: string }[] = [];
+  const works      = (detail as any)?.works    ?? [] as { id:string; title:string; status:string; approval_status:string|null; created_at:string }[];
+  const projItems  = (detail as any)?.projects ?? [] as { id:string; project_name:string; status:string; funding_goal:number|null; created_at:string }[];
 
   const pm         = (profile.profile_modules as Record<string, unknown>) || {};
   const ambData    = (pm.ambassador as Record<string, unknown>) || {};
@@ -171,7 +173,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
 
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
-              {([['overview','Übersicht'],['referrals','Referrals'],['logs','Aktivität']] as [string,string][]).map(([tab,label]) => (
+              {([['overview','Übersicht'],['referrals','Referrals'],['works','Werke'],['projects','Projekte'],['logs','Aktivität']] as [string,string][]).map(([tab,label]) => (
                 <button key={tab} onClick={() => setDrawerTab(tab as typeof drawerTab)} style={{ padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: drawerTab === tab ? 'var(--accent)' : 'var(--text-muted)', borderBottom: drawerTab === tab ? '2px solid var(--accent)' : '2px solid transparent' }}>
                   {label}
                 </button>
@@ -267,6 +269,65 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{ref.display_name || ref.username}</div>
                           <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Registriert {fmtDate(ref.joined_at)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Werke */}
+            {drawerTab === 'works' && (
+              <div style={{ padding: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  {works.length} Werk{works.length !== 1 ? 'e' : ''}
+                </div>
+                {works.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>Keine Werke vorhanden</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {works.map((w: any) => (
+                      <div key={w.id} style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{w.title || '(kein Titel)'}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                            background: w.approval_status === 'approved' ? 'rgba(34,197,94,0.12)' : w.approval_status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                            color:      w.approval_status === 'approved' ? '#22C55E'              : w.approval_status === 'rejected' ? '#EF4444'              : '#F59E0B',
+                          }}>{w.approval_status || w.status || 'pending'}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                          {w.created_at ? new Date(w.created_at).toLocaleDateString('de-DE') : '—'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Projekte */}
+            {drawerTab === 'projects' && (
+              <div style={{ padding: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  {projItems.length} Projekt{projItems.length !== 1 ? 'e' : ''}
+                </div>
+                {projItems.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>Keine Projekte vorhanden</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {projItems.map((p: any) => (
+                      <div key={p.id} style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{p.project_name || '(kein Name)'}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                            background: p.status === 'approved' ? 'rgba(34,197,94,0.12)' : p.status === 'rejected' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                            color:      p.status === 'approved' ? '#22C55E'              : p.status === 'rejected' ? '#EF4444'              : '#F59E0B',
+                          }}>{p.status}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                          {p.funding_goal ? `€${p.funding_goal.toLocaleString('de-DE')} Ziel · ` : ''}
+                          {p.created_at ? new Date(p.created_at).toLocaleDateString('de-DE') : '—'}
                         </div>
                       </div>
                     ))}
