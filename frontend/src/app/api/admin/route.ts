@@ -546,7 +546,7 @@ export async function GET(req: NextRequest) {
   const select = searchParams.get('select') || '*';
   const limit  = searchParams.get('limit')  || '500';
 
-  const ALLOWED_TABLES = ['works','profiles','payments','impact_projects','bookings','wirker_profiles','wirker','activity_logs','notifications','invitations','orders'];
+  const ALLOWED_TABLES = ['works','profiles','impact_projects','bookings','wirker_profiles','wirker','activity_logs','notifications','invitations','orders']; // 'payments' entfernt: tote Tabelle (0 Zeilen), Single Source of Truth ist stripe_payments (ARCH-006.1)
   if (!table || !ALLOWED_TABLES.includes(table)) {
     return fail('Invalid table');
   }
