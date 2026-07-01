@@ -1,10 +1,13 @@
 // frontend/src/app/api/dashboard/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
+// ARCH-006.1 Analytics-Konsolidierung: guardEmployee statt guardAdmin, damit SADB
+// und EDB dieselbe Single-Source-of-Truth-Route nutzen koennen (keine zweite,
+// separat berechnete Kennzahlen-Route mehr fuer Employees noetig -> /api/kpis entfernt).
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
 
   try {
