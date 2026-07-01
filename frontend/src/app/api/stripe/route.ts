@@ -33,9 +33,9 @@ export async function GET(req: NextRequest) {
 
   if (type === "overview") {
     const { data: overview } = await sb.rpc("rpc_get_stripe_overview");
-    const { data: payments, count } = await sb
+    const { count: paymentsCount } = await sb
       .from("stripe_payments").select("*", { count: "exact", head: true });
-    return NextResponse.json({ ok: true, data: overview, total_payments: count ?? 0 });
+    return NextResponse.json({ ok: true, data: overview, total_payments: paymentsCount ?? 0 });
   }
 
   if (type === "payments") {
