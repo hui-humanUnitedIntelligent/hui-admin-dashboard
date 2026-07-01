@@ -185,15 +185,53 @@ export interface HuiImpactProject {
 }
 
 export interface HuiBooking {
-  id: string;
-  user_id: string;
-  wirker_id: string;
-  amount: number;
-  platform_fee: number;
-  impact_fee: number;
+  booking_id: string;
+  id: string; // Alias fuer booking_id (Rueckwaertskompatibilitaet mit Tabellen-Code)
   status: string;
   payment_status: string;
   created_at: string;
+  updated_at?: string | null;
+  confirmed_at?: string | null;
+  completed_at?: string | null;
+  scheduled_at?: string | null;
+  date?: string | null;
+  location?: string | null;
+  customer_note?: string | null;
+
+  user_id: string;
+  user_name?: string | null;
+  user_email?: string | null;
+
+  wirker_id: string;
+  wirker_name?: string | null;
+  wirker_email?: string | null;
+
+  type?: string;
+  work_id?: string | null;
+  talent_id?: string | null;
+  project_id?: string | null;
+  item_title?: string | null;
+
+  payment_id?: string | null;
+  amount: number;
+  payment_amount?: number;
+  currency?: string;
+  platform_fee: number;
+  impact_fee: number;
+  ambassador_commission?: number;
+  stripe_charge_id?: string | null;
+  payment_status_live?: string | null;
+
+  impact_pool_entry_id?: string | null;
+  impact_amount?: number | null;
+  impact_source?: string | null;
+
+  ambassador_id?: string | null;
+  ambassador_name?: string | null;
+  ambassador_tier?: string | null;
+  commission_amount?: number | null;
+
+  metadata?: Record<string, unknown>;
 }
 
 export interface HuiMembership {
@@ -568,7 +606,7 @@ export function useGrowthChart() {
 export function useBookings(opts: {
   status?: string; limit?: number; refreshInterval?: number;
 } = {}) {
-  const { status, limit = 50, refreshInterval = 0 } = opts;
+  const { status = 'all', limit = 50, refreshInterval = 0 } = opts;
   const [bookings, setBookings] = useState<HuiBooking[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -577,21 +615,30 @@ export function useBookings(opts: {
   const fetch = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const params: Record<string, string> = {};
-      if (status && status !== 'all') params['status'] = `eq.${status}`;
-      const [rows, count] = await Promise.all([
-        sbQuery<HuiBooking>('bookings', params, {
-          select: 'id,user_id,wirker_id,amount,platform_fee,impact_fee,status,payment_status,created_at',
-          order: 'created_at.desc', limit }),
-        sbCount('bookings', params),
-      ]);
-      setBookings(rows); setTotal(count);
+      const params = new URLSearchParams({ filter: status, limit: String(limit) });
+      const token = getSessionToken();
+      const res = await globalThis.fetch(`/api/bookings?${params.toString()}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'unknown');
+
+      const rows: HuiBooking[] = (json.bookings ?? []).map((b: HuiBooking) => ({ ...b, id: b.booking_id }));
+      setBookings(rows);
+      setTotal(json.total ?? rows.length);
+      setError(null);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally { setLoading(false); }
   }, [status, limit]);
 
-  useRealtimeTable('bookings:realtime', ['bookings'], fetch);
+  // Live-Sync: Buchungen aktualisieren sich automatisch bei Aenderungen an bookings selbst
+  // ODER an den verknuepften Stripe-Tabellen (z.B. nach einem Webhook), ARCH-006.1 Punkt 7.
+  useRealtimeTable('bookings:realtime', [
+    'bookings', 'stripe_payments', 'stripe_ambassador_commissions', 'stripe_impact_pool',
+  ], fetch);
 
   useEffect(() => {
     fetch();
@@ -599,6 +646,31 @@ export function useBookings(opts: {
   }, [fetch, refreshInterval]);
 
   return { bookings, total, loading, error, refetch: fetch };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getBookingDetails — vollstaendige Detailansicht einer einzelnen Buchung
+// (User, Wirker, Werk/Talent/Projekt, Zahlung, Impact-Pool, Ambassador-Provision)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getBookingDetails(bookingId: string): Promise<HuiBooking | null> {
+  try {
+    const token = getSessionToken();
+    const res = await globalThis.fetch('/api/bookings', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ booking_id: bookingId }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.ok || !json.booking) return null;
+    return { ...json.booking, id: json.booking.booking_id } as HuiBooking;
+  } catch {
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
