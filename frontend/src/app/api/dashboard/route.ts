@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
     const startOf12Months = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString();
 
     // ── Alle Queries parallel ─────────────────────────────────────────────────
+    const day7  = new Date(now.getTime() - 7  * 86400000).toISOString();
+    const day30 = new Date(now.getTime() - 30 * 86400000).toISOString();
+    const day90 = new Date(now.getTime() - 90 * 86400000).toISOString();
+
     const [
       profilesRes,
       worksRes,
@@ -24,10 +28,17 @@ export async function GET(req: NextRequest) {
       recentUsersRes,
       growthRes,
       recentPaymentsRes,
+      pendingAmbassadorsRes,
+      bookings7Res,
+      bookings30Res,
+      bookings90Res,
+      worksAllStatusRes,
+      talentProfilesRes,
+      projectApplicationsRes,
     ] = await Promise.all([
       // 1) Alle Profile (keine Filterung — geblockte zählen MIT)
       sb.from('profiles')
-        .select('id, is_wirker, role, is_member, membership_active, is_ambassador, created_at, blocked', { count: 'exact' })
+        .select('id, is_wirker, role, is_member, membership_active, is_ambassador, created_at, blocked, referred_by, is_talent', { count: 'exact' })
         .limit(5000),
 
       // 2) Werke (published)
@@ -71,6 +82,23 @@ export async function GET(req: NextRequest) {
         .select('id, stripe_payment_id, amount, status, created_at')
         .order('created_at', { ascending: false })
         .limit(8),
+
+      // 10) Offene Ambassador-Anträge — Single Source of Truth: ambassadors_applications
+      sb.from('ambassadors_applications').select('id', { count: 'exact' }).eq('status', 'offen'),
+
+      // 11-13) Buchungsstatistik 7 / 30 / 90 Tage — Single Source of Truth: bookings
+      sb.from('bookings').select('id, amount, created_at').gte('created_at', day7),
+      sb.from('bookings').select('id, amount, created_at').gte('created_at', day30),
+      sb.from('bookings').select('id, amount, created_at').gte('created_at', day90),
+
+      // 14) Werk-Statistik nach Status
+      sb.from('works').select('status'),
+
+      // 15) Talent-Statistik
+      sb.from('profiles').select('id', { count: 'exact' }).eq('is_talent', true),
+
+      // 16) Projekt-Anträge nach Status — Single Source of Truth: impact_applications
+      sb.from('impact_applications').select('status'),
     ]);
 
     // ── Auth-User für genaue Gesamtzahl (alle Seiten) ───────────────────────
@@ -108,6 +136,45 @@ export async function GET(req: NextRequest) {
     const monthlyRevenue = (paymentsMonthRes.data ?? []).reduce((s, p) => s + ((p.amount ?? 0) / 100), 0);
     const totalPayments  = paymentsAllRes.count ?? 0;
     const activeAmbassadors = ambassadorsRes.count ?? 0;
+    const pendingAmbassadors = pendingAmbassadorsRes.count ?? 0;
+    const totalReferrals  = profiles.filter(p => p.referred_by).length;
+
+    // ── Buchungsstatistik 7 / 30 / 90 Tage — Single Source of Truth: bookings ──
+    const sumAmt = (rows: { amount?: number | null }[]) => rows.reduce((s, r) => s + (r.amount ?? 0), 0);
+    const bookingStats = {
+      last7:  { count: bookings7Res.data?.length  ?? 0, revenue: sumAmt(bookings7Res.data  ?? []) },
+      last30: { count: bookings30Res.data?.length ?? 0, revenue: sumAmt(bookings30Res.data ?? []) },
+      last90: { count: bookings90Res.data?.length ?? 0, revenue: sumAmt(bookings90Res.data ?? []) },
+    };
+    const activeBookingsCount = (bookings90Res.data ?? []).length; // gesamt aktiv sichtbar (90-Tage-Fenster)
+
+    // ── Talent-Statistik — profiles.is_talent (keine eigene Tabelle, ARCH-006.1) ──
+    const talentStats = {
+      total: talentProfilesRes.count ?? 0,
+      percentOfUsers: profiles.length > 0 ? Math.round((talentProfilesRes.count ?? 0) / profiles.length * 100) : 0,
+    };
+
+    // ── Werk-Statistik nach Status ──────────────────────────────────────────
+    const workStatusRows = worksAllStatusRes.data ?? [];
+    const workStats = {
+      published: workStatusRows.filter(w => w.status === 'published').length,
+      pending:   workStatusRows.filter(w => w.status === 'pending').length,
+      rejected:  workStatusRows.filter(w => w.status === 'rejected').length,
+      deleted:   workStatusRows.filter(w => w.status === 'deleted').length,
+      total:     workStatusRows.length,
+    };
+
+    // ── Projekt-Statistik: Anträge (impact_applications) + laufende Projekte (impact_projects) ──
+    const appStatusRows = projectApplicationsRes.data ?? [];
+    const liveProjects = impactProjectsRes.data ?? [];
+    const projectStats = {
+      applicationsPending:  appStatusRows.filter(a => a.status === 'pending' || a.status === 'pending_review').length,
+      applicationsApproved: appStatusRows.filter(a => a.status === 'approved').length,
+      applicationsRejected: appStatusRows.filter(a => a.status === 'rejected').length,
+      liveCount:            liveProjects.length,
+      totalVotes:           liveProjects.reduce((s, p) => s + (p.votes ?? 0), 0),
+      totalAwardedEur:      liveProjects.reduce((s, p) => s + (p.awarded_eur ?? 0), 0),
+    };
 
     // Impact Pool: live aus stripe_impact_pool (aktueller Monat) — keine lokale Berechnung
     const currentPoolMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -161,10 +228,10 @@ export async function GET(req: NextRequest) {
         projectShareEur,
         companyShareEur,
         totalPayments,
-        activeBookings:  0,
+        activeBookings:  activeBookingsCount,
         activeAmbassadors,
-        pendingAmbassadors: 0,
-        totalReferrals:  0,
+        pendingAmbassadors,
+        totalReferrals,
       },
       recentUsers:    recentUsersRes.data ?? [],
       recentPayments: recentPaymentsMapped,
@@ -174,6 +241,10 @@ export async function GET(req: NextRequest) {
         newUsers:    newUsersPerMonth,
         activeUsers: cumulativeUsers,
       },
+      bookingStats,
+      talentStats,
+      workStats,
+      projectStats,
     });
 
   } catch (err) {
