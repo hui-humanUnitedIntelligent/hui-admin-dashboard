@@ -185,12 +185,17 @@ export async function GET(req: NextRequest) {
     // ── Projekt-Statistik: Anträge (impact_applications) + laufende Projekte (impact_projects) ──
     const appStatusRows = projectApplicationsRes.data ?? [];
     const liveProjects = impactProjectsRes.data ?? [];
+    // WICHTIG: 'impact_projects.votes' ist ein denormalisiertes Feld ohne Trigger/RPC,
+    // das die App aktuell NICHT beschreibt (Alt-Code 'increment_project_votes' ist
+    // unerreichbar/verwaist). Single Source of Truth fuer Stimmen ist 'impact_votes'.
+    // Deshalb hier live aus 'impact_votes' zaehlen statt der toten Spalte zu vertrauen.
+    const { count: realVoteCount } = await sb.from('impact_votes').select('*', { count: 'exact', head: true });
     const projectStats = {
       applicationsPending:  appStatusRows.filter(a => a.status === 'pending' || a.status === 'pending_review').length,
       applicationsApproved: appStatusRows.filter(a => a.status === 'approved').length,
       applicationsRejected: appStatusRows.filter(a => a.status === 'rejected').length,
       liveCount:            liveProjects.length,
-      totalVotes:           liveProjects.reduce((s, p) => s + (p.votes ?? 0), 0),
+      totalVotes:           realVoteCount ?? 0,
       totalAwardedEur:      liveProjects.reduce((s, p) => s + (p.awarded_eur ?? 0), 0),
     };
 
