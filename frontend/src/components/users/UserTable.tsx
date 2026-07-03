@@ -3,6 +3,8 @@
 
 import { useState } from 'react';
 import type { MergedUser } from '@/lib/hooks/useUsers';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 interface UserTableProps {
   users:    MergedUser[];
@@ -67,6 +69,10 @@ function Avatar({ user }: { user: MergedUser }) {
 export default function UserTable({ users, loading, onAction }: UserTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedUsers, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(users, 'created_at');
+
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -129,7 +135,7 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
           </tr>
         </thead>
         <tbody>
-          {users.map(user => {
+          {pagedUsers.map(user => {
             const name    = user.full_name || user.display_name || user.username || '—';
             const isAdmin = ['admin','superadmin'].includes(user.role?.toLowerCase());
             const rowBg   = selected.has(user.id) ? 'var(--accent)' : user.is_deleted
@@ -248,6 +254,11 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
           })}
         </tbody>
       </table>
+      <PaginationControls
+        visibleCount={pagedUsers.length} pageSize={Math.min(50, users.length - (page-1)*50)}
+        total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+        page={page} totalPages={totalPages} onGoToPage={goToPage}
+      />
     </div>
   );
 }
