@@ -115,6 +115,7 @@ export async function GET(req: NextRequest) {
     // ── Zahlungshistorie (Stripe-ready) ───────────────────────────────────
     if (type === 'payments') {
       const { data, count } = await sb
+        // Legacy-Hinweis: Liest aus alter Tabelle 'payments' (nie befuellt, kein SSOT-Mapping, SYS-LegacyMark-024). Zeigt korrekt leer/0.
         .from('payments')
         .select('id,amount_eur,impact_eur,item_type,item_name,status,payment_status,paid_at,created_at,stripe_session_id,user_id', { count: 'exact' })
         .order('created_at', { ascending: false })
