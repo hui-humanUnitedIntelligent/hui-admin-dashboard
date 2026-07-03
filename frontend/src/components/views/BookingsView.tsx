@@ -117,8 +117,8 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 1000, refreshInterval: 0 });
 
-  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
-  const { pageItems: pagedBookings, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+  // Pagination: fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden")
+  const { pageItems: pagedBookings, page, totalPages, goToPage, total: pagedTotal } =
     usePaginatedList(bookings, 'created_at');
 
   const totalAmount = bookings.reduce((s, b) => s + (b.amount || 0), 0);
@@ -220,8 +220,7 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
         </div>
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
           <PaginationControls
-            visibleCount={pagedBookings.length} pageSize={Math.min(50, bookings.length - (page-1)*50)}
-            total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+            visibleCount={pagedBookings.length} total={pagedTotal}
             page={page} totalPages={totalPages} onGoToPage={goToPage}
           />
         </div>
