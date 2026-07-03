@@ -50,11 +50,6 @@ export default function ImpactPage() {
   const [filter,   setFilter]   = useState<string>('all');
   const [search,   setSearch]   = useState('');
   const [selected, setSelected] = useState<ImpactProject | null>(null);
-  const [toast,    setToast]    = useState('');
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg); setTimeout(() => setToast(''), 3000);
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,18 +100,6 @@ export default function ImpactPage() {
     return () => clearInterval(id);
   }, [load]);
 
-  async function updateProject(id: string, updates: Record<string, unknown>) {
-    try {
-      const res = await fetch('/api/impact', {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entity: 'project', id, ...updates }),
-      });
-      if (res.ok) { showToast('\u2705 Gespeichert'); load(); setSelected(null); }
-      else          showToast('Fehler beim Speichern');
-    } catch { showToast('Netzwerkfehler'); }
-  }
-
   const filtered = projects.filter(p => {
     if (filter !== 'all' && p.status !== filter) return false;
     if (search) {
@@ -150,10 +133,6 @@ export default function ImpactPage() {
 
   return (
     <EmployeeLayout title="Impact Pool">
-      {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: 'var(--accent)', color: '#fff', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>{toast}</div>
-      )}
-
       <PageHeader title="Impact Pool" subtitle="15\u00a0% jedes Umsatzes gehen in den gemeinsamen Impact-Pool"
         actionsRole={userRole as 'superadmin' | 'employee'} userRole={userRole}
         actions={<button onClick={load} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>\u21ba Refresh</button>}
@@ -296,18 +275,10 @@ export default function ImpactPage() {
                 </div>
               </div>
             )}
-            {userRole === 'superadmin' && (
-              <div style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['voting','active','won','archived','rejected'].map(s => (
-                  <button key={s} onClick={() => updateProject(selected.id, { status: s })}
-                    disabled={selected.status === s}
-                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: selected.status === s ? 'var(--accent)' : 'var(--bg-tertiary)', color: selected.status === s ? '#fff' : 'var(--text-muted)', cursor: selected.status === s ? 'not-allowed' : 'pointer', opacity: selected.status === s ? 0.7 : 1 }}>
-                    {(STATUS_CONFIG[s] ?? { label: s }).label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <button onClick={() => setSelected(null)} style={{ marginTop: 16, width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
+            <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+              Nur Ansicht \u2014 Status\u00e4nderungen erfolgen im Superadmin-Bereich.
+            </div>
+            <button onClick={() => setSelected(null)} style={{ marginTop: 12, width: '100%', padding: '10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
               Schlie\u00dfen
             </button>
           </div>
