@@ -486,8 +486,8 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     return base.filter(e => [e.title,e.category,e.description].some(v=>(v||'').toLowerCase().includes(q)));
   }, [tab, search, all, localDel]);
 
-  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
-  const { pageItems: pagedRows, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+  // Pagination: fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden")
+  const { pageItems: pagedRows, page, totalPages, goToPage, total: pagedTotal } =
     usePaginatedList(rows, 'created_at');
 
   const handleApprove = async (e: HuiEntry) => {
@@ -712,8 +712,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
           </div>
           <div style={{ padding:'10px 16px', borderTop:'1px solid var(--border)' }}>
             <PaginationControls
-              visibleCount={pagedRows.length} pageSize={Math.min(50, rows.length - (page-1)*50)}
-              total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+              visibleCount={pagedRows.length} total={pagedTotal}
               page={page} totalPages={totalPages} onGoToPage={goToPage}
             />
           </div>
