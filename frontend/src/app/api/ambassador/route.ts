@@ -6,18 +6,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-// ── Level-Helfer ────────────────────────────────────────────────────────────
+// ── Level-Helfer (COM-MIGRATION-015.3: Starter/Bronze/Silber/Gold, 5/10/15/20% -- gleiche Schwellen wie zuvor) ──
 function calcLevel(count: number): string {
-  if (count >= 201) return 'Platin';
-  if (count >= 51)  return 'Gold';
-  if (count >= 11)  return 'Silber';
-  return 'Bronze';
+  if (count >= 201) return 'Gold';
+  if (count >= 51)  return 'Silber';
+  if (count >= 11)  return 'Bronze';
+  return 'Starter';
+}
+function levelRate(level: string): number {
+  if (level === 'Gold')   return 0.20;
+  if (level === 'Silber') return 0.15;
+  if (level === 'Bronze') return 0.10;
+  return 0.05;
 }
 function levelStyle(level: string): { label: string; color: string } {
-  if (level === 'Gold')   return { label: '🥇 Gold',   color: '#ffd43b' };
-  if (level === 'Silber') return { label: '🥈 Silber', color: '#ced4da' };
-  if (level === 'Platin') return { label: '💎 Platin', color: '#b197fc' };
-  return                         { label: '🥉 Bronze', color: '#cd7f32' };
+  if (level === 'Gold')    return { label: '🥇 Gold (20%)',    color: '#ffd43b' };
+  if (level === 'Silber')  return { label: '🥈 Silber (15%)',  color: '#ced4da' };
+  if (level === 'Bronze')  return { label: '🥉 Bronze (10%)',  color: '#cd7f32' };
+  return                          { label: '🌱 Starter (5%)', color: '#69db7c' };
 }
 
 // ── GET: Ambassador-Liste ───────────────────────────────────────────────────
@@ -90,6 +96,53 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, messages: enriched });
     }
 
+    // ── Typ: commissions — Provisionen pro Ambassador (COM-MIGRATION-015.3) ──
+    if (type === 'commissions' && ambassadorId) {
+      const { data: commissions } = await sb
+        .from('stripe_ambassador_commissions')
+        .select('id,order_id,amount,currency,rate,status,tier,commission_valid_until,commission_active,base_purchase_amount_cents,company_share_cents,referred_user_id,created_at')
+        .eq('ambassador_id', ambassadorId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      const rows = commissions ?? [];
+      const referredIds = [...new Set(rows.map((r: any) => r.referred_user_id).filter(Boolean))];
+      const { data: referredProfiles } = referredIds.length
+        ? await sb.from('profiles').select('id,display_name,username').in('id', referredIds)
+        : { data: [] };
+      const profMap = new Map((referredProfiles ?? []).map((p: any) => [p.id, p]));
+
+      const now = Date.now();
+      const enriched = rows.map((r: any) => ({
+        id:                r.id,
+        orderId:           r.order_id,
+        amountEur:         (r.amount ?? 0) / 100,
+        ratePercent:       Number(r.rate) * 100,
+        tier:              r.tier,
+        status:            r.status,
+        commissionValidUntil: r.commission_valid_until,
+        isStillActive:     r.commission_active && (!r.commission_valid_until || new Date(r.commission_valid_until).getTime() >= now),
+        basePurchaseEur:   (r.base_purchase_amount_cents ?? 0) / 100,
+        companyShareEur:   (r.company_share_cents ?? 0) / 100,
+        referredUser:      profMap.get(r.referred_user_id) ?? null,
+        createdAt:         r.created_at,
+      }));
+
+      const totalLifetimeEur = enriched.reduce((s: number, r: any) => s + r.amountEur, 0);
+      const activeCount      = enriched.filter((r: any) => r.isStillActive).length;
+
+      return NextResponse.json({
+        ok: true,
+        commissions: enriched,
+        summary: {
+          totalLifetimeEur,
+          transactionCount: enriched.length,
+          activeCount,
+          expiredCount: enriched.length - activeCount,
+        },
+      });
+    }
+
     // ── Typ: stats — Statistiken eines Ambassadors ────────────────────────
     if (type === 'stats' && ambassadorId) {
       const [worksRes, projectsRes, msgsRes] = await Promise.allSettled([
@@ -132,18 +185,24 @@ export async function GET(req: NextRequest) {
           profile,
           refLinks,
           applications: projects,
-          referrals: referred.map((u: any) => ({
-            id: u.id,
-            display_name: u.display_name ?? u.username ?? '—',
-            username: u.username ?? '',
-            avatar_url: u.avatar_url ?? null,
-            email: u.email ?? null,
-            phone: u.phone ?? null,
-            role: u.role ?? 'basisuser',
-            is_active: !!u.first_transaction_at,
-            first_transaction_at: u.first_transaction_at ?? null,
-            joined_at: u.created_at,
-          })),
+          referrals: referred.map((u: any) => {
+            const validUntil = u.created_at ? new Date(new Date(u.created_at).getTime() + 365*86400000).toISOString() : null;
+            return {
+              id: u.id,
+              display_name: u.display_name ?? u.username ?? '—',
+              username: u.username ?? '',
+              avatar_url: u.avatar_url ?? null,
+              email: u.email ?? null,
+              phone: u.phone ?? null,
+              role: u.role ?? 'basisuser',
+              is_active: !!u.first_transaction_at,
+              first_transaction_at: u.first_transaction_at ?? null,
+              joined_at: u.created_at,
+              // COM-MIGRATION-015.3: 365-Tage-Provisionsfenster ab Registrierung
+              commission_valid_until: validUntil,
+              commission_window_active: validUntil ? new Date(validUntil).getTime() >= Date.now() : false,
+            };
+          }),
           stats: { total: referred.length, active, sleeping },
           works,
           projects,
@@ -225,6 +284,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // COM-MIGRATION-015.3: Gesamtprovision pro Ambassador (Commerce 2.0 orders, neues 15%-Modell)
+    const commissionTotalMap: Record<string, number> = {};
+    if (ambassadorIds.length > 0) {
+      const { data: ambCommissions } = await sb
+        .from('stripe_ambassador_commissions')
+        .select('ambassador_id, amount')
+        .in('ambassador_id', ambassadorIds);
+      for (const comm of (ambCommissions ?? [])) {
+        const aid = (comm as { ambassador_id: string; amount: number }).ambassador_id;
+        commissionTotalMap[aid] = (commissionTotalMap[aid] ?? 0) + (comm as { amount: number }).amount / 100;
+      }
+    }
+
     let data = profiles.map((p: any) => {
       const ambMod   = (p.profile_modules as any)?.ambassador ?? {};
       const refData  = referredMap[p.id] ?? { count: 0, active: 0, sleeping: 0, users: [] };
@@ -251,7 +323,10 @@ export async function GET(req: NextRequest) {
         activeCount:   refData.active,
         sleepingCount: refData.sleeping,
         revenueEur:    revenue,
+        // COM-MIGRATION-015.3: Gesamtprovision aus stripe_ambassador_commissions (neues 15%-Modell)
+        totalCommissionEur: commissionTotalMap[p.id] ?? 0,
         level:         level,
+        levelRatePercent: levelRate(level) * 100,
         levelLabel:    levelStyle(level).label,
         levelColor:    levelStyle(level).color,
         linkActive:    ambMod.link_active !== false,
