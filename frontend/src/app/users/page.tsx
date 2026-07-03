@@ -594,9 +594,9 @@ export default function UsersPage() {
   }, [allUsers, activeTab, roleFilter]);
 
   // Pagination fuer den Blockiert-Tab (eigene Karten-Ansicht, umgeht UserTable) --
-  // 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation.
+  // fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden").
   const {
-    pageItems: pagedBlockedUsers, canLoadMore: blockedCanLoadMore, loadMore: blockedLoadMore,
+    pageItems: pagedBlockedUsers,
     page: blockedPage, totalPages: blockedTotalPages, goToPage: blockedGoToPage, total: blockedTotal,
   } = usePaginatedList(displayUsers, 'created_at');
 
@@ -783,8 +783,7 @@ export default function UsersPage() {
             />
           ))}
           <PaginationControls
-            visibleCount={pagedBlockedUsers.length} pageSize={Math.min(50, displayUsers.length - (blockedPage-1)*50)}
-            total={blockedTotal} canLoadMore={blockedCanLoadMore} onLoadMore={blockedLoadMore}
+            visibleCount={pagedBlockedUsers.length} total={blockedTotal}
             page={blockedPage} totalPages={blockedTotalPages} onGoToPage={blockedGoToPage}
           />
         </div>
