@@ -1,6 +1,6 @@
 // frontend/src/app/api/tickets/route.ts
 import { NextRequest } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardAdmin, guardEmployee } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
@@ -77,9 +77,9 @@ function groupIntoThreads(rows: ReturnType<typeof parseTicket>[]) {
   }).sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 }
 
-// ── GET ────────────────────────────────────────────────────────────────────────
+// ── GET (Employee darf lesen, Admin-Actions bleiben unten unter guardAdmin) ─────
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardEmployee(req);
   if (guard) return guard;
 
   const { searchParams } = new URL(req.url);
