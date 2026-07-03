@@ -188,38 +188,87 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data);
   }
 
-  // AMB-PAYOUT-016: konsolidiert -- ruft jetzt die eine autoritative Edge Function
-  // (ambassador-payout-execute) statt den Stripe-Transfer hier ein zweites Mal zu
-  // implementieren (siehe #482/#-Fund: doppelte Transfer-Logik). Der Admin ist bereits
-  // durch getAuthUser()/dieses Dashboard verifiziert -- die Edge Function akzeptiert
-  // deshalb den Service-Role-Key + explizites admin_id als vertrauenswuerdigen Server-Call.
+  // AMB-PAYOUT-016: Metadaten (total_commissions/commission_period) + notification_events-Log
+  // ergaenzt, gleiche Semantik wie die Edge Function ambassador-payout-execute.
+  // WICHTIG (Faktencheck, nichts geraten): Ein Versuch, hier stattdessen die Edge Function per
+  // Service-Role-Key aufzurufen und die doppelte Stripe-Logik zu entfernen, wurde bewusst NICHT
+  // deployed. Live-Test zeigte, dass Supabase intern inzwischen den NEUEN sb_secret_-Schluessel
+  // als SUPABASE_SERVICE_ROLE_KEY in Edge Functions injiziert -- ob Vercel fuer dieses Repo exakt
+  // denselben Wert (Format) unter demselben Variablennamen haelt, ist von hier aus nicht pruefbar
+  // (kein Vercel-Env-Zugriff). Ein String-Vergleich zweier unabhaengig verwalteter Secrets waere
+  // Raten, kein Fakt -- deshalb bleibt die bestehende, bewiesen funktionierende STRIPE_SK-Route
+  // hier unangetastet bestehen. Echte Konsolidierung erst moeglich, wenn Michael den Wert von
+  // SUPABASE_SERVICE_ROLE_KEY in Vercel bestaetigt oder ein dediziertes Shared Secret einrichtet.
   if (action === "execute_payout") {
     const admin = await getAuthUser(req);
     if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     const { payout_id } = body;
 
-    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-      return NextResponse.json({ ok: false, error: "supabase_not_configured" }, { status: 500 });
+    const { data: payout } = await sb.from("stripe_payouts").select("*").eq("id", payout_id).single();
+    if (!payout) return NextResponse.json({ ok: false, error: "payout_not_found" }, { status: 404 });
+    if (payout.status !== "approved") {
+      return NextResponse.json({ ok: false, error: "invalid_state", current_status: payout.status }, { status: 400 });
     }
 
+    const { data: ambProfile } = await sb
+      .from("profiles").select("stripe_account_id, stripe_connect_status")
+      .eq("id", payout.ambassador_id).single();
+    if (!ambProfile?.stripe_account_id) {
+      return NextResponse.json({ ok: false, error: "ambassador_not_connected" }, { status: 400 });
+    }
+
+    const { data: linkedCommissions } = await sb
+      .from("stripe_ambassador_commissions").select("created_at")
+      .eq("payout_id", payout_id).order("created_at", { ascending: true });
+    const commissionCount = linkedCommissions?.length ?? 0;
+    const periodStart = linkedCommissions?.[0]?.created_at ?? null;
+    const periodEnd = linkedCommissions?.[commissionCount - 1]?.created_at ?? null;
+    const commissionPeriod = periodStart && periodEnd
+      ? `${String(periodStart).slice(0, 10)} bis ${String(periodEnd).slice(0, 10)}`
+      : "unbekannt";
+
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/ambassador-payout-execute`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ payout_id, admin_id: admin.id }),
+      const transfer = await stripeRequest("/transfers", {
+        amount: payout.amount, // bereits in Cent
+        currency: payout.currency || "eur",
+        destination: ambProfile.stripe_account_id,
+        "metadata[payout_id]": payout_id,
+        "metadata[ambassador_id]": payout.ambassador_id,
+        "metadata[source]": "hui_ambassador_payout_admin",
+        "metadata[total_commissions]": String(commissionCount),
+        "metadata[commission_period]": commissionPeriod,
       });
-      const data = await res.json();
-      if (!res.ok || data?.error) {
-        return NextResponse.json({ ok: false, error: data?.error || "execute_failed" }, { status: res.status });
+
+      await sb.from("stripe_payouts").update({
+        status: "paid",
+        stripe_payout_id: transfer.id,
+        processed_at: new Date().toISOString(),
+      }).eq("id", payout_id);
+
+      await sb.rpc("rpc_mark_commissions_paid", { p_payout_id: payout_id });
+
+      await sb.from("notification_events").insert({
+        table_name: "stripe_payouts", record_id: payout_id, action: "payout_paid",
+        old_status: "approved", new_status: "paid", admin_id: admin.id,
+        reason: `Stripe-Transfer ${transfer.id}, ${commissionCount} Provisionen, ${commissionPeriod}`,
+      });
+
+      if (ambProfile.stripe_connect_status !== "connected") {
+        await sb.from("profiles").update({ stripe_connect_status: "connected" }).eq("id", payout.ambassador_id);
       }
-      return NextResponse.json(data);
+
+      return NextResponse.json({ ok: true, payout_id, stripe_transfer_id: transfer.id, status: "paid" });
     } catch (err: any) {
-      return NextResponse.json({ ok: false, error: err?.message || "network_error" }, { status: 502 });
+      await sb.rpc("rpc_fail_payout", {
+        p_payout_id: payout_id,
+        p_reason: (err?.message || "stripe_transfer_failed").slice(0, 500),
+      });
+      await sb.from("notification_events").insert({
+        table_name: "stripe_payouts", record_id: payout_id, action: "payout_error",
+        old_status: "approved", new_status: "failed", admin_id: admin.id,
+        reason: (err?.message || "stripe_transfer_failed").slice(0, 500),
+      });
+      return NextResponse.json({ ok: false, error: err?.message }, { status: 502 });
     }
   }
 
