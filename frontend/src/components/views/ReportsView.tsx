@@ -122,9 +122,9 @@ export function ReportsView({ role }: { role: 'superadmin' | 'employee' }) {
     else showToast('Fehler beim Senden', 'error');
   };
 
-  const latest = data?.periods[(data?.periods?.length ?? 0) - 1];
-  const maxRevenue = Math.max(...(data?.periods.map(p => p.revenue) || [1]), 1);
-  const maxUsers   = Math.max(...(data?.periods.map(p => p.new_users) || [1]), 1);
+  const latest = data?.periods?.[(data?.periods?.length ?? 0) - 1];
+  const maxRevenue = Math.max(...(data?.periods?.map(p => p.revenue) || [1]), 1);
+  const maxUsers   = Math.max(...(data?.periods?.map(p => p.new_users) || [1]), 1);
 
   const tabBtn = (v: typeof type, l: string) => (
     <button onClick={() => setType(v)} style={{ padding: '5px 14px', borderRadius: 7, border: '1px solid', borderColor: type === v ? 'var(--accent)' : 'var(--border)', background: type === v ? 'var(--accent-dim)' : 'transparent', color: type === v ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-body)' }}>{l}</button>
