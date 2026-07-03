@@ -7,6 +7,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { statusToBadge } from '@/components/ui/Badge';
 import { useBookings, getBookingDetails, HuiBooking } from '@/lib/hooks/useSupabase';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -113,7 +115,11 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<HuiBooking | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 100, refreshInterval: 0 });
+  const { bookings, total, loading, refetch } = useBookings({ status: statusFilter, limit: 1000, refreshInterval: 0 });
+
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedBookings, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(bookings, 'created_at');
 
   const totalAmount = bookings.reduce((s, b) => s + (b.amount || 0), 0);
   const totalImpact = bookings.reduce((s, b) => s + (b.impact_fee || 0), 0);
@@ -184,9 +190,9 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
             <tbody>
               {loading ? (
                 <><Skeleton /><Skeleton /><Skeleton /><Skeleton /></>
-              ) : bookings.length === 0 ? (
+              ) : pagedBookings.length === 0 ? (
                 <tr><td colSpan={9} style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Keine Buchungen</td></tr>
-              ) : bookings.map((b) => (
+              ) : pagedBookings.map((b) => (
                 <Fragment key={b.booking_id}>
                   <tr key={b.booking_id} className="tr-hover" onClick={() => handleRowClick(b)}
                     style={{ background: selectedId === b.booking_id ? 'var(--accent-dim)' : 'transparent', cursor: 'pointer' }}>
@@ -211,6 +217,13 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
               ))}
             </tbody>
           </table>
+        </div>
+        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+          <PaginationControls
+            visibleCount={pagedBookings.length} pageSize={Math.min(50, bookings.length - (page-1)*50)}
+            total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+            page={page} totalPages={totalPages} onGoToPage={goToPage}
+          />
         </div>
       </div>
     </DashboardLayout>
