@@ -214,14 +214,14 @@ export default function EmployeePayoutsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Ambassador','E-Mail','Betrag','Status','Stripe-ID','Angefordert','Abgeschlossen','Fehler/Grund','Aktion'].map(h => (
+                {['Ambassador','E-Mail','Betrag','Provisionen','Zeitraum','Stripe-Connect','Status','Stripe-ID','Angefordert','Abgeschlossen','Fehler/Grund','Aktion'].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
+                <tr><td colSpan={12} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
                   Lade…
                 </td></tr>
               )}
@@ -234,6 +234,27 @@ export default function EmployeePayoutsPage() {
                   <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>{p.email || '—'}</td>
                   <td style={{ ...td, fontWeight: 700, color: '#51cf66', fontFamily: 'var(--font-mono)' }}>
                     {eur(p.amount_eur)}
+                  </td>
+                  <td style={{ ...td, fontSize: 11 }}>
+                    {p.commission_count ?? 0}
+                    {p.soonest_expiry && (
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                        Fenster bis {fmtDate(p.soonest_expiry).slice(0, 10)}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...td, fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {p.period_start ? fmtDate(p.period_start).slice(0, 10) : '—'}
+                    {p.period_end ? ` – ${fmtDate(p.period_end).slice(0, 10)}` : ''}
+                  </td>
+                  <td style={td}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                      background: p.stripe_connect_status === 'connected' ? 'rgba(81,207,102,0.12)' : 'var(--bg-tertiary)',
+                      color: p.stripe_connect_status === 'connected' ? '#51cf66' : 'var(--text-muted)',
+                    }}>
+                      {p.stripe_connect_status === 'connected' ? '✅ Verbunden' : p.stripe_connect_status === 'onboarding' ? '⏳ Onboarding' : '❌ Nicht verbunden'}
+                    </span>
                   </td>
                   <td style={td}><StatusBadge status={p.status} /></td>
                   <td style={{ ...td, fontSize: 10 }}>
@@ -284,7 +305,7 @@ export default function EmployeePayoutsPage() {
                 </tr>
               ))}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
+                <tr><td colSpan={12} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
                   Keine Auszahlungen für diesen Status
                 </td></tr>
               )}
