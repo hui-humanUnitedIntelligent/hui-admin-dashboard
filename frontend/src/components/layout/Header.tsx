@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { clearAuth } from '@/lib/api';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface HeaderProps {
   title: string;
@@ -26,10 +27,18 @@ async function handleLogout() {
   }
 }
 
-export default function Header({ title, actions, onMenuToggle, employeeMode }: HeaderProps) {
+export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
   const [time, setTime]           = useState<string>('');
   const [actionsOpen, setActionsOpen] = useState(false);
   const pathname = usePathname();
+
+  // Root-Cause-Fix (Rollen-Badge-Bug, 2026-07-03): 'employeeMode'-Prop wurde von
+  // EmployeeLayout.tsx nie durchgereicht und von den meisten Top-Level-Seiten auch
+  // nicht gesetzt -> das Badge zeigte praktisch immer 'Employee', unabhaengig von
+  // der echten Session. Einzige verlaessliche Quelle ist die 'hui_admin_role'-Cookie
+  // (gleiche Quelle wie ueberall sonst im Admin-Dashboard, siehe useAuth()).
+  const { role } = useAuth();
+  const isSuperadmin = role === 'superadmin';
 
   useEffect(() => {
     const update = () => {
@@ -107,7 +116,7 @@ export default function Header({ title, actions, onMenuToggle, employeeMode }: H
           {/* Dashboard-Wechsel */}
           <button
             onClick={handleSwitchDashboard}
-            title={employeeMode ? 'Zu Admin Dashboard wechseln' : 'Zu Employee Portal wechseln'}
+            title={isSuperadmin ? 'Zu Employee Portal wechseln' : 'Zu Admin Dashboard wechseln'}
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '5px 10px',
@@ -122,8 +131,8 @@ export default function Header({ title, actions, onMenuToggle, employeeMode }: H
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
           >
-            <span>{employeeMode ? '🛡️' : '👤'}</span>
-            <span>{employeeMode ? 'Admin' : 'Employee'}</span>
+            <span>{isSuperadmin ? '🛡️' : '👤'}</span>
+            <span>{isSuperadmin ? 'Superadmin' : 'Employee'}</span>
           </button>
 
           {/* HUI App öffnen */}
