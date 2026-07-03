@@ -1,46 +1,25 @@
 // frontend/src/components/ui/PaginationControls.tsx
-// ── Gemeinsame "Mehr laden" + Seiten-Navigation für alle Admin-Listen ───────────
+// ── Gemeinsame Seiten-Navigation für alle Admin-Listen (fix 20 pro Seite) ───────
 'use client';
 
 interface PaginationControlsProps {
-  visibleCount: number;
-  pageSize:     number;   // Anzahl auf der aktuellen Seite (max. 50)
-  total:        number;   // Gesamtzahl über alle Seiten
-  canLoadMore:  boolean;
-  onLoadMore:   () => void;
+  visibleCount: number;  // Anzahl auf der aktuellen Seite
+  total:        number;  // Gesamtzahl über alle Seiten
   page:         number;
   totalPages:   number;
   onGoToPage:   (p: number) => void;
 }
 
 export default function PaginationControls({
-  visibleCount, pageSize, total, canLoadMore, onLoadMore, page, totalPages, onGoToPage,
+  visibleCount, total, page, totalPages, onGoToPage,
 }: PaginationControlsProps) {
   if (total === 0) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 14 }}>
       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-        {visibleCount} von {pageSize} auf dieser Seite · {total} gesamt
+        {visibleCount} von {total} gesamt
       </div>
-
-      {canLoadMore && (
-        <button
-          onClick={onLoadMore}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '7px 18px', borderRadius: 20,
-            border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
-            color: 'var(--text-primary)', fontSize: 12.5, fontWeight: 600,
-            cursor: 'pointer', transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
-        >
-          <span>Mehr laden</span>
-          <span style={{ fontSize: 10 }}>▾</span>
-        </button>
-      )}
 
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
