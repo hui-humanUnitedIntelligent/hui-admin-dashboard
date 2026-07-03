@@ -1,7 +1,7 @@
 // frontend/src/components/views/TransactionsView.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
@@ -69,6 +69,16 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
     limit: LIMIT,
     refreshInterval: 0,
   });
+
+  // Sortiert nach Datum (neueste zuerst), unabhaengig von RPC-interner Reihenfolge.
+  const sortedPayments = [...payments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  // "Mehr laden": 10 sichtbar, in 10er-Schritten bis max. 50 (= die aktuell geladene Seite).
+  const [visibleCount, setVisibleCount] = useState(10);
+  useEffect(() => { setVisibleCount(10); }, [page, statusFilter, daysFilter]);
+  const visiblePayments = sortedPayments.slice(0, visibleCount);
+  const canLoadMore = visibleCount < sortedPayments.length;
 
   const filterBtnStyle = (active: boolean): React.CSSProperties => ({
     padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500,
@@ -173,14 +183,14 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
             <tbody>
               {loading ? (
                 <><Skeleton /><Skeleton /><Skeleton /><Skeleton /><Skeleton /></>
-              ) : payments.length === 0 ? (
+              ) : visiblePayments.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
                     Keine Zahlungen gefunden
                   </td>
                 </tr>
               ) : (
-                payments.map((p) => (
+                visiblePayments.map((p) => (
                   <tr
                     key={p.row_id}
                     className="tr-hover"
@@ -262,11 +272,24 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
           </div>
         )}
 
-        {/* Pagination */}
+        {/* "Mehr laden" — innerhalb der aktuell geladenen Seite (max. 50) */}
+        {canLoadMore && (
+          <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={() => setVisibleCount(v => Math.min(sortedPayments.length, v + 10))}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 18px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <span>Mehr laden</span>
+              <span style={{ fontSize: 10 }}>▾</span>
+            </button>
+          </div>
+        )}
+
+        {/* Pagination — Server-seitig, je 50 pro Seite (bereits vorhandene Logik) */}
         {total > LIMIT && (
           <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {page * LIMIT + 1}–{Math.min((page + 1) * LIMIT, total)} von {total}
+              {visiblePayments.length} von {Math.min((page + 1) * LIMIT, total) - page * LIMIT} auf dieser Seite · {page * LIMIT + 1}–{Math.min((page + 1) * LIMIT, total)} von {total}
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}
