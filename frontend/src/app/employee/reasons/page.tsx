@@ -5,6 +5,8 @@ import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Badge from '@/components/ui/Badge';
 import { useScoreFailures } from '@/lib/hooks/useSupabase';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 function fmtEur(n:number|null|undefined){if(!n)return'—';return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
 function timeAgo(iso:string|null|undefined){if(!iso)return'—';const d=Math.floor((Date.now()-new Date(iso).getTime())/86400000);if(d===0)return'Heute';if(d<7)return`${d}d`;return`${Math.floor(d/30)}mo`;}
@@ -42,6 +44,10 @@ export default function EmployeeReasonsPage() {
     return !q||(f.project_name||'').toLowerCase().includes(q)||(f.kategorie||'').toLowerCase().includes(q)||(f.grund||'').toLowerCase().includes(q);
   });
 
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedFiltered, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(filtered, 'created_at');
+
   return (
     <EmployeeLayout title="Ablehnungsgründe">
       <PageHeader title="Ablehnungsgründe" subtitle="Volle Content-Rechte · Realtime" actionsRole="employee"/>
@@ -58,7 +64,7 @@ export default function EmployeeReasonsPage() {
       <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:8}}>🟢 Realtime · {filtered.length} Einträge</div>
       {loading?<div style={{padding:40,textAlign:'center',color:'var(--text-muted)'}}>Laden…</div>:(
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {filtered.map(item=>{
+          {pagedFiltered.map(item=>{
             const isBusy=busy===item.id;
             const isDeleted=(item as {status?:string}).status==='deleted';
             return(
@@ -90,6 +96,11 @@ export default function EmployeeReasonsPage() {
             );
           })}
           {filtered.length===0&&<div style={{padding:40,textAlign:'center',color:'var(--text-muted)'}}>Keine Einträge.</div>}
+          <PaginationControls
+            visibleCount={pagedFiltered.length} pageSize={Math.min(50, filtered.length - (page-1)*50)}
+            total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+            page={page} totalPages={totalPages} onGoToPage={goToPage}
+          />
         </div>
       )}
     </EmployeeLayout>
