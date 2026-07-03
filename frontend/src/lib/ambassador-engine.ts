@@ -51,10 +51,11 @@ export function rewardForLevelUp(params: {
 
   if (newLevel.level === prevLevel.level) return null; // Kein Level-Wechsel
 
+  // COM-MIGRATION-015.3: Level-Slugs verschoben (bronze/silver/gold/platinum -> starter/bronze/silver/gold)
   const bonusMap: Record<string, number> = {
-    silver:   10,   // €10 Bonus für Silber
-    gold:     25,   // €25 Bonus für Gold
-    platinum: 50,   // €50 Bonus für Platin
+    bronze: 10,   // €10 Bonus für Bronze
+    silver: 25,   // €25 Bonus für Silber
+    gold:   50,   // €50 Bonus für Gold
   };
 
   return {
