@@ -12,6 +12,8 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
 import { useWorks } from '@/lib/hooks/useWorks';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 import type { HuiWork } from '@/lib/hooks/useWorks';
 import { ImageLightbox, ClickableImage } from '@/components/ui/ImageLightbox';
 // api imports handled via useWorks hook
@@ -491,6 +493,10 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
     return base;
   }, [tab, annotatedAll, annotatedDeleted, annotatedFlagged, annotatedPublished, annotatedDraft, annotatedPending, annotatedRejected, search]);
 
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedList, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(activeList, 'created_at');
+
   const setBusyFor = (id: string, v: boolean) => setBusy(p => ({ ...p, [id]: v }));
 
   const openDetail = (w: WorkWithMeta) => { setSelected(w); setForm(buildForm(w)); setEditMode(false); };
@@ -745,7 +751,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
             <tbody>
               {loading ? (
                 <><Skeleton/><Skeleton/><Skeleton/><Skeleton/></>
-              ) : activeList.length === 0 ? (
+              ) : pagedList.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding:48, textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
                     {tab === 'deleted'   ? '🗑 Keine gelöschten Werke' :
@@ -754,7 +760,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                      'Keine Werke gefunden'}
                   </td>
                 </tr>
-              ) : activeList.map((w) => {
+              ) : pagedList.map((w) => {
                 const imgs = parseImages(w.images as unknown);
                 const cover = (w.cover_url as string) || imgs[0] || '';
                 const isBusy = busy[w.id];
@@ -921,6 +927,12 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
           </table>
         </div>
       </div>
+
+      <PaginationControls
+        visibleCount={pagedList.length} pageSize={Math.min(50, activeList.length - (page-1)*50)}
+        total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+        page={page} totalPages={totalPages} onGoToPage={goToPage}
+      />
 
       {/* ── Detail / Edit Modal ─────────────────────────────────────────── */}
       {selected && (
