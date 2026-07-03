@@ -59,13 +59,37 @@ export default function ImpactPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Projekte + Live-Votes + Aggregate (awardedEur/totalVotes) kommen aus
+      // /api/impact-projects (SSOT fuer impact_projects + impact_votes).
+      // Pool-Finanzen (Stripe-basiert, ARCH-006.1) kommen separat aus /api/impact?type=overview.
+      // Vorher rief diese Seite faelschlich nur /api/impact (Default type=overview) auf,
+      // das liefert nie 'projects'/'pool' -- Projekte waren dauerhaft leer, Finanz-Kacheln
+      // dauerhaft €0,00.
       const params = new URLSearchParams({ limit: '200' });
       if (filter !== 'all') params.set('status', filter);
-      const res = await fetch(`/api/impact?${params}`, { credentials: 'include' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json();
-      setProjects(Array.isArray(d.projects) ? d.projects : []);
-      if (d.pool) setPool(d.pool);
+
+      const [projRes, overviewRes] = await Promise.all([
+        fetch(`/api/impact-projects?${params}`, { credentials: 'include' }),
+        fetch('/api/impact?type=overview', { credentials: 'include' }),
+      ]);
+      if (!projRes.ok) throw new Error(`HTTP ${projRes.status} (impact-projects)`);
+      if (!overviewRes.ok) throw new Error(`HTTP ${overviewRes.status} (impact overview)`);
+
+      const projData = await projRes.json();
+      const ov        = await overviewRes.json();
+
+      setProjects(Array.isArray(projData.projects) ? projData.projects : []);
+      setPool({
+        latest: ov.poolMonth ? { state: ov.poolState, voting_ends_at: null, month: ov.poolMonth } : null,
+        totalEur:       ov.bruttoPool ?? 0,
+        distributedEur: ov.distributed ?? 0,
+        awardedEur:     projData.awardedEur ?? 0,
+        openEur:        ov.openImpact ?? 0,
+        totalVotes:     projData.totalVotes ?? 0,
+        bruttoPool:     ov.bruttoPool ?? 0,
+        nettoImpact:    ov.nettoImpact ?? 0,
+        firmenanteil:   ov.firmenanteil ?? 0,
+      });
     } catch (e) {
       console.error('[impact]', e);
     } finally {
