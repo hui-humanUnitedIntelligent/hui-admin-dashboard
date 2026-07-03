@@ -3,6 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 interface Profile {
   id: string;
@@ -52,6 +54,10 @@ export default function EmployeeUsersPage() {
       (p.email        ?? '').toLowerCase().includes(q)
     );
   });
+
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedFiltered, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(filtered, 'created_at');
 
   const COL: React.CSSProperties = {
     padding: '11px 16px', fontSize: 13,
@@ -107,7 +113,7 @@ export default function EmployeeUsersPage() {
               {filtered.length === 0 ? (
                 <tr><td colSpan={4} style={{ padding:'32px', textAlign:'center',
                   color:'var(--text-secondary)', fontSize:13 }}>Keine Nutzer gefunden</td></tr>
-              ) : filtered.map(p => {
+              ) : pagedFiltered.map(p => {
                 const name = p.display_name || p.full_name || p.username || '—';
                 return (
                   <tr key={p.id}>
@@ -148,6 +154,13 @@ export default function EmployeeUsersPage() {
               })}
             </tbody>
           </table>
+        )}
+        {!loading && (
+          <PaginationControls
+            visibleCount={pagedFiltered.length} pageSize={Math.min(50, filtered.length - (page-1)*50)}
+            total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+            page={page} totalPages={totalPages} onGoToPage={goToPage}
+          />
         )}
       </div>
     </EmployeeLayout>
