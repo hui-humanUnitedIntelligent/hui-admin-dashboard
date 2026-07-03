@@ -10,6 +10,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { showToast } from '@/components/ui/Toast';
 import { SUPABASE_URL, SUPABASE_ANON } from '@/lib/api';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 interface ScoreFailure {
   id: string;
@@ -198,6 +200,10 @@ export default function ScoreFailuresView() {
     return matchGrund && matchSearch;
   });
 
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedFiltered, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(filtered, 'created_at');
+
   // KPIs
   const counts = Object.fromEntries(
     Object.keys(GRUND_LABELS).map(g => [g, failures.filter(f => f.grund === g).length])
@@ -278,7 +284,7 @@ export default function ScoreFailuresView() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filtered.map(f => {
+            {pagedFiltered.map(f => {
               const g = GRUND_LABELS[f.grund] || { label: f.grund, emoji: '❓', color: '#6b7280' };
               return (
                 <div key={f.id}
@@ -319,6 +325,11 @@ export default function ScoreFailuresView() {
                 </div>
               );
             })}
+            <PaginationControls
+              visibleCount={pagedFiltered.length} pageSize={Math.min(50, filtered.length - (page-1)*50)}
+              total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+              page={page} totalPages={totalPages} onGoToPage={goToPage}
+            />
           </div>
         )}
       </div>
