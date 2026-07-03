@@ -55,8 +55,8 @@ export default function EmployeeUsersPage() {
     );
   });
 
-  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
-  const { pageItems: pagedFiltered, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+  // Pagination: fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden")
+  const { pageItems: pagedFiltered, page, totalPages, goToPage, total: pagedTotal } =
     usePaginatedList(filtered, 'created_at');
 
   const COL: React.CSSProperties = {
@@ -157,8 +157,7 @@ export default function EmployeeUsersPage() {
         )}
         {!loading && (
           <PaginationControls
-            visibleCount={pagedFiltered.length} pageSize={Math.min(50, filtered.length - (page-1)*50)}
-            total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+            visibleCount={pagedFiltered.length} total={pagedTotal}
             page={page} totalPages={totalPages} onGoToPage={goToPage}
           />
         )}
