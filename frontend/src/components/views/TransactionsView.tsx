@@ -1,12 +1,13 @@
 // frontend/src/components/views/TransactionsView.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { statusToBadge } from '@/components/ui/Badge';
 import { usePayments, HuiTransaction } from '@/lib/hooks/useSupabase';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -60,7 +61,7 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
   const [daysFilter, setDaysFilter] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<HuiTransaction | null>(null);
-  const LIMIT = 50;
+  const LIMIT = 20;
 
   const { payments, total, totalVolume, totalImpact, completed, loading, refetch } = usePayments({
     status: statusFilter,
@@ -71,14 +72,11 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
   });
 
   // Sortiert nach Datum (neueste zuerst), unabhaengig von RPC-interner Reihenfolge.
+  // Server liefert bereits fix 20 pro Seite (LIMIT) -- keine weitere Client-Unterteilung.
   const sortedPayments = [...payments].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
-  // "Mehr laden": 10 sichtbar, in 10er-Schritten bis max. 50 (= die aktuell geladene Seite).
-  const [visibleCount, setVisibleCount] = useState(10);
-  useEffect(() => { setVisibleCount(10); }, [page, statusFilter, daysFilter]);
-  const visiblePayments = sortedPayments.slice(0, visibleCount);
-  const canLoadMore = visibleCount < sortedPayments.length;
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   const filterBtnStyle = (active: boolean): React.CSSProperties => ({
     padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500,
@@ -183,14 +181,14 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
             <tbody>
               {loading ? (
                 <><Skeleton /><Skeleton /><Skeleton /><Skeleton /><Skeleton /></>
-              ) : visiblePayments.length === 0 ? (
+              ) : sortedPayments.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
                     Keine Zahlungen gefunden
                   </td>
                 </tr>
               ) : (
-                visiblePayments.map((p) => (
+                sortedPayments.map((p) => (
                   <tr
                     key={p.row_id}
                     className="tr-hover"
@@ -272,37 +270,11 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
           </div>
         )}
 
-        {/* "Mehr laden" — innerhalb der aktuell geladenen Seite (max. 50) */}
-        {canLoadMore && (
-          <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={() => setVisibleCount(v => Math.min(sortedPayments.length, v + 10))}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 18px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
-            >
-              <span>Mehr laden</span>
-              <span style={{ fontSize: 10 }}>▾</span>
-            </button>
-          </div>
-        )}
-
-        {/* Pagination — Server-seitig, je 50 pro Seite (bereits vorhandene Logik) */}
-        {total > LIMIT && (
-          <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {visiblePayments.length} von {Math.min((page + 1) * LIMIT, total) - page * LIMIT} auf dieser Seite · {page * LIMIT + 1}–{Math.min((page + 1) * LIMIT, total)} von {total}
-            </span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}
-                style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-body)', opacity: page === 0 ? 0.4 : 1 }}>
-                ← Zurück
-              </button>
-              <button onClick={() => setPage(page + 1)} disabled={(page + 1) * LIMIT >= total}
-                style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--bg-tertiary)', border: '1px solid var(--border)', cursor: (page + 1) * LIMIT >= total ? 'not-allowed' : 'pointer', fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-body)', opacity: (page + 1) * LIMIT >= total ? 0.4 : 1 }}>
-                Weiter →
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Pagination — Server-seitig, fix 20 pro Seite */}
+        <PaginationControls
+          visibleCount={sortedPayments.length} total={total}
+          page={page + 1} totalPages={totalPages} onGoToPage={p => setPage(p - 1)}
+        />
       </div>
     </DashboardLayout>
   );
