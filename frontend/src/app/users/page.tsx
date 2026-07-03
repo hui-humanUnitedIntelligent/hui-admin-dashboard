@@ -9,6 +9,8 @@ import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 import UserTable from '@/components/users/UserTable';
 import { useUsers, MergedUser } from '@/lib/hooks/useUsers';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 type TabKey     = 'active' | 'blocked' | 'deleted' | 'wirker' | 'duplicates';
 type RoleFilter = 'all' | 'basisuser' | 'member' | 'wirker' | 'admin';
@@ -591,6 +593,13 @@ export default function UsersPage() {
     return base;
   }, [allUsers, activeTab, roleFilter]);
 
+  // Pagination fuer den Blockiert-Tab (eigene Karten-Ansicht, umgeht UserTable) --
+  // 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation.
+  const {
+    pageItems: pagedBlockedUsers, canLoadMore: blockedCanLoadMore, loadMore: blockedLoadMore,
+    page: blockedPage, totalPages: blockedTotalPages, goToPage: blockedGoToPage, total: blockedTotal,
+  } = usePaginatedList(displayUsers, 'created_at');
+
   const handleAction = useCallback(async (action: string, user: MergedUser) => {
     if (action === 'view') { setViewUser(user); return; }
     if (action === 'block' || action === 'unblock') { setViewUser(user); return; }
@@ -766,13 +775,18 @@ export default function UsersPage() {
               Keine blockierten Nutzer.
             </div>
           )}
-          {displayUsers.map(u => (
+          {pagedBlockedUsers.map(u => (
             <BlockedCard key={u.id} user={u}
               onUnblock={handleUnblock}
               onDelete={handleDelete}
               onInfo={u2=>setViewUser(u2)}
             />
           ))}
+          <PaginationControls
+            visibleCount={pagedBlockedUsers.length} pageSize={Math.min(50, displayUsers.length - (blockedPage-1)*50)}
+            total={blockedTotal} canLoadMore={blockedCanLoadMore} onLoadMore={blockedLoadMore}
+            page={blockedPage} totalPages={blockedTotalPages} onGoToPage={blockedGoToPage}
+          />
         </div>
       ) : (
         /* Standard-Tabelle für alle anderen Tabs */
