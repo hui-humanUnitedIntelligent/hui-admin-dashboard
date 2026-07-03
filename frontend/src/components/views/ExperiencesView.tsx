@@ -14,6 +14,8 @@ import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
 import { useExperiences } from '@/lib/hooks/useExperiences';
 import type { HuiEntry } from '@/lib/hooks/useExperiences';
+import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 type TabKey = 'all' | 'pending' | 'published' | 'rejected' | 'draft' | 'deleted' | 'sensitive';
 
@@ -484,6 +486,10 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     return base.filter(e => [e.title,e.category,e.description].some(v=>(v||'').toLowerCase().includes(q)));
   }, [tab, search, all, localDel]);
 
+  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
+  const { pageItems: pagedRows, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+    usePaginatedList(rows, 'created_at');
+
   const handleApprove = async (e: HuiEntry) => {
     setActionLoading(e.id);
     const ok = await entryAction(e._source==='experiences'?'approve_experience':'approve_project', e.id);
@@ -629,9 +635,9 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
               <tbody>
                 {loading && !all.length
                   ? [...Array(5)].map((_,i)=><Skel key={i}/>)
-                  : rows.length===0
+                  : pagedRows.length===0
                     ? <tr><td colSpan={7} style={{ padding:'40px', textAlign:'center', color:'var(--text-muted)' }}>{search?`Keine Treffer für „${search}"`:'Keine Einträge in dieser Kategorie'}</td></tr>
-                    : rows.map(entry=>(
+                    : pagedRows.map(entry=>(
                       <tr key={entry.id}
                         onClick={()=>{setSelected(entry);setShowDetail(true);}}
                         style={{ borderBottom:'1px solid var(--border)', cursor:'pointer', transition:'background 0.12s',
@@ -704,9 +710,12 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
               </tbody>
             </table>
           </div>
-          <div style={{ padding:'10px 16px', borderTop:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg-tertiary)' }}>
-            <span style={{ fontSize:11, color:'var(--text-muted)' }}>{rows.length} Einträge angezeigt{search&&` (gefiltert aus ${all.length})`}</span>
-            <span style={{ fontSize:11, color:'var(--text-muted)' }}>Gesamt: {all.length.toLocaleString('de-DE')} Datensätze</span>
+          <div style={{ padding:'10px 16px', borderTop:'1px solid var(--border)' }}>
+            <PaginationControls
+              visibleCount={pagedRows.length} pageSize={Math.min(50, rows.length - (page-1)*50)}
+              total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+              page={page} totalPages={totalPages} onGoToPage={goToPage}
+            />
           </div>
         </div>
 
