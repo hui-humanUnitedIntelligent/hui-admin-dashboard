@@ -1,7 +1,7 @@
 // frontend/src/app/api/stripe/route.ts
 // HUI Stripe API — Create Customer, Payment Intent, Subscription
 import { NextRequest, NextResponse } from "next/server";
-import { guardEmployee } from "@/app/lib/auth-guard";
+import { guardEmployee, getAuthUser } from "@/app/lib/auth-guard";
 import { getServiceClient } from "@/app/lib/supabase-server";
 
 const STRIPE_SK = process.env.STRIPE_SECRET_KEY || "";
@@ -55,11 +55,17 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === "payouts") {
-    const { data } = await sb
-      .from("stripe_payouts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
+    // AMB-PAYOUT-009: rpc_get_payout_requests statt Rohabfrage -- liefert
+    // username/display_name/email/commission_count korrekt gejoint (vorher: undefined)
+    const statusFilter = searchParams.get("status");
+    const limit  = parseInt(searchParams.get("limit") || "100");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const { data, error } = await sb.rpc("rpc_get_payout_requests", {
+      p_status: statusFilter && statusFilter !== "all" ? statusFilter : null,
+      p_limit: limit,
+      p_offset: offset,
+    });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, data: data ?? [] });
   }
 
@@ -157,6 +163,79 @@ export async function POST(req: NextRequest) {
     Object.entries(metadata).forEach(([k,v]) => { params[`metadata[${k}]`] = v; });
     const session = await stripeRequest("/checkout/sessions", params);
     return NextResponse.json({ ok: true, url: session.url, session_id: session.id });
+  }
+
+  // ── AMB-PAYOUT-009: Ambassador-Auszahlungsanfragen verwalten ────────────
+  if (action === "approve_payout") {
+    const admin = await getAuthUser(req);
+    if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    const { payout_id } = body;
+    const { data, error } = await sb.rpc("rpc_approve_payout", {
+      p_payout_id: payout_id, p_admin_id: admin.id,
+    });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "reject_payout") {
+    const admin = await getAuthUser(req);
+    if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    const { payout_id, reason } = body;
+    const { data, error } = await sb.rpc("rpc_reject_payout", {
+      p_payout_id: payout_id, p_admin_id: admin.id, p_reason: reason || null,
+    });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "execute_payout") {
+    const admin = await getAuthUser(req);
+    if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    const { payout_id } = body;
+
+    const { data: payout } = await sb.from("stripe_payouts").select("*").eq("id", payout_id).single();
+    if (!payout) return NextResponse.json({ ok: false, error: "payout_not_found" }, { status: 404 });
+    if (payout.status !== "approved") {
+      return NextResponse.json({ ok: false, error: "invalid_state", current_status: payout.status }, { status: 400 });
+    }
+
+    const { data: ambProfile } = await sb
+      .from("profiles").select("stripe_account_id, stripe_connect_status")
+      .eq("id", payout.ambassador_id).single();
+    if (!ambProfile?.stripe_account_id) {
+      return NextResponse.json({ ok: false, error: "ambassador_not_connected" }, { status: 400 });
+    }
+
+    try {
+      const transfer = await stripeRequest("/transfers", {
+        amount: payout.amount, // bereits in Cent
+        currency: payout.currency || "eur",
+        destination: ambProfile.stripe_account_id,
+        "metadata[payout_id]": payout_id,
+        "metadata[ambassador_id]": payout.ambassador_id,
+        "metadata[source]": "hui_ambassador_payout_admin",
+      });
+
+      await sb.from("stripe_payouts").update({
+        status: "paid",
+        stripe_payout_id: transfer.id,
+        processed_at: new Date().toISOString(),
+      }).eq("id", payout_id);
+
+      await sb.rpc("rpc_mark_commissions_paid", { p_payout_id: payout_id });
+
+      if (ambProfile.stripe_connect_status !== "connected") {
+        await sb.from("profiles").update({ stripe_connect_status: "connected" }).eq("id", payout.ambassador_id);
+      }
+
+      return NextResponse.json({ ok: true, payout_id, stripe_transfer_id: transfer.id, status: "paid" });
+    } catch (err: any) {
+      await sb.rpc("rpc_fail_payout", {
+        p_payout_id: payout_id,
+        p_reason: (err?.message || "stripe_transfer_failed").slice(0, 500),
+      });
+      return NextResponse.json({ ok: false, error: err?.message }, { status: 502 });
+    }
   }
 
   return NextResponse.json({ ok: false, error: "Unknown action" }, { status: 400 });
