@@ -69,8 +69,8 @@ function Avatar({ user }: { user: MergedUser }) {
 export default function UserTable({ users, loading, onAction }: UserTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
-  const { pageItems: pagedUsers, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+  // Pagination: fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden")
+  const { pageItems: pagedUsers, page, totalPages, goToPage, total: pagedTotal } =
     usePaginatedList(users, 'created_at');
 
   const toggleSelect = (id: string) => {
@@ -255,8 +255,7 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
         </tbody>
       </table>
       <PaginationControls
-        visibleCount={pagedUsers.length} pageSize={Math.min(50, users.length - (page-1)*50)}
-        total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+        visibleCount={pagedUsers.length} total={pagedTotal}
         page={page} totalPages={totalPages} onGoToPage={goToPage}
       />
     </div>
