@@ -18,7 +18,7 @@ export interface AmbassadorStats {
 const DEFAULT: AmbassadorStats = {
   active_ambassadors: 0, pending_applications: 0, total_referrals: 0,
   total_revenue: 0, net_impact: 0,
-  level_distribution: { bronze: 0, silver: 0, gold: 0, platinum: 0 },
+  level_distribution: { starter: 0, bronze: 0, silver: 0, gold: 0 }, // COM-MIGRATION-015.3
   loading: true, error: null,
 };
 
@@ -40,7 +40,7 @@ export function useAmbassadorStats(refreshInterval = 60000): AmbassadorStats {
         total_referrals:      d.totalReferrals       ?? d.total_referrals       ?? 0,
         total_revenue:        d.totalRevenue         ?? d.total_revenue         ?? 0,
         net_impact:           d.netImpact            ?? d.net_impact            ?? 0,
-        level_distribution:   d.levelDistribution    ?? d.level_distribution    ?? { bronze: 0, silver: 0, gold: 0, platinum: 0 },
+        level_distribution:   d.levelDistribution    ?? d.level_distribution    ?? { starter: 0, bronze: 0, silver: 0, gold: 0 }, // COM-MIGRATION-015.3
         loading: false, error: null,
       });
     } catch (e) {
