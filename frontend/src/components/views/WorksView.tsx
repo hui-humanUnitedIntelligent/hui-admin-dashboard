@@ -493,8 +493,8 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
     return base;
   }, [tab, annotatedAll, annotatedDeleted, annotatedFlagged, annotatedPublished, annotatedDraft, annotatedPending, annotatedRejected, search]);
 
-  // Pagination: 10 sichtbar, "Mehr laden" bis max. 50, danach echte Seiten-Navigation
-  const { pageItems: pagedList, canLoadMore, loadMore, page, totalPages, goToPage, total: pagedTotal } =
+  // Pagination: fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden")
+  const { pageItems: pagedList, page, totalPages, goToPage, total: pagedTotal } =
     usePaginatedList(activeList, 'created_at');
 
   const setBusyFor = (id: string, v: boolean) => setBusy(p => ({ ...p, [id]: v }));
@@ -929,8 +929,7 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
       </div>
 
       <PaginationControls
-        visibleCount={pagedList.length} pageSize={Math.min(50, activeList.length - (page-1)*50)}
-        total={pagedTotal} canLoadMore={canLoadMore} onLoadMore={loadMore}
+        visibleCount={pagedList.length} total={pagedTotal}
         page={page} totalPages={totalPages} onGoToPage={goToPage}
       />
 
