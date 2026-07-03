@@ -78,6 +78,12 @@ function ReferralUserCard({ ref: r }: { ref: any }) {
               ? <span style={{ fontSize: 10, fontWeight: 700, color: '#22C55E' }}>⚡ aktiv</span>
               : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>😴 schlafend</span>
             }
+            {/* COM-MIGRATION-015.3: 365-Tage-Provisionsfenster */}
+            {r.commission_valid_until && (
+              r.commission_window_active
+                ? <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)' }}>💰 Provision bis {new Date(r.commission_valid_until).toLocaleDateString('de-DE')}</span>
+                : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>⏳ Provisionsfenster abgelaufen</span>
+            )}
           </div>
         </div>
         {hasDetails && (
@@ -151,12 +157,72 @@ function ReferralTabContent({ referrals }: { referrals: any[] }) {
 }
 
 
+// ── Provisionen-Tab (COM-MIGRATION-015.3) ──────────────────────────────────
+function CommissionTabContent({ ambId }: { ambId: string }) {
+  const [data, setData] = useState<{ commissions: any[]; summary: any } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch('/api/ambassador?type=commissions&ambassador_id=' + encodeURIComponent(ambId), { credentials: 'include' })
+      .then(r => r.json())
+      .then(json => { if (!cancelled) setData(json?.ok ? json : null); })
+      .catch(() => { if (!cancelled) setData(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [ambId]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Lade Provisionen…</div>;
+  if (!data || data.commissions.length === 0) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Noch keine Provisionen</div>;
+  }
+
+  const { commissions, summary } = data;
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+        {[
+          { label: 'Gesamtprovision', value: '€' + summary.totalLifetimeEur.toFixed(2) },
+          { label: 'Transaktionen', value: String(summary.transactionCount) },
+          { label: 'Noch aktiv', value: `${summary.activeCount}/${summary.transactionCount}` },
+        ].map(s => (
+          <div key={s.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '8px 10px', textAlign: 'center', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Provisionen pro Transaktion</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {commissions.map((cm: any) => (
+          <div key={cm.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                €{cm.amountEur.toFixed(2)} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({cm.ratePercent.toFixed(0)}% · {cm.tier})</span>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                {cm.referredUser?.display_name || cm.referredUser?.username || '—'} · Kauf €{cm.basePurchaseEur.toFixed(2)} · {new Date(cm.createdAt).toLocaleDateString('de-DE')}
+              </div>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cm.isStillActive ? 'rgba(34,197,94,0.12)' : 'var(--bg-tertiary)', color: cm.isStillActive ? '#22C55E' : 'var(--text-muted)' }}>
+              {cm.isStillActive ? 'aktiv' : 'abgelaufen'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerProps) {
   const [detail, setDetail] = useState<AmbDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [showLevelMenu, setShowLevelMenu] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<'overview' | 'referrals' | 'works' | 'projects' | 'logs'>('overview');
+  const [drawerTab, setDrawerTab] = useState<'overview' | 'referrals' | 'commissions' | 'works' | 'projects' | 'logs'>('overview');
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -204,11 +270,12 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
   const refLinkRow = refLinks[0] as Record<string, unknown> | undefined;
 
   const refCount   = Number(ambData.referral_count) || stats.total || 0;
+  // COM-MIGRATION-015.3: Level-Slugs verschoben (gleiche Schwellen, neue Namen -- siehe ambassador-levels.ts)
   const safeLevel  = ((): AmbLevel => {
-    if (refCount >= 201) return 'platinum';
-    if (refCount >= 51)  return 'gold';
-    if (refCount >= 11)  return 'silver';
-    return 'bronze';
+    if (refCount >= 201) return 'gold';
+    if (refCount >= 51)  return 'silver';
+    if (refCount >= 11)  return 'bronze';
+    return 'starter';
   })();
   const lc        = LEVEL_CONFIG[safeLevel];
   const lcBorder  = '1px solid ' + lc.color + '44';
@@ -281,7 +348,7 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
 
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
-              {([['overview','Übersicht'],['referrals','Referrals'],['works','Werke'],['projects','Projekte'],['logs','Aktivität']] as [string,string][]).map(([tab,label]) => (
+              {([['overview','Übersicht'],['referrals','Referrals'],['commissions','Provisionen'],['works','Werke'],['projects','Projekte'],['logs','Aktivität']] as [string,string][]).map(([tab,label]) => (
                 <button key={tab} onClick={() => setDrawerTab(tab as typeof drawerTab)} style={{ padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: drawerTab === tab ? 'var(--accent)' : 'var(--text-muted)', borderBottom: drawerTab === tab ? '2px solid var(--accent)' : '2px solid transparent' }}>
                   {label}
                 </button>
@@ -365,6 +432,11 @@ export default function AmbassadorDrawer({ ambId, onClose, onRefresh }: DrawerPr
             {/* Tab: Referrals */}
             {drawerTab === 'referrals' && (
               <ReferralTabContent referrals={referrals} />
+            )}
+
+            {/* Tab: Provisionen (COM-MIGRATION-015.3) */}
+            {drawerTab === 'commissions' && (
+              <CommissionTabContent ambId={ambId} />
             )}
 
             {/* Tab: Werke */}
