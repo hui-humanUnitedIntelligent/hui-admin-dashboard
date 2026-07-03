@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
       { data: experiences = [] },
     ] = await Promise.all([
       sb.from('profiles').select('created_at,is_wirker,is_member').limit(10000),
+      // Legacy-Hinweis: Liest aus alter Tabelle 'payments' (nie befuellt, kein SSOT-Mapping, SYS-LegacyMark-024). Zeigt korrekt leer/0.
       sb.from('payments').select('created_at,amount,status').limit(10000),
       sb.from('works').select('created_at').limit(10000),
       sb.from('bookings').select('created_at').limit(10000),
