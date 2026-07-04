@@ -24,22 +24,39 @@ async function doLogin(email: string, password: string, dashboard: string) {
   const { session, user } = data;
   const access_token = session.access_token;
 
-  let finalRole = normalizeRole(
-    (user.app_metadata?.role || user.user_metadata?.role || 'employee') as string
-  );
+  // Rohe Rolle separat halten (bevor normalizeRole() sie verlustbehaftet auf 'employee' faellt --
+  // normalizeRole() mappt JEDE unbekannte Rolle wie 'basisuser'/'blocked'/'deleted' auf 'employee',
+  // das darf NICHT fuer die Zugriffspruefung verwendet werden, sonst kommt jeder App-Kunde rein).
+  let rawRole: string = String(
+    (user.app_metadata?.role || user.user_metadata?.role || '') as string
+  ).toLowerCase().trim();
+  let finalRole = normalizeRole(rawRole || 'employee');
 
   try {
     const sb = getServiceClient();
     const { data: profile } = await sb
       .from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role) finalRole = normalizeRole(profile.role);
+    if (profile?.role) {
+      rawRole = String(profile.role).toLowerCase().trim();
+      finalRole = normalizeRole(profile.role);
+    }
   } catch { /* fallback */ }
+
+  const ADMIN_DASHBOARD_ROLES = ['employee', 'admin', 'superadmin', 'super_admin'];
 
   if (dashboard === 'admin' && finalRole !== 'superadmin') {
     return { ok: false, error: 'Kein Superadmin-Zugriff', status: 403 };
   }
 
-  // Wenn Employee-Portal gewählt: Cookie-Rolle auf 'employee' begrenzen
+  // Employee-Portal: NUR echte 'employee'/'admin'/'superadmin' Rollen (roh aus DB/app_metadata) duerfen rein.
+  // Vorher wurde hier JEDER erfolgreiche Supabase-Login (auch normale App-Kunden mit role='basisuser')
+  // durch normalizeRole()'s Fallback faktisch als 'employee' behandelt -- kritische Sicherheitsluecke, jetzt geschlossen.
+  if (dashboard === 'employee' && !ADMIN_DASHBOARD_ROLES.includes(rawRole)) {
+    return { ok: false, error: 'Kein Employee-Zugriff', status: 403 };
+  }
+
+  // Cookie-Rolle: Superadmins die das Employee-Portal wählen, bekommen bewusst
+  // die 'employee'-Rolle im Cookie (eingeschränkte Sicht), echte finalRole bleibt serverseitig geprüft oben.
   const cookieRole = dashboard === 'employee' ? 'employee' : finalRole;
 
   return { ok: true, finalRole: cookieRole, access_token, status: 200 };
