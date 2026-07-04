@@ -53,7 +53,7 @@ export const ADMIN_NAV: NavGroup[] = [
     label_en: 'Content',
     icon: '🎨',
     items: [
-      { href: '/works',           label_de: 'Werke & Content',           label_en: 'Works & Content',        icon: '🖼️', roles: ['superadmin'] },
+      { href: '/works',           label_de: 'Werke',                     label_en: 'Works',                  icon: '🖼️', roles: ['superadmin'] },
       { href: '/experiences',     label_de: 'Erlebnisse & Projekte',     label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin'] },
       { href: '/impact-projekte', label_de: 'Impact Projekte',           label_en: 'Impact Projects',        icon: '💚', roles: ['superadmin'], superadminOnly: true },
       { href: '/score-failures',  label_de: 'Ablehnungsgründe',          label_en: 'Rejection Reasons',      icon: '🔍', roles: ['superadmin'], superadminOnly: true },
@@ -111,7 +111,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     label_en: 'Content',
     icon: '🎨',
     items: [
-      { href: '/employee/works',        label_de: 'Werke & Content',       label_en: 'Works & Content',        icon: '🖼️', roles: ['superadmin', 'employee'] },
+      { href: '/employee/works',        label_de: 'Werke',                 label_en: 'Works',                  icon: '🖼️', roles: ['superadmin', 'employee'] },
       { href: '/employee/experiences',  label_de: 'Erlebnisse & Projekte', label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin', 'employee'] },
       { href: '/employee/memberships',  label_de: 'Mitgliedschaften',      label_en: 'Memberships',            icon: '🏅', roles: ['superadmin', 'employee'] },
       { href: '/employee/impact',       label_de: 'Impact Projekte',       label_en: 'Impact Projects',        icon: '🌿', roles: ['superadmin', 'employee'] },
