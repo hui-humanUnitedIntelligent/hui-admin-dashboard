@@ -78,7 +78,7 @@ export function PayoutsPanel({ role, initialStatus, onClose }: {
   const [toast,   setToast]   = useState<{ ok: boolean; msg: string } | null>(null);
   // AMB-BANK-PAYOUT-001: entschlüsselte Bankdaten -- nur superadmin, nur temporär im State,
   // wird beim Schließen des Modals sofort verworfen (kein Caching).
-  const [bankModal, setBankModal] = useState<{ payoutId: string; iban: string; holder: string; bic: string | null; bankName: string | null } | null>(null);
+  const [bankModal, setBankModal] = useState<{ payoutId: string; iban: string; holder: string; bic: string | null; bankName: string | null; amountEur: number } | null>(null);
   const [bankLoading, setBankLoading] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -142,7 +142,7 @@ export function PayoutsPanel({ role, initialStatus, onClose }: {
 
   // AMB-BANK-PAYOUT-001: einfacherer Weg ohne Stripe-Connect -- Bankdaten ansehen + manuell
   // überweisen, dann hier bestätigen. Beide nur für Superadmin (Server prüft das zusätzlich).
-  const handleViewBank = async (id: string) => {
+  const handleViewBank = async (id: string, amountEur: number) => {
     setBankLoading(id);
     try {
       const res = await fetch('/api/stripe', {
@@ -152,7 +152,7 @@ export function PayoutsPanel({ role, initialStatus, onClose }: {
       });
       const data = await res.json();
       if (data?.ok) {
-        setBankModal({ payoutId: id, iban: data.iban, holder: data.holder, bic: data.bic, bankName: data.bank_name });
+        setBankModal({ payoutId: id, iban: data.iban, holder: data.holder, bic: data.bic, bankName: data.bank_name, amountEur });
       } else {
         setToast({ ok: false, msg: `Fehler: ${data?.error || 'unbekannt'}` });
         setTimeout(() => setToast(null), 4000);
@@ -352,7 +352,7 @@ export function PayoutsPanel({ role, initialStatus, onClose }: {
                     {p.status === 'approved' && (
                       isSuperadmin ? (
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button disabled={bankLoading === p.id} onClick={() => handleViewBank(p.id)}
+                          <button disabled={bankLoading === p.id} onClick={() => handleViewBank(p.id, p.amount_eur)}
                             style={{ ...btnBase, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
                             {bankLoading === p.id ? '…' : '🏦 Bankdaten ansehen'}
                           </button>
@@ -402,6 +402,10 @@ export function PayoutsPanel({ role, initialStatus, onClose }: {
               Nur zur manuellen Überweisung sichtbar — dieser Zugriff wird protokolliert.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Angeforderter Betrag</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#51cf66', fontFamily: 'var(--font-mono)' }}>{eur(bankModal.amountEur)}</div>
+              </div>
               <div>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Kontoinhaber</div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{bankModal.holder || '—'}</div>
