@@ -321,7 +321,7 @@ export default function AmbassadorsPage() {
           ].map(t => {
             const s = payoutStats?.[t.key as 'requested' | 'pending' | 'done'];
             return (
-              <Link key={t.key} href="/employee/payouts" style={{ textDecoration:'none' }}>
+              <Link key={t.key} href="/payouts" style={{ textDecoration:'none' }}>
                 <div style={{
                   background:'var(--bg-secondary)', border:`1px solid ${t.color}44`, borderRadius:12,
                   padding:'16px 18px', cursor:'pointer', transition:'border-color 0.15s',
