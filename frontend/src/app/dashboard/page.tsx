@@ -138,13 +138,20 @@ export default function DashboardPage() {
 
       {/* ── KPI Row ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 18 }} className="grid-4">
-        <KPICard label="Gesamt-User"       value={db.loading ? '—' : fmtNum(kpis.totalUsers)}         delta={`${kpis.activeWirker} Wirker`}              deltaPositive icon="👥" variant="teal" />
-        <KPICard label="Umsatz (Monat)"    value={db.loading ? '—' : fmtEur(kpis.monthlyRevenue)}     delta={`${kpis.totalPayments} Zahlungen`}           deltaPositive icon="€"  variant="gold" />
-        <KPICard label="Projekt-Anteil"    value={db.loading ? '—' : fmtEur(kpis.projectShareEur)} delta="15 % des Pools"                              deltaPositive icon="🌱" variant="green" />
-        <KPICard label="Firmenanteil"      value={db.loading ? '—' : fmtEur(kpis.companyShareEur)} delta="85 % des Pools"                                 deltaPositive icon="🏢" variant="blue" />
-        <KPICard label="Aktive Mitglieder" value={db.loading ? '—' : fmtNum(kpis.activeMembers)}      delta={`${kpis.activeBookings} Buchungen aktiv`}    deltaPositive icon="🏅" variant="purple" />
-        <KPICard label="Ambassadors aktiv" value={db.loading ? '—' : fmtNum(kpis.activeAmbassadors)}  delta={kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen'} deltaPositive={kpis.pendingAmbassadors === 0} icon="🤝" variant="teal" />
-        <KPICard label="Offene Anträge"    value={db.loading ? '—' : fmtNum(kpis.pendingAmbassadors)} delta={`${kpis.totalReferrals} Referrals`}          deltaPositive icon="📋" variant="red" />
+        <KPICard label="Gesamt-User"       value={db.loading ? '—' : fmtNum(kpis.totalUsers)}         delta={`${kpis.activeWirker} Wirker`}              deltaPositive icon="👥" variant="teal"
+          info="Alle registrierten Accounts aus der Nutzerverwaltung (auth.users) — unabhängig vom Status, inklusive gesperrter Accounts. 'Wirker' darunter zeigt, wie viele davon aktuell als Wirker markiert sind." />
+        <KPICard label="Umsatz (Monat)"    value={db.loading ? '—' : fmtEur(kpis.monthlyRevenue)}     delta={`${kpis.totalPayments} Zahlungen`}           deltaPositive icon="€"  variant="gold"
+          info="Summe aller erfolgreich bezahlten Bestellungen seit dem 1. dieses Monats (Single Source of Truth: stripe_payments). 'Zahlungen' darunter ist die Gesamtzahl aller je erfolgreich abgeschlossenen Zahlungen." />
+        <KPICard label="Projekt-Anteil"    value={db.loading ? '—' : fmtEur(kpis.projectShareEur)} delta="15 % des Pools"                              deltaPositive icon="🌱" variant="green"
+          info="Vom Kaufbetrag jeder Bestellung wird eine Plattformgebühr von 15% erhoben. Davon fließen 15% in den Impact Pool für soziale Projekte — hier die Summe für den aktuellen Kalendermonat." />
+        <KPICard label="Firmenanteil"      value={db.loading ? '—' : fmtEur(kpis.companyShareEur)} delta="85 % des Pools"                                 deltaPositive icon="🏢" variant="blue"
+          info="85% der 15%-Plattformgebühr verbleiben beim Unternehmen (abzüglich bereits abgezogener Ambassador-Provisionen) — Summe für den aktuellen Kalendermonat." />
+        <KPICard label="Aktive Mitglieder" value={db.loading ? '—' : fmtNum(kpis.activeMembers)}      delta={`${kpis.activeBookings} Buchungen aktiv`}    deltaPositive icon="🏅" variant="purple"
+          info="Nutzer mit aktiver Mitgliedschaft (is_member oder membership_active = true). 'Buchungen aktiv' zeigt Erlebnis-Buchungen der letzten 90 Tage." />
+        <KPICard label="Ambassadors aktiv" value={db.loading ? '—' : fmtNum(kpis.activeAmbassadors)}  delta={kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen'} deltaPositive={kpis.pendingAmbassadors === 0} icon="🤝" variant="teal"
+          info="Nutzer mit Ambassador-Status (is_ambassador = true). Provisionsstufen je nach Anzahl geworbener Nutzer: Starter 5%, Bronze 10%, Silber 15%, Gold 20% — berechnet vom Firmenanteil." />
+        <KPICard label="Offene Anträge"    value={db.loading ? '—' : fmtNum(kpis.pendingAmbassadors)} delta={`${kpis.totalReferrals} Referrals`}          deltaPositive icon="📋" variant="red"
+          info="Ambassador-Bewerbungen mit Status 'offen', die noch auf Prüfung warten. 'Referrals' zeigt die Gesamtzahl aller Nutzer, die über einen Ambassador-Link geworben wurden." />
       </div>
 
       {/* ── Charts Row ──────────────────────────────────────────────────── */}
