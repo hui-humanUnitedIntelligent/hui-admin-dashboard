@@ -17,23 +17,26 @@ interface AdminNavigationProps {
 export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNavigationProps) {
   const pathname = usePathname();
 
+  // BUGFIX (2026-07-04): matchesHref prüft jetzt eine echte Segment-Grenze (nächstes Zeichen
+  // muss '/' sein oder der String endet), nicht nur startsWith. Vorher öffnete z.B. der Klick auf
+  // 'Impact Projekte' (/impact-projekte) fälschlich zusätzlich die Gruppe 'Management', weil
+  // '/impact-projekte'.startsWith('/impact') (Management-Item 'Impact Pool') true ergab.
+  const matchesHref = (href: string) =>
+    pathname === href ||
+    (href !== '/dashboard' && pathname.startsWith(href) && (pathname.length === href.length || pathname[href.length] === '/'));
+
   // Default: Gruppe mit aktivem Item ist offen
   const visibleGroups = filterGroups(ADMIN_NAV, role);
   const getDefaults = () => {
     const open: Record<string, boolean> = {};
     for (const g of visibleGroups) {
-      open[g.id] = g.items.some(i =>
-        pathname === i.href ||
-        (i.href !== '/dashboard' && pathname.startsWith(i.href))
-      );
+      open[g.id] = g.items.some(i => matchesHref(i.href));
     }
     return open;
   };
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaults);
 
-  const isActive = (href: string) =>
-    pathname === href ||
-    (href !== '/dashboard' && pathname.startsWith(href) && (pathname.length === href.length || pathname[href.length] === '/'));
+  const isActive = matchesHref;
 
   return (
     <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
