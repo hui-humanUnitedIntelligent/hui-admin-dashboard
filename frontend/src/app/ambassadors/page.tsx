@@ -37,8 +37,50 @@ function fmtShort(iso: string | null | undefined) {
   return new Date(iso).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
+// ── Kacheln-Info-Popup ────────────────────────────────────────
+function TileInfoPopup({ onClose }: { onClose: () => void }) {
+  const items: { icon: string; label: string; text: string }[] = [
+    { icon:'👥', label:'Geworbene',    text:'Anzahl Nutzer, die sich über den persönlichen Einladungslink dieses Ambassadors registriert haben (profiles.referred_by).' },
+    { icon:'⚡', label:'Aktiv',        text:'Von den Geworbenen: wie viele haben mindestens einen bezahlten Kauf getätigt (profiles.first_transaction_at gesetzt).' },
+    { icon:'😴', label:'Schlafend',    text:'Von den Geworbenen: wie viele haben sich zwar registriert, aber noch nie etwas gekauft.' },
+    { icon:'💰', label:'Umsatz',       text:'Gesamtsumme aller bezahlten Bestellungen, die diesem Ambassador zugeordnet sind (stripe_payments.ambassador_id) — nicht nur von Geworbenen mit gültigem 365-Tage-Fenster.' },
+    { icon:'🌿', label:'Impact',       text:'Der Impact-Pool-Anteil (15% der Plattformgebühr) aus genau diesen dem Ambassador zugeordneten Transaktionen.' },
+    { icon:'🔗', label:'Link-Status',  text:'Ob der persönliche Einladungslink aktuell freigegeben (Aktiv) oder gesperrt (Inaktiv) ist.' },
+  ];
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, zIndex:10010,
+      background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)',
+      display:'flex', alignItems:'center', justifyContent:'center', padding:'0 20px',
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width:'100%', maxWidth:440, maxHeight:'80vh', overflowY:'auto',
+        background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:14,
+        padding:'20px 22px', boxShadow:'0 8px 40px rgba(0,0,0,0.35)',
+      }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <div style={{ fontSize:14, fontWeight:700 }}>ℹ️ Was bedeuten die Kacheln?</div>
+          <button onClick={onClose} style={{ background:'var(--bg-tertiary)', border:'1px solid var(--border)', borderRadius:8, padding:'4px 10px', color:'var(--text-muted)', cursor:'pointer', fontSize:12 }}>✕</button>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {items.map(it => (
+            <div key={it.label} style={{ display:'flex', gap:10, padding:'10px 12px', background:'var(--bg-tertiary)', borderRadius:10 }}>
+              <span style={{ fontSize:16, flexShrink:0 }}>{it.icon}</span>
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, marginBottom:2 }}>{it.label}</div>
+                <div style={{ fontSize:11, color:'var(--text-muted)', lineHeight:1.5 }}>{it.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Detail-Drawer ─────────────────────────────────────────────
 function AmbassadorDrawer({ amb, onClose }: { amb: Ambassador; onClose: () => void }) {
+  const [showTileInfo, setShowTileInfo] = useState(false);
   const progressMax = amb.level === 'Platin' ? 201 : amb.level === 'Gold' ? 51 : amb.level === 'Silber' ? 11 : 10;
   const progressPct = Math.min(100, (amb.referralCount / progressMax) * 100);
 
@@ -88,6 +130,11 @@ function AmbassadorDrawer({ amb, onClose }: { amb: Ambassador; onClose: () => vo
           </div>
 
           {/* Stats Grid */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', marginBottom:-4 }}>
+            <button onClick={() => setShowTileInfo(true)} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', gap:4, padding:'2px 4px' }}>
+              ℹ️ Was bedeutet das?
+            </button>
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
             {[
               { label:'Geworbene', val: String(amb.referralCount), icon:'👥', color:'var(--accent)' },
@@ -163,6 +210,7 @@ function AmbassadorDrawer({ amb, onClose }: { amb: Ambassador; onClose: () => vo
 
         </div>
       </div>
+      {showTileInfo && <TileInfoPopup onClose={() => setShowTileInfo(false)} />}
     </div>
   );
 }
