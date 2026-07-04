@@ -105,7 +105,7 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
                         }
                       }}
                     >
-                      <span style={{ fontSize: 14, lineHeight: 1 }}>{item.icon}</span>
+                      <span style={{ fontSize: 14, lineHeight: 1, width: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.icon}</span>
                       <span>{navLabel(item, lang)}</span>
                     </Link>
                   );

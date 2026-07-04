@@ -160,7 +160,7 @@ export default function EmployeeSidebar({ mobileOpen, onClose }: SidebarProps) {
                         onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; }}
                         onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                       >
-                        <span style={{ fontSize: 13 }}>{item.icon}</span>
+                        <span style={{ fontSize: 13, width: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.icon}</span>
                         <span>{navLabel(item, lang)}</span>
                       </Link>
                     );
