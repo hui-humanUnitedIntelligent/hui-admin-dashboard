@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     // Impact-Anteil pro Nutzer (Käufer+Verkäufer) — SSOT via stripe_impact_pool,
     // ersetzt das tote profiles.impact_eur (nie beschrieben, immer 0).
     // Gleiche RPC wie /api/users (SADB) — siehe Standing Instructions.
-    let profilesOut = data ?? [];
+    let profilesOut: Record<string, unknown>[] = (data ?? []) as Record<string, unknown>[];
     try {
       const { data: impactRows, error: impactErr } = await sb.rpc('rpc_get_user_impact_totals');
       if (impactErr) {
@@ -49,9 +49,9 @@ export async function GET(req: NextRequest) {
         (impactRows ?? []).forEach((r: { user_id: string; impact_eur: number | string }) => {
           impactMap.set(r.user_id, Number(r.impact_eur ?? 0));
         });
-        profilesOut = profilesOut.map((p: { id: string; [key: string]: unknown }) => ({
+        profilesOut = profilesOut.map((p) => ({
           ...p,
-          impact_eur: impactMap.get(p.id) ?? 0,
+          impact_eur: impactMap.get(p.id as string) ?? 0,
         }));
       }
     } catch (e) { console.error('[profiles GET] impact totals rpc exception:', e); }
