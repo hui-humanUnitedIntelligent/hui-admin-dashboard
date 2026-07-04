@@ -38,19 +38,28 @@ export async function POST(req: NextRequest) {
     const access_token = data.session.access_token;
     const user         = data.user;
 
-    // 2) Rolle bestimmen
-    let finalRole = normalizeRole(
-      user.app_metadata?.role || user.user_metadata?.role || 'employee'
-    );
+    // 2) Rolle bestimmen -- rohe Rolle separat halten, s. admin-login/route.ts fuer Begruendung
+    let rawRole: string = String(
+      user.app_metadata?.role || user.user_metadata?.role || ''
+    ).toLowerCase().trim();
+    let finalRole = normalizeRole(rawRole || 'employee');
     try {
       const sb = getServiceClient();
       const { data: profile } = await sb
         .from('profiles').select('role').eq('id', user.id).single();
-      if (profile?.role) finalRole = normalizeRole(profile.role);
+      if (profile?.role) {
+        rawRole = String(profile.role).toLowerCase().trim();
+        finalRole = normalizeRole(profile.role);
+      }
     } catch { /* Fallback */ }
+
+    const ADMIN_DASHBOARD_ROLES = ['employee', 'admin', 'superadmin', 'super_admin'];
 
     // 3) Zugriffsprüfung
     if (dashboard === 'admin' && finalRole !== 'superadmin') {
+      return redirect303(new URL('/login?error=forbidden', req.url), req);
+    }
+    if (dashboard === 'employee' && !ADMIN_DASHBOARD_ROLES.includes(rawRole)) {
       return redirect303(new URL('/login?error=forbidden', req.url), req);
     }
 
