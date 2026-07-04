@@ -67,7 +67,7 @@ export default function EmployeePayoutsPage() {
   const [toast,   setToast]   = useState<{ ok: boolean; msg: string } | null>(null);
   // AMB-BANK-PAYOUT-001: entschlüsselte Bankdaten -- nur superadmin, nur temporär im State,
   // wird beim Schließen des Modals sofort verworfen (kein Caching).
-  const [bankModal, setBankModal] = useState<{ payoutId: string; iban: string; holder: string; bic: string | null } | null>(null);
+  const [bankModal, setBankModal] = useState<{ payoutId: string; iban: string; holder: string; bic: string | null; bankName: string | null } | null>(null);
   const [bankLoading, setBankLoading] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -141,7 +141,7 @@ export default function EmployeePayoutsPage() {
       });
       const data = await res.json();
       if (data?.ok) {
-        setBankModal({ payoutId: id, iban: data.iban, holder: data.holder, bic: data.bic });
+        setBankModal({ payoutId: id, iban: data.iban, holder: data.holder, bic: data.bic, bankName: data.bank_name });
       } else {
         setToast({ ok: false, msg: `Fehler: ${data?.error || 'unbekannt'}` });
         setTimeout(() => setToast(null), 4000);
@@ -388,6 +388,12 @@ export default function EmployeePayoutsPage() {
                 <div>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>BIC</div>
                   <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{bankModal.bic}</div>
+                </div>
+              )}
+              {bankModal.bankName && (
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Name und Anschrift der Bank</div>
+                  <div style={{ fontSize: 13 }}>{bankModal.bankName}</div>
                 </div>
               )}
             </div>
