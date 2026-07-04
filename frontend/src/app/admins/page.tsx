@@ -193,25 +193,22 @@ export default function AdminsPage() {
   const regularAdmins = admins.filter(u => u.role === 'admin');
 
   return (
-    <DashboardLayout
-      title="Admin-Verwaltung"
-      headerActions={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          
+    <DashboardLayout title="Admin-Verwaltung">
       <PageHeader
         title="Admin-Verwaltung"
         subtitle="Administratoren & Rollen verwalten"
         actionsRole="superadmin"
         userRole={userRole}
+        actions={
+          <>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
+              👑 {superAdmins.length} Superadmin{superAdmins.length !== 1 ? 's' : ''} · 🛡️ {regularAdmins.length} Admin{regularAdmins.length !== 1 ? 's' : ''}
+            </span>
+            <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
+          </>
+        }
       />
 
-<span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
-            👑 {superAdmins.length} Superadmin{superAdmins.length !== 1 ? 's' : ''} · 🛡️ {regularAdmins.length} Admin{regularAdmins.length !== 1 ? 's' : ''}
-          </span>
-          <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
-        </div>
-      }
-    >
       {/* ── KPI Row ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
         {[
