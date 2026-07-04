@@ -1,28 +1,31 @@
 // frontend/src/app/api/auth/admin-login/route.ts
 // POST /api/auth/admin-login
-// Setzt Cookies und gibt HTML-Seite mit Meta-Refresh zurück
-// → zuverlässige Cookie-Persistenz in allen Browsern auf Vercel
+// Prüft Passwort + Rolle, setzt danach NICHT sofort die finale Session --
+// 2FA (TOTP) ist Pflicht: statt der finalen Cookies wird eine kurzlebige
+// "hui_mfa_pending"-Session gesetzt und der Nutzer zu /login/mfa-enroll
+// (noch kein Faktor registriert) oder /login/mfa-challenge (Faktor vorhanden)
+// weitergeleitet. Die finalen hui_admin_token/hui_admin_role Cookies werden
+// erst nach erfolgreicher 2FA-Verifizierung in /api/auth/mfa/verify gesetzt.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnonClient, getServiceClient } from '@/app/lib/supabase-server';
 import { normalizeRole } from '@/lib/roles';
 
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 Tage
+const PENDING_MAX_AGE = 60 * 10; // 10 Minuten Zeitfenster um die 2FA abzuschließen
 
 async function doLogin(email: string, password: string, dashboard: string) {
   if (!email || !password) {
-    return { ok: false, error: 'E-Mail und Passwort erforderlich', status: 400 };
+    return { ok: false as const, error: 'E-Mail und Passwort erforderlich', status: 400 };
   }
 
   const supabase = getAnonClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error || !data?.session?.access_token) {
-    return { ok: false, error: 'Ungültige Anmeldedaten', status: 401 };
+  if (error || !data?.session?.access_token || !data.session.refresh_token) {
+    return { ok: false as const, error: 'Ungültige Anmeldedaten', status: 401 };
   }
 
   const { session, user } = data;
-  const access_token = session.access_token;
 
   // Rohe Rolle separat halten (bevor normalizeRole() sie verlustbehaftet auf 'employee' faellt --
   // normalizeRole() mappt JEDE unbekannte Rolle wie 'basisuser'/'blocked'/'deleted' auf 'employee',
@@ -45,21 +48,41 @@ async function doLogin(email: string, password: string, dashboard: string) {
   const ADMIN_DASHBOARD_ROLES = ['employee', 'admin', 'superadmin', 'super_admin'];
 
   if (dashboard === 'admin' && finalRole !== 'superadmin') {
-    return { ok: false, error: 'Kein Superadmin-Zugriff', status: 403 };
+    return { ok: false as const, error: 'Kein Superadmin-Zugriff', status: 403 };
   }
 
   // Employee-Portal: NUR echte 'employee'/'admin'/'superadmin' Rollen (roh aus DB/app_metadata) duerfen rein.
   // Vorher wurde hier JEDER erfolgreiche Supabase-Login (auch normale App-Kunden mit role='basisuser')
   // durch normalizeRole()'s Fallback faktisch als 'employee' behandelt -- kritische Sicherheitsluecke, jetzt geschlossen.
   if (dashboard === 'employee' && !ADMIN_DASHBOARD_ROLES.includes(rawRole)) {
-    return { ok: false, error: 'Kein Employee-Zugriff', status: 403 };
+    return { ok: false as const, error: 'Kein Employee-Zugriff', status: 403 };
   }
 
   // Cookie-Rolle: Superadmins die das Employee-Portal wählen, bekommen bewusst
   // die 'employee'-Rolle im Cookie (eingeschränkte Sicht), echte finalRole bleibt serverseitig geprüft oben.
   const cookieRole = dashboard === 'employee' ? 'employee' : finalRole;
 
-  return { ok: true, finalRole: cookieRole, access_token, status: 200 };
+  // 2FA-Pflicht: prüfen ob der Nutzer schon einen verifizierten TOTP-Faktor hat.
+  let mfa: 'enroll' | 'challenge' = 'enroll';
+  let factorId: string | undefined;
+  try {
+    const { data: factorsData } = await supabase.auth.mfa.listFactors();
+    const verifiedTotp = factorsData?.totp?.[0];
+    if (verifiedTotp) {
+      mfa = 'challenge';
+      factorId = verifiedTotp.id;
+    }
+  } catch { /* falls listFactors fehlschlägt -> sicherer Default: enroll erzwingen */ }
+
+  return {
+    ok: true as const,
+    finalRole: cookieRole,
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    mfa,
+    factorId,
+    status: 200,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -81,7 +104,7 @@ export async function POST(req: NextRequest) {
 
     const result = await doLogin(email, password, dashboard);
 
-    if (!result.ok || !result.access_token) {
+    if (!result.ok || !result.access_token || !result.refresh_token) {
       if (contentType.includes('application/json')) {
         return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
       }
@@ -91,25 +114,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const dest = dashboard === 'employee' ? '/employee/dashboard' : '/dashboard';
-    const cookieBase = {
+    // Ziel NACH erfolgreicher 2FA (nicht sofort!)
+    const finalDest = dashboard === 'employee' ? '/employee/dashboard' : '/dashboard';
+
+    // Pending-2FA-Session: enthält die Supabase-Tokens (aal1) + Rolle + finales Ziel,
+    // httpOnly + kurzlebig (10 min). Erst /api/auth/mfa/verify liest sie aus und setzt
+    // im Erfolgsfall die echten hui_admin_token/hui_admin_role Cookies.
+    const pendingPayload = Buffer.from(JSON.stringify({
+      at: result.access_token,
+      rt: result.refresh_token,
+      role: result.finalRole,
+      dest: finalDest,
+    })).toString('base64');
+
+    const pendingCookie = {
+      httpOnly: true,
       secure: true,
       sameSite: 'lax' as const,
       path: '/',
-      maxAge: MAX_AGE,
+      maxAge: PENDING_MAX_AGE,
     };
 
+    const mfaRedirect = result.mfa === 'challenge'
+      ? `/login/mfa-challenge?factorId=${encodeURIComponent(result.factorId || '')}`
+      : '/login/mfa-enroll';
+
     if (contentType.includes('application/json')) {
-      // AJAX: JSON + Cookies
-      const res = NextResponse.json({ ok: true, role: result.finalRole });
-      res.cookies.set('hui_admin_token', result.access_token, { ...cookieBase, httpOnly: true });
-      res.cookies.set('hui_admin_role',  result.finalRole!,   { ...cookieBase, httpOnly: false });
+      const res = NextResponse.json({ ok: true, mfa: result.mfa, factorId: result.factorId, redirect: mfaRedirect });
+      res.cookies.set('hui_mfa_pending', pendingPayload, pendingCookie);
       return res;
     }
 
-    // Form-POST: HTML-Zwischenseite mit JS-Redirect
-    // Cookies werden per Set-Cookie gesetzt, dann JS navigiert
-    // → Browser hat garantiert Zeit die Cookies zu speichern
+    // Form-POST: HTML-Zwischenseite mit JS-Redirect (bewährtes Muster, Cookie sicher gespeichert)
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -129,12 +165,11 @@ export async function POST(req: NextRequest) {
 <body>
   <div class="box">
     <div class="spinner"></div>
-    <p>Wird weitergeleitet…</p>
+    <p>Weiter zur Zwei-Faktor-Bestätigung…</p>
   </div>
   <script>
-    // Kleine Verzögerung damit Browser Cookies aus Set-Cookie Header speichert
     setTimeout(function() {
-      window.location.replace('${dest}');
+      window.location.replace('${mfaRedirect}');
     }, 100);
   </script>
 </body>
@@ -144,8 +179,7 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
-    res.cookies.set('hui_admin_token', result.access_token, { ...cookieBase, httpOnly: true });
-    res.cookies.set('hui_admin_role',  result.finalRole!,   { ...cookieBase, httpOnly: false });
+    res.cookies.set('hui_mfa_pending', pendingPayload, pendingCookie);
     return res;
 
   } catch (err) {

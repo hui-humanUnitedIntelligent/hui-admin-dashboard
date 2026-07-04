@@ -26,7 +26,12 @@ export function middleware(req: NextRequest) {
   }
 
   // 1) Public — immer erlauben
-  if (pathname === '/login' || pathname.startsWith('/api/')) {
+  if (
+    pathname === '/login' ||
+    pathname === '/login/mfa-enroll' ||
+    pathname === '/login/mfa-challenge' ||
+    pathname.startsWith('/api/')
+  ) {
     return NextResponse.next();
   }
 
