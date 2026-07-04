@@ -14,6 +14,17 @@ const SUPERADMIN_PATHS = [
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // 0) Alte vercel.app-Domain -> permanent auf die neue Domain umleiten
+  //    (Pfad + Query bleiben erhalten). Custom Domain ist die kanonische Adresse.
+  const host = req.headers.get('host') || '';
+  if (host.endsWith('.vercel.app')) {
+    const url = req.nextUrl.clone();
+    url.protocol = 'https';
+    url.host = 'www.hui-admin.com';
+    url.port = '';
+    return NextResponse.redirect(url, 308);
+  }
+
   // 1) Public — immer erlauben
   if (pathname === '/login' || pathname.startsWith('/api/')) {
     return NextResponse.next();
