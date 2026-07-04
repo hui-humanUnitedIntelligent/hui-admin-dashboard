@@ -18,6 +18,7 @@ export const ACTIVE_PROJECT_STATES   = ['active', 'voting', 'won'] as const;
 export const ARCHIVED_PROJECT_STATES = ['archived'] as const;
 
 export const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending:  ['approved', 'rejected'],
   approved: ['rejected'],
   rejected: ['approved'],
 };
