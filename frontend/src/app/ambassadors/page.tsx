@@ -2,10 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { PayoutsPanel } from '@/components/views/PayoutsPanel';
 
 interface ReferredUser {
   id: string; displayName: string; username: string;
@@ -227,6 +227,12 @@ export default function AmbassadorsPage() {
   const [toast,       setToast]       = useState('');
   const [acting,      setActing]      = useState<string | null>(null);
   const [selected,    setSelected]    = useState<Ambassador | null>(null);
+  // AMB-PAYOUT-MODAL-FOLLOWUP (2026-07-04, Michael): Auszahlungen öffnen sich als Fenster
+  // direkt hier im Ambassador-Bereich statt auf eine separate Seite zu navigieren.
+  const [payoutModalTab, setPayoutModalTab] = useState<'requested' | 'approved' | 'paid' | null>(null);
+  const PAYOUT_TILE_TO_TAB: Record<'requested' | 'pending' | 'done', 'requested' | 'approved' | 'paid'> = {
+    requested: 'requested', pending: 'approved', done: 'paid',
+  };
 
   // AMB-BANK-PAYOUT-001: Auszahlungsanfragen-Kacheln oben (nur SADB -- diese Seite ist bereits
   // superadminOnly in der Navigation, siehe navigation.ts).
@@ -321,8 +327,9 @@ export default function AmbassadorsPage() {
           ].map(t => {
             const s = payoutStats?.[t.key as 'requested' | 'pending' | 'done'];
             return (
-              <Link key={t.key} href="/payouts" style={{ textDecoration:'none' }}>
-                <div style={{
+              <div key={t.key}
+                onClick={() => setPayoutModalTab(PAYOUT_TILE_TO_TAB[t.key as 'requested' | 'pending' | 'done'])}
+                style={{
                   background:'var(--bg-secondary)', border:`1px solid ${t.color}44`, borderRadius:12,
                   padding:'16px 18px', cursor:'pointer', transition:'border-color 0.15s',
                 }}>
@@ -335,8 +342,7 @@ export default function AmbassadorsPage() {
                   <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>
                     {s ? `${fmtEur(s.eur)} · ${t.sub}` : t.sub}
                   </div>
-                </div>
-              </Link>
+              </div>
             );
           })}
         </div>
@@ -453,6 +459,25 @@ export default function AmbassadorsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* AMB-PAYOUT-MODAL-FOLLOWUP (2026-07-04): Auszahlungen-Fenster -- zentriertes Modal,
+          bewusst KEIN Side-Drawer (anders als AmbassadorDrawer oben). Bleibt vollständig im
+          Ambassador-Bereich, keine Navigation/URL-Wechsel, kein Sidebar/Layout-Wechsel. */}
+      {payoutModalTab && (
+        <div onClick={() => setPayoutModalTab(null)} style={{
+          position:'fixed', inset:0, zIndex:10010,
+          background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)',
+          display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width:'100%', maxWidth:1100, maxHeight:'88vh', overflowY:'auto',
+            background:'var(--bg-primary)', border:'1px solid var(--border)', borderRadius:16,
+            padding:'22px 24px', boxShadow:'0 12px 50px rgba(0,0,0,0.4)',
+          }}>
+            <PayoutsPanel role="superadmin" initialStatus={payoutModalTab} onClose={() => setPayoutModalTab(null)} />
+          </div>
         </div>
       )}
     </DashboardLayout>
