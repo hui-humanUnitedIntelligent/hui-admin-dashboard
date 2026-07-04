@@ -98,6 +98,10 @@ export default function EmployeesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting,     setDeleting]     = useState(false);
 
+  // 2FA-Reset confirm
+  const [mfaResetTarget, setMfaResetTarget] = useState<Employee | null>(null);
+  const [mfaResetting,   setMfaResetting]   = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -189,6 +193,24 @@ export default function EmployeesPage() {
         load();
       } else { showToast(j.error ?? 'Fehler', 'error'); }
     } finally { setDeleting(false); }
+  }
+
+  // ── 2FA zurücksetzen ─────────────────────────────────────────────────────
+  async function handleMfaReset() {
+    if (!mfaResetTarget) return;
+    setMfaResetting(true);
+    try {
+      const res = await fetch('/api/auth/mfa/admin-reset', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: mfaResetTarget.id }),
+      });
+      const j = await res.json();
+      if (j.ok) {
+        showToast(`🔐 2FA für ${mfaResetTarget.email} zurückgesetzt — muss sich neu einrichten`, 'success');
+        setMfaResetTarget(null);
+      } else { showToast(j.error ?? 'Fehler', 'error'); }
+    } finally { setMfaResetting(false); }
   }
 
   return (
@@ -341,6 +363,7 @@ export default function EmployeesPage() {
                   <td style={{ padding: '10px 0', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                       <button style={btnEdit} onClick={() => openEdit(e)}>✏️ Bearbeiten</button>
+                      <button style={btnEdit} onClick={() => setMfaResetTarget(e)}>🔐 2FA zurücksetzen</button>
                       <button style={btnDanger} onClick={() => setDeleteTarget(e)}>🗑️ Löschen</button>
                     </div>
                   </td>
@@ -422,6 +445,37 @@ export default function EmployeesPage() {
                 {deleting ? 'Lösche…' : '🗑️ Ja, löschen'}
               </button>
               <button onClick={() => setDeleteTarget(null)}
+                style={{ ...btnPrimary, background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 2FA-Reset Confirm ────────────────────────────────────────── */}
+      {mfaResetTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }}>
+          <div style={{ ...card, width: 420, maxWidth: '90vw' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+              🔐 2FA zurücksetzen?
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+              Der bestehende Authenticator-Faktor von <strong>{mfaResetTarget.email}</strong> wird gelöscht.
+              Beim nächsten Login muss die Person die Zwei-Faktor-Authentifizierung per QR-Code neu einrichten
+              (2FA bleibt Pflicht — nur der alte, evtl. verlorene Faktor wird entfernt).
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleMfaReset}
+                disabled={mfaResetting}
+                style={{ ...btnPrimary, opacity: mfaResetting ? 0.6 : 1 }}>
+                {mfaResetting ? 'Setze zurück…' : '🔐 Ja, zurücksetzen'}
+              </button>
+              <button onClick={() => setMfaResetTarget(null)}
                 style={{ ...btnPrimary, background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                 Abbrechen
               </button>
