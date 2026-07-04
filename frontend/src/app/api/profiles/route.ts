@@ -36,8 +36,28 @@ export async function GET(req: NextRequest) {
     const { data, error, count } = await q;
     if (error) throw error;
 
+    // Impact-Anteil pro Nutzer (Käufer+Verkäufer) — SSOT via stripe_impact_pool,
+    // ersetzt das tote profiles.impact_eur (nie beschrieben, immer 0).
+    // Gleiche RPC wie /api/users (SADB) — siehe Standing Instructions.
+    let profilesOut = data ?? [];
+    try {
+      const { data: impactRows, error: impactErr } = await sb.rpc('rpc_get_user_impact_totals');
+      if (impactErr) {
+        console.error('[profiles GET] impact totals rpc error:', impactErr.message);
+      } else {
+        const impactMap = new Map<string, number>();
+        (impactRows ?? []).forEach((r: { user_id: string; impact_eur: number | string }) => {
+          impactMap.set(r.user_id, Number(r.impact_eur ?? 0));
+        });
+        profilesOut = profilesOut.map((p: { id: string; [key: string]: unknown }) => ({
+          ...p,
+          impact_eur: impactMap.get(p.id) ?? 0,
+        }));
+      }
+    } catch (e) { console.error('[profiles GET] impact totals rpc exception:', e); }
+
     // Flache Antwort — kein ok()-Wrapper damit useProfiles direkt lesen kann
-    return NextResponse.json({ profiles: data ?? [], total: count ?? 0 });
+    return NextResponse.json({ profiles: profilesOut, total: count ?? 0 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[profiles GET]', msg);

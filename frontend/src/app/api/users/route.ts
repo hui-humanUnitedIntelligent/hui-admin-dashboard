@@ -107,6 +107,21 @@ export async function GET(req: NextRequest) {
 
     const profiles = (rawProfiles ?? []) as unknown as Profile[];
 
+    // 2b) Impact-Anteil pro Nutzer (Käufer+Verkäufer) — SSOT via stripe_impact_pool,
+    // ersetzt das tote profiles.impact_eur (nie beschrieben, immer 0).
+    // Gleiche RPC wie /api/profiles (EDB) — siehe Standing Instructions.
+    const impactMap = new Map<string, number>();
+    try {
+      const { data: impactRows, error: impactErr } = await supabase.rpc('rpc_get_user_impact_totals');
+      if (impactErr) {
+        console.error('[users GET] impact totals rpc error:', impactErr.message);
+      } else {
+        (impactRows ?? []).forEach((r: { user_id: string; impact_eur: number | string }) => {
+          impactMap.set(r.user_id, Number(r.impact_eur ?? 0));
+        });
+      }
+    } catch (e) { console.error('[users GET] impact totals rpc exception:', e); }
+
     // 3) Maps
     const profileMap = new Map<string, Profile>();
     profiles.forEach(p => profileMap.set(p.id, p));
@@ -137,7 +152,7 @@ export async function GET(req: NextRequest) {
         blocked_at:      p?.blocked_at ?? null,
         phone:           p?.phone ?? null,
         is_deleted:      (p?.blocked === true && (p?.blocked_by?.toLowerCase().includes('gelöscht') || p?.blocked_by?.toLowerCase().includes('deleted'))) ?? false,
-        impact_eur:      Number(p?.impact_eur ?? 0),
+        impact_eur:      impactMap.get(au.id) ?? 0,
         trust_score:     Number(p?.trust_score ?? 0),
         last_seen_at:    p?.last_seen_at ?? au.last_sign_in_at ?? null,
         location_label:  p?.location_label ?? null,
@@ -164,7 +179,7 @@ export async function GET(req: NextRequest) {
           blocked_at: p.blocked_at ?? null,
           phone: p.phone ?? null,
           is_deleted: (p.blocked === true && (p.blocked_by?.toLowerCase().includes('gelöscht') || p.blocked_by?.toLowerCase().includes('deleted'))) ?? false,
-          impact_eur: Number(p.impact_eur ?? 0),
+          impact_eur: impactMap.get(p.id) ?? 0,
           trust_score: Number(p.trust_score ?? 0),
           last_seen_at: p.last_seen_at,
           location_label: p.location_label ?? null,
