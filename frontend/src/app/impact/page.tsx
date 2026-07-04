@@ -195,15 +195,22 @@ export default function ImpactPage() {
         {o && (
           <>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-              <Kachel label="Gesamtumsatz" value={eur(o.totalRevenue)} sub={`${o.paymentCount} Zahlungen`} stripe />
-              <Kachel label="Brutto-Pool (15%)" value={eur(o.bruttoPool)} color="var(--accent)" stripe />
-              <Kachel label="Projekt-Anteil (15%)" value={eur(o.nettoImpact)} color="#22C55E" stripe />
-              <Kachel label="Firmenanteil (85%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe />
+              <Kachel label="Gesamtumsatz" value={eur(o.totalRevenue)} sub={`${o.paymentCount} Zahlungen`} stripe
+                info="Summe aller bezahlten Bestellungen (Commerce 2.0), aus denen sich der Impact-Pool speist." />
+              <Kachel label="Brutto-Pool (15%)" value={eur(o.bruttoPool)} color="var(--accent)" stripe
+                info="15% Plattformgebühr vom Gesamtumsatz. Teilt sich auf in Projekt-Anteil (15% davon) und Firmenanteil (85% davon)." />
+              <Kachel label="Projekt-Anteil (15%)" value={eur(o.nettoImpact)} color="#22C55E" stripe
+                info="15% des Brutto-Pools (= 2,25% vom Gesamtumsatz) fließen direkt in soziale Projekte — das ist der eigentliche 'Impact'." />
+              <Kachel label="Firmenanteil (85%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe
+                info="85% des Brutto-Pools. Davon werden zuerst Ambassador-Provisionen bezahlt, der Rest verteilt sich auf Projekte fördern/HUI weiterentwickeln/Neue Ideen/Qualität sichern (40/30/20/10%)." />
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-              <Kachel label="Vergeben" value={eur(o.distributed)} />
-              <Kachel label="Offen (verfuegbar)" value={eur(o.openImpact)} color="#818CF8" />
-              <Kachel label="Bewerbungen" value={String(o.applications.total)} sub={`${o.applications.approved} genehmigt`} />
+              <Kachel label="Vergeben" value={eur(o.distributed)}
+                info="Wie viel vom Projekt-Anteil bereits an genehmigte Projekte ausgezahlt wurde." />
+              <Kachel label="Offen (verfuegbar)" value={eur(o.openImpact)} color="#818CF8"
+                info="Projekt-Anteil abzüglich bereits Vergebenem — steht aktuell zur Verteilung an Projekte bereit." />
+              <Kachel label="Bewerbungen" value={String(o.applications.total)} sub={`${o.applications.approved} genehmigt`}
+                info="Anzahl eingereichter Projekt-Bewerbungen für Impact-Förderung, davon wie viele bereits genehmigt wurden." />
               <Kachel label="Pool-Status" value={o.poolState} valueSize={16}
                 info="accumulating = Pool sammelt gerade (15% der Zahlungen), noch nichts ausgezahlt. distributed = Pool wurde bereits an genehmigte Projekte ausgezahlt."
                 color={o.poolState === 'accumulating' ? '#22C55E' : o.poolState === 'voting' ? '#F59E0B' : 'var(--text-muted)'} />
