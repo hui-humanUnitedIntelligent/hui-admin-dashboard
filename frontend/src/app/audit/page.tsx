@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
+import PaginationControls from '@/components/ui/PaginationControls';
 
 // ── Typen ─────────────────────────────────────────────────────────────────────
 type Row = Record<string, unknown>;
@@ -71,6 +72,8 @@ const TABS: TabConfig[] = [
   },
 ];
 
+const PAGE_SIZE = 10;
+
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 function fmtTime(v: unknown): string {
   if (!v) return '—';
@@ -117,6 +120,7 @@ export default function AuditPage() {
   const [activeTab, setActiveTab]   = useState('notifications');
   const [rows, setRows]             = useState<Row[]>([]);
   const [total, setTotal]           = useState(0);
+  const [page, setPage]             = useState(1);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [search, setSearch]         = useState('');
@@ -124,11 +128,15 @@ export default function AuditPage() {
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async (tab: string, q: string) => {
+  const load = useCallback(async (tab: string, q: string, p: number) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ tab, limit: '100', search: q });
+      const params = new URLSearchParams({
+        tab, search: q,
+        limit: String(PAGE_SIZE),
+        offset: String((p - 1) * PAGE_SIZE),
+      });
       const res = await fetch(`/api/audit?${params}`, { credentials: 'include' });
       const json = await res.json();
       if (!json.ok) { setError(json.error ?? 'Fehler'); setRows([]); setTotal(0); }
@@ -142,17 +150,18 @@ export default function AuditPage() {
     }
   }, []);
 
-  // Tab oder Suche ändert sich → neu laden
-  useEffect(() => { load(activeTab, search); }, [activeTab, search, load]);
+  // Tab oder Suche ändert sich → zurück auf Seite 1 + neu laden
+  useEffect(() => { setPage(1); }, [activeTab, search]);
+  useEffect(() => { load(activeTab, search, page); }, [activeTab, search, page, load]);
 
-  // Auto-Refresh alle 30s
+  // Auto-Refresh alle 30s (aktuelle Seite)
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (autoRefresh) {
-      timerRef.current = setInterval(() => load(activeTab, search), 30_000);
+      timerRef.current = setInterval(() => load(activeTab, search, page), 30_000);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [autoRefresh, activeTab, search, load]);
+  }, [autoRefresh, activeTab, search, page, load]);
 
   const tab = TABS.find(t => t.key === activeTab)!;
   const isStatus = (col: string) => ['status','is_read'].includes(col);
@@ -171,7 +180,7 @@ export default function AuditPage() {
                 style={{ accentColor:'var(--accent)', width:13, height:13 }} />
               Live (30s)
             </label>
-            <button onClick={() => load(activeTab, search)} disabled={loading}
+            <button onClick={() => load(activeTab, search, page)} disabled={loading}
               style={{ padding:'0 12px', height:30, borderRadius:6, fontSize:12, fontWeight:600,
                 border:'1px solid var(--accent)', background:'transparent', color:'var(--accent)',
                 cursor:'pointer', opacity: loading ? 0.5 : 1 }}>
@@ -275,6 +284,14 @@ export default function AuditPage() {
             ))
           )}
         </div>
+
+        <PaginationControls
+          visibleCount={rows.length}
+          total={total}
+          page={page}
+          totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+          onGoToPage={setPage}
+        />
 
       </div>
     </DashboardLayout>
