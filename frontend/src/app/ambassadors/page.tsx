@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -227,6 +228,24 @@ export default function AmbassadorsPage() {
   const [acting,      setActing]      = useState<string | null>(null);
   const [selected,    setSelected]    = useState<Ambassador | null>(null);
 
+  // AMB-BANK-PAYOUT-001: Auszahlungsanfragen-Kacheln oben (nur SADB -- diese Seite ist bereits
+  // superadminOnly in der Navigation, siehe navigation.ts).
+  const [payoutStats, setPayoutStats] = useState<{
+    requested: { count: number; eur: number };
+    pending:   { count: number; eur: number };
+    done:      { count: number; eur: number };
+  } | null>(null);
+
+  const loadPayoutStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/stripe?type=ambassador_payout_stats', { credentials: 'include' });
+      const json = await res.json();
+      if (json?.ok) setPayoutStats(json.data);
+    } catch (e) { console.error('[ambassadors payout stats]', e); }
+  }, []);
+
+  useEffect(() => { loadPayoutStats(); const iv = setInterval(loadPayoutStats, 30_000); return () => clearInterval(iv); }, [loadPayoutStats]);
+
   const showToast = useCallback((msg: string) => {
     setToast(msg); setTimeout(() => setToast(''), 3000);
   }, []);
@@ -288,6 +307,40 @@ export default function AmbassadorsPage() {
       {selected && <AmbassadorDrawer amb={selected} onClose={() => setSelected(null)} />}
 
       <PageHeader title="Ambassadors" subtitle="Referral-Partner & Markenbotschafter" actionsRole={userRole as 'superadmin' | 'employee'} userRole={userRole} />
+
+      {/* AMB-BANK-PAYOUT-001: Auszahlungsanfragen -- oben, nur SADB */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:8 }}>
+          💸 Auszahlungsanfragen
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:12 }}>
+          {[
+            { key:'requested', label:'Anfragen',  sub:'wartet auf Genehmigung', icon:'📥', color:'#ffd43b' },
+            { key:'pending',   label:'Pending',    sub:'genehmigt, wird überwiesen', icon:'⏳', color:'#74c0fc' },
+            { key:'done',      label:'Erledigt',   sub:'ausgezahlt', icon:'✅', color:'#51cf66' },
+          ].map(t => {
+            const s = payoutStats?.[t.key as 'requested' | 'pending' | 'done'];
+            return (
+              <Link key={t.key} href="/employee/payouts" style={{ textDecoration:'none' }}>
+                <div style={{
+                  background:'var(--bg-secondary)', border:`1px solid ${t.color}44`, borderRadius:12,
+                  padding:'16px 18px', cursor:'pointer', transition:'border-color 0.15s',
+                }}>
+                  <div style={{ fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:4 }}>
+                    {t.icon} {t.label}
+                  </div>
+                  <div style={{ fontSize:22, fontWeight:700, color:t.color, fontFamily:'var(--font-mono)' }}>
+                    {s ? s.count : '–'}
+                  </div>
+                  <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>
+                    {s ? `${fmtEur(s.eur)} · ${t.sub}` : t.sub}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       {/* KPI */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12, marginBottom:20 }}>

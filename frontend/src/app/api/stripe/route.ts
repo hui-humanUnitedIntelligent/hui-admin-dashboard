@@ -69,6 +69,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, data: data ?? [] });
   }
 
+  // AMB-BANK-PAYOUT-001: 3 Kacheln (Anfragen/Pending/Erledigt) fuer die SADB-Ambassadors-Seite
+  if (type === "ambassador_payout_stats") {
+    const { data, error } = await sb.rpc("rpc_get_ambassador_payout_stats");
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, data });
+  }
+
   if (type === "commissions") {
     const ambassadorId = searchParams.get("ambassador_id");
     let query = sb.from("stripe_ambassador_commissions")
@@ -188,6 +195,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data);
   }
 
+  // AMB-BANK-PAYOUT-001 (2026-07-04): einfacherer Auszahlungsweg -- Ambassador hinterlegt
+  // Bankdaten statt Stripe-Connect-Onboarding, Superadmin genehmigt + ueberweist manuell per
+  // Bank, markiert dann hier als erledigt. Beide Aktionen bewusst NUR superadmin (nicht
+  // employee) -- echte Bankdaten/Geldbewegung, Michaels ausdrueckliche Vorgabe.
+  if (action === "get_payout_bank_details") {
+    const admin = await getAuthUser(req);
+    if (!admin || admin.role !== "superadmin") {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    const { payout_id } = body;
+    const { data, error } = await sb.rpc("rpc_admin_get_payout_bank_details", {
+      p_payout_id: payout_id, p_admin_id: admin.id,
+    });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  if (action === "mark_payout_paid") {
+    const admin = await getAuthUser(req);
+    if (!admin || admin.role !== "superadmin") {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+    const { payout_id } = body;
+    const { data, error } = await sb.rpc("rpc_admin_mark_payout_paid", {
+      p_payout_id: payout_id, p_admin_id: admin.id,
+    });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
   // AMB-PAYOUT-016: Metadaten (total_commissions/commission_period) + notification_events-Log
   // ergaenzt, gleiche Semantik wie die Edge Function ambassador-payout-execute.
   // WICHTIG (Faktencheck, nichts geraten): Ein Versuch, hier stattdessen die Edge Function per
@@ -199,6 +236,10 @@ export async function POST(req: NextRequest) {
   // Raten, kein Fakt -- deshalb bleibt die bestehende, bewiesen funktionierende STRIPE_SK-Route
   // hier unangetastet bestehen. Echte Konsolidierung erst moeglich, wenn Michael den Wert von
   // SUPABASE_SERVICE_ROLE_KEY in Vercel bestaetigt oder ein dediziertes Shared Secret einrichtet.
+  // DEPRECATED (2026-07-04, AMB-BANK-PAYOUT-001): Stripe-Connect-Transfer-Flow -- ersetzt durch
+  // get_payout_bank_details + mark_payout_paid (kein Stripe-Login/Onboarding fuer Ambassadors mehr
+  // noetig). Code bewusst NICHT geloescht (Michaels Vorgabe: erst fragen, nicht einfach entfernen),
+  // aber von der UI nicht mehr aufgerufen. Bleibt fuer evtl. Rollback/Referenz bestehen.
   if (action === "execute_payout") {
     const admin = await getAuthUser(req);
     if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });

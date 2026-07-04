@@ -4,6 +4,7 @@
 // AMB-PAYOUT-009: Genehmigen/Ablehnen/Auszahlung-starten-Aktionen + Genehmigt/Abgelehnt-Status + Auto-Refresh
 import { useState, useEffect, useCallback, useRef } from 'react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 function eur(val: number | null | undefined) {
   return `€${((val ?? 0)).toFixed(2)}`;
@@ -55,6 +56,8 @@ type TabId = typeof TABS[number]['id'];
 const REFRESH_INTERVAL_MS = 15000; // Live-Update-Ersatz (Dashboard nutzt Cookie-Auth statt Supabase-Auth-Session, daher kein postgres_changes-Realtime moeglich)
 
 export default function EmployeePayoutsPage() {
+  const { role } = useAuth();
+  const isSuperadmin = role === 'superadmin';
   const [tab,     setTab]     = useState<TabId>('all');
   const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,6 +65,10 @@ export default function EmployeePayoutsPage() {
   const [totals,  setTotals]  = useState({ total: 0, paid: 0, pending: 0, failed: 0 });
   const [busyId,  setBusyId]  = useState<string | null>(null);
   const [toast,   setToast]   = useState<{ ok: boolean; msg: string } | null>(null);
+  // AMB-BANK-PAYOUT-001: entschlüsselte Bankdaten -- nur superadmin, nur temporär im State,
+  // wird beim Schließen des Modals sofort verworfen (kein Caching).
+  const [bankModal, setBankModal] = useState<{ payoutId: string; iban: string; holder: string; bic: string | null } | null>(null);
+  const [bankLoading, setBankLoading] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (status?: string, silent = false) => {
@@ -120,6 +127,36 @@ export default function EmployeePayoutsPage() {
   const handleExecute = (id: string) => {
     if (!window.confirm('Echte Stripe-Auszahlung jetzt starten? Dies überweist Geld an den Ambassador.')) return;
     runAction('execute_payout', { payout_id: id }, 'Auszahlung über Stripe gestartet');
+  };
+
+  // AMB-BANK-PAYOUT-001: einfacherer Weg ohne Stripe-Connect -- Bankdaten ansehen + manuell
+  // überweisen, dann hier bestätigen. Beide nur für Superadmin (Server prüft das zusätzlich).
+  const handleViewBank = async (id: string) => {
+    setBankLoading(id);
+    try {
+      const res = await fetch('/api/stripe', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_payout_bank_details', payout_id: id }),
+      });
+      const data = await res.json();
+      if (data?.ok) {
+        setBankModal({ payoutId: id, iban: data.iban, holder: data.holder, bic: data.bic });
+      } else {
+        setToast({ ok: false, msg: `Fehler: ${data?.error || 'unbekannt'}` });
+        setTimeout(() => setToast(null), 4000);
+      }
+    } catch (e: any) {
+      setToast({ ok: false, msg: `Fehler: ${e?.message || 'Netzwerkfehler'}` });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setBankLoading(null);
+    }
+  };
+
+  const handleMarkPaid = (id: string) => {
+    if (!window.confirm('Wurde der Betrag bereits per Banküberweisung an den Ambassador gesendet? Dies markiert die Auszahlung als erledigt und kann nicht rückgängig gemacht werden.')) return;
+    runAction('mark_payout_paid', { payout_id: id }, 'Als überwiesen markiert');
   };
 
   const filtered = search
@@ -214,7 +251,7 @@ export default function EmployeePayoutsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Ambassador','E-Mail','Betrag','Provisionen','Zeitraum','Stripe-Connect','Status','Stripe-ID','Angefordert','Abgeschlossen','Fehler/Grund','Aktion'].map(h => (
+                {['Ambassador','E-Mail','Betrag','Provisionen','Zeitraum','Bankdaten','Status','Stripe-ID','Angefordert','Abgeschlossen','Fehler/Grund','Aktion'].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
               </tr>
@@ -250,10 +287,10 @@ export default function EmployeePayoutsPage() {
                   <td style={td}>
                     <span style={{
                       fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                      background: p.stripe_connect_status === 'connected' ? 'rgba(81,207,102,0.12)' : 'var(--bg-tertiary)',
-                      color: p.stripe_connect_status === 'connected' ? '#51cf66' : 'var(--text-muted)',
+                      background: p.has_bank_details ? 'rgba(81,207,102,0.12)' : 'rgba(255,135,135,0.12)',
+                      color: p.has_bank_details ? '#51cf66' : '#ff8787',
                     }}>
-                      {p.stripe_connect_status === 'connected' ? '✅ Verbunden' : p.stripe_connect_status === 'onboarding' ? '⏳ Onboarding' : '❌ Nicht verbunden'}
+                      {p.has_bank_details ? `🏦 •••• ${p.bank_iban_last4 || ''}` : '❌ Keine Bankdaten'}
                     </span>
                   </td>
                   <td style={td}><StatusBadge status={p.status} /></td>
@@ -287,16 +324,24 @@ export default function EmployeePayoutsPage() {
                       </div>
                     )}
                     {p.status === 'approved' && (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button disabled={busyId === p.id} onClick={() => handleExecute(p.id)}
-                          style={{ ...btnBase, background: '#635BFF', color: '#fff' }}>
-                          {busyId === p.id ? '…' : '💳 Auszahlung starten'}
-                        </button>
-                        <button disabled={busyId === p.id} onClick={() => handleReject(p.id)}
-                          style={{ ...btnBase, background: 'transparent', border: '1px solid #ff8787', color: '#ff8787' }}>
-                          ✕ Ablehnen
-                        </button>
-                      </div>
+                      isSuperadmin ? (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button disabled={bankLoading === p.id} onClick={() => handleViewBank(p.id)}
+                            style={{ ...btnBase, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                            {bankLoading === p.id ? '…' : '🏦 Bankdaten ansehen'}
+                          </button>
+                          <button disabled={busyId === p.id} onClick={() => handleMarkPaid(p.id)}
+                            style={{ ...btnBase, background: '#51cf66', color: '#000' }}>
+                            {busyId === p.id ? '…' : '✅ Als überwiesen markieren'}
+                          </button>
+                          <button disabled={busyId === p.id} onClick={() => handleReject(p.id)}
+                            style={{ ...btnBase, background: 'transparent', border: '1px solid #ff8787', color: '#ff8787' }}>
+                            ✕ Ablehnen
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Wird von Superadmin bearbeitet</span>
+                      )
                     )}
                     {['paid','rejected','failed'].includes(p.status) && (
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</span>
@@ -313,6 +358,46 @@ export default function EmployeePayoutsPage() {
           </table>
         </div>
       </div>
+
+      {/* AMB-BANK-PAYOUT-001: Klartext-Bankdaten -- nur temporär, verschwindet beim Schließen */}
+      {bankModal && (
+        <div onClick={() => setBankModal(null)} style={{
+          position: 'fixed', inset: 0, zIndex: 10020,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: '100%', maxWidth: 420,
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 14,
+            padding: '22px 24px', boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>🏦 Bankdaten für Überweisung</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+              Nur zur manuellen Überweisung sichtbar — dieser Zugriff wird protokolliert.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Kontoinhaber</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{bankModal.holder || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>IBAN</div>
+                <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-mono)', letterSpacing: '0.5px' }}>{bankModal.iban}</div>
+              </div>
+              {bankModal.bic && (
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>BIC</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{bankModal.bic}</div>
+                </div>
+              )}
+            </div>
+            <button onClick={() => setBankModal(null)} style={{
+              marginTop: 20, width: '100%', padding: '10px 0', borderRadius: 8, border: '1px solid var(--border)',
+              background: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+            }}>Schließen</button>
+          </div>
+        </div>
+      )}
     </EmployeeLayout>
   );
 }
