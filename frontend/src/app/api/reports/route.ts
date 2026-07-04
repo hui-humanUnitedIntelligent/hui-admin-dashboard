@@ -11,6 +11,13 @@ function weekKey(iso: string) {
   return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+// REPORTS-LIVE-FIX (2026-07-04): 'Umsatz'/'Impact'/'Netto-Impact' zeigten immer 0,00 €,
+// weil die Route ausschließlich aus der toten Legacy-Tabelle 'payments' las (nie befüllt,
+// SYS-LegacyMark-024 -- gleiches Muster wie der Dashboard-Bug aus ADMIN-TX-FIX). Fix:
+// Umsatz jetzt aus 'stripe_payments' (status='succeeded', SSOT für alle Zahlungen), Impact-
+// Zahlen direkt aus den bereits von rpc_process_order_fees berechneten+gespeicherten Werten
+// in 'stripe_impact_pool' -- keine eigene Ratenberechnung/Neuerfindung, nur echte, live
+// gespeicherte Beträge pro Periode summiert.
 export async function GET(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
@@ -25,15 +32,20 @@ export async function GET(req: NextRequest) {
 
     // Alle Rohdaten laden
     const [
-      { data: profiles  = [] },
-      { data: payments  = [] },
-      { data: works     = [] },
-      { data: bookings  = [] },
-      { data: experiences = [] },
+      { data: profiles     = [] },
+      { data: stripePayments = [] },
+      { data: impactPoolRows = [] },
+      { data: works        = [] },
+      { data: bookings     = [] },
+      { data: experiences  = [] },
     ] = await Promise.all([
       sb.from('profiles').select('created_at,is_wirker,is_member').limit(10000),
-      // Legacy-Hinweis: Liest aus alter Tabelle 'payments' (nie befuellt, kein SSOT-Mapping, SYS-LegacyMark-024). Zeigt korrekt leer/0.
-      sb.from('payments').select('created_at,amount,status').limit(10000),
+      // SSOT für Umsatz: stripe_payments (siehe REPORTS-LIVE-FIX oben)
+      sb.from('stripe_payments').select('created_at,amount,status').limit(10000),
+      // SSOT für Impact-Pool-Zahlen: echte, pro Bestellung von rpc_process_order_fees
+      // gespeicherte Werte (total_inflow=Gesamt-Gebühr, project_share=Netto-Impact,
+      // company_share=Firmenanteil nach Ambassador-Provision)
+      sb.from('stripe_impact_pool').select('created_at,total_inflow,project_share,company_share').limit(10000),
       sb.from('works').select('created_at').limit(10000),
       sb.from('bookings').select('created_at').limit(10000),
       sb.from('experiences').select('created_at').limit(10000),
@@ -51,23 +63,26 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const safeProfiles    = (profiles    ?? []) as Array<{ created_at: string; is_wirker?: boolean; is_member?: boolean }>;
-    const safePayments    = (payments    ?? []) as Array<{ created_at: string; amount?: number; status?: string }>;
+    const safeProfiles    = (profiles       ?? []) as Array<{ created_at: string; is_wirker?: boolean; is_member?: boolean }>;
+    const safePayments    = (stripePayments ?? []) as Array<{ created_at: string; amount?: number; status?: string }>;
+    const safePool        = (impactPoolRows ?? []) as Array<{ created_at: string; total_inflow?: number; project_share?: number; company_share?: number }>;
     const safeWorks       = (works       ?? []) as Array<{ created_at: string }>;
     const safeBookings    = (bookings    ?? []) as Array<{ created_at: string }>;
     const safeExperiences = (experiences ?? []) as Array<{ created_at: string }>;
 
     const reportPeriods = periodKeys.map(pk => {
       const pProf = safeProfiles.filter(x => keyFn(x.created_at) === pk);
-      const pPay  = safePayments.filter(x => keyFn(x.created_at) === pk);
+      const pPay  = safePayments.filter(x => keyFn(x.created_at) === pk && x.status === 'succeeded');
+      const pPool = safePool.filter(x => keyFn(x.created_at) === pk);
       const pWrk  = safeWorks.filter(x => keyFn(x.created_at) === pk);
       const pBk   = safeBookings.filter(x => keyFn(x.created_at) === pk);
       const pExp  = safeExperiences.filter(x => keyFn(x.created_at) === pk);
 
-      const revenue      = pPay.filter(p => p.status === 'completed').reduce((s, p) => s + (Number(p.amount) || 0), 0);
-      const impact_pool  = revenue * 0.15;
-      const net_impact   = impact_pool * 0.85;
-      const company_share = impact_pool * 0.15;
+      // Beträge in stripe_payments/stripe_impact_pool sind in Cent gespeichert → /100 für EUR
+      const revenue       = pPay.reduce((s, p) => s + ((Number(p.amount) || 0) / 100), 0);
+      const impact_pool   = pPool.reduce((s, p) => s + ((Number(p.total_inflow)   || 0) / 100), 0);
+      const net_impact    = pPool.reduce((s, p) => s + ((Number(p.project_share)  || 0) / 100), 0);
+      const company_share = pPool.reduce((s, p) => s + ((Number(p.company_share)  || 0) / 100), 0);
 
       return {
         period:        pk,
@@ -85,6 +100,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const succeededPayments = safePayments.filter(p => p.status === 'succeeded');
     const totals = {
       users:    safeProfiles.length,
       wirker:   safeProfiles.filter(p => p.is_wirker).length,
@@ -92,8 +108,8 @@ export async function GET(req: NextRequest) {
       works:    safeWorks.length,
       experiences: safeExperiences.length,
       bookings: safeBookings.length,
-      transactions: safePayments.length,
-      revenue:  safePayments.filter(p => p.status === 'completed').reduce((s, p) => s + (Number(p.amount) || 0), 0),
+      transactions: succeededPayments.length,
+      revenue:  succeededPayments.reduce((s, p) => s + ((Number(p.amount) || 0) / 100), 0),
     };
 
     return NextResponse.json({
