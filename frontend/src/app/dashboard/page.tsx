@@ -150,8 +150,6 @@ export default function DashboardPage() {
           info="Nutzer mit aktiver Mitgliedschaft (is_member oder membership_active = true). 'Buchungen aktiv' zeigt Erlebnis-Buchungen der letzten 90 Tage." />
         <KPICard label="Ambassadors aktiv" value={db.loading ? '—' : fmtNum(kpis.activeAmbassadors)}  delta={kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen'} deltaPositive={kpis.pendingAmbassadors === 0} icon="🤝" variant="teal"
           info="Nutzer mit Ambassador-Status (is_ambassador = true). Provisionsstufen je nach Anzahl geworbener Nutzer: Starter 5%, Bronze 10%, Silber 15%, Gold 20% — berechnet vom Firmenanteil." />
-        <KPICard label="Offene Anträge"    value={db.loading ? '—' : fmtNum(kpis.pendingAmbassadors)} delta={`${kpis.totalReferrals} Referrals`}          deltaPositive icon="📋" variant="red"
-          info="Ambassador-Bewerbungen mit Status 'offen', die noch auf Prüfung warten. 'Referrals' zeigt die Gesamtzahl aller Nutzer, die über einen Ambassador-Link geworben wurden." />
       </div>
 
       {/* ── Charts Row ──────────────────────────────────────────────────── */}
