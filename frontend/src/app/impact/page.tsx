@@ -58,6 +58,36 @@ const KACHEL_STYLE: React.CSSProperties = {
   padding: '18px 20px', flex: '1 1 160px', minWidth: 140,
 };
 
+function InfoIcon({ info }: { info: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 15, height: 15, borderRadius: '50%', background: 'var(--bg-tertiary)', color: 'var(--text-muted)',
+          fontSize: 9, fontWeight: 700, fontStyle: 'normal', letterSpacing: 0, textTransform: 'none',
+          cursor: 'pointer', border: '1px solid var(--border)', padding: 0, lineHeight: 1 }}>
+        i
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div onClick={(e) => e.stopPropagation()} style={{
+            position: 'absolute', top: '130%', left: 0, zIndex: 41, width: 220,
+            background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8,
+            padding: '10px 12px', boxShadow: '0 6px 24px rgba(0,0,0,0.25)',
+            fontSize: 11, fontWeight: 400, color: 'var(--text-secondary)', lineHeight: 1.5,
+            textTransform: 'none', letterSpacing: 0, whiteSpace: 'normal' }}>
+            {info}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
 function Kachel({ label, value, sub, color, stripe, info, valueSize }: {
   label: string; value: string; sub?: string; color?: string; stripe?: boolean; info?: string; valueSize?: number;
 }) {
@@ -66,13 +96,7 @@ function Kachel({ label, value, sub, color, stripe, info, valueSize }: {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: 0, display: 'flex', alignItems: 'center', gap: 5, flex: '1 1 auto', minWidth: 0 }}>
           {label}
-          {info && (
-            <span title={info} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 13, height: 13, borderRadius: '50%', background: 'var(--bg-tertiary)', color: 'var(--text-muted)',
-              fontSize: 9, fontWeight: 700, fontStyle: 'normal', letterSpacing: 0, textTransform: 'none', cursor: 'help', flexShrink: 0 }}>
-              i
-            </span>
-          )}
+          {info && <InfoIcon info={info} />}
         </p>
         {stripe && (
           <span style={{ flexShrink: 0, fontSize: 9, padding: '2px 6px', lineHeight: 1.4,
