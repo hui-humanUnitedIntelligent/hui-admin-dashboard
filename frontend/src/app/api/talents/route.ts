@@ -36,8 +36,23 @@ export async function GET(req: NextRequest) {
 
     const wpMap = new Map((wp ?? []).map(w => [w.user_id, w]));
 
+    // Echter Impact-Beitrag (Käufer+Verkäufer) statt totem profiles.impact_eur (nie beschrieben).
+    // Gleiche RPC wie /api/users (SADB) und /api/profiles (EDB) — konsistente SSOT.
+    const impactMap = new Map<string, number>();
+    try {
+      const { data: impactRows, error: impactErr } = await sb.rpc('rpc_get_user_impact_totals');
+      if (impactErr) {
+        console.error('[talents GET] impact totals rpc error:', impactErr.message);
+      } else {
+        (impactRows ?? []).forEach((r: { user_id: string; impact_eur: number | string }) => {
+          impactMap.set(r.user_id, Number(r.impact_eur ?? 0));
+        });
+      }
+    } catch (e) { console.error('[talents GET] impact totals rpc exception:', e); }
+
     const talents = (profiles ?? []).map(p => ({
       ...p,
+      impact_eur: impactMap.get(p.id) ?? 0,
       wirker: wpMap.get(p.id) ?? null,
       displayName: p.display_name ?? p.username ?? '—',
     }));
