@@ -134,28 +134,27 @@ export function ReportsView({ role }: { role: 'superadmin' | 'employee' }) {
     <DashboardLayout
       employeeMode={role === 'employee'}
       title="Automatische Reports"
-      headerActions={
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          
+    >
       <PageHeader
         title="Reports"
         subtitle={role === 'employee' ? 'Berichte & Auswertungen' : 'Automatisierte Berichte'}
         actionsRole={role === 'employee' ? 'employee' : 'admin'}
         userRole={userRole}
+        actions={
+          <>
+            {tabBtn('monthly', 'Monatlich')} {tabBtn('weekly', 'Wöchentlich')}
+            <select value={periods} onChange={e => setPeriods(Number(e.target.value))} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', outline: 'none' }}>
+              <option value={3}>3 Perioden</option>
+              <option value={6}>6 Perioden</option>
+              <option value={12}>12 Perioden</option>
+            </select>
+            <button onClick={downloadReport} disabled={!data} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>📥 Download</button>
+            <button onClick={() => setShowEmail(p => !p)} style={{ padding: '5px 12px', background: 'var(--accent)', border: 'none', borderRadius: 8, fontSize: 11, color: '#0F1117', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-body)' }}>📨 Senden</button>
+            <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
+          </>
+        }
       />
 
-{tabBtn('monthly', 'Monatlich')} {tabBtn('weekly', 'Wöchentlich')}
-          <select value={periods} onChange={e => setPeriods(Number(e.target.value))} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', outline: 'none' }}>
-            <option value={3}>3 Perioden</option>
-            <option value={6}>6 Perioden</option>
-            <option value={12}>12 Perioden</option>
-          </select>
-          <button onClick={downloadReport} disabled={!data} style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>📥 Download</button>
-          <button onClick={() => setShowEmail(p => !p)} style={{ padding: '5px 12px', background: 'var(--accent)', border: 'none', borderRadius: 8, fontSize: 11, color: '#0F1117', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-body)' }}>📨 Senden</button>
-          <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
-        </div>
-      }
-    >
       {/* Send modal */}
       {showEmail && (
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--accent)', borderRadius: 12, padding: 18, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', animation: 'fadeIn 0.2s ease-out' }}>

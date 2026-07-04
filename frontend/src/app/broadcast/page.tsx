@@ -130,25 +130,22 @@ export default function BroadcastPage() {
   };
 
   return (
-    <DashboardLayout
-      title="Broadcast — Push-Benachrichtigungen"
-      headerActions={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          
+    <DashboardLayout title="Broadcast — Push-Benachrichtigungen">
       <PageHeader
         title="Broadcast"
         subtitle="Nachrichten an alle Nutzer senden"
         actionsRole="superadmin"
         userRole={userRole}
+        actions={
+          <>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
+              📨 {history.length} gesendet
+            </span>
+            <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
+          </>
+        }
       />
 
-<span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
-            📨 {history.length} gesendet
-          </span>
-          <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
-        </div>
-      }
-    >
       {/* ── Stats Row ── */}
       <div className="grid-4" style={{ marginBottom: 16 }}>
         {[

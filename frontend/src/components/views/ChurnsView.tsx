@@ -129,26 +129,25 @@ export function ChurnsView({ role }: { role: 'superadmin' | 'employee' }) {
     <DashboardLayout
       employeeMode={role === 'employee'}
       title="Kündigungen"
-      headerActions={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          
+    >
       <PageHeader
         title="Kündigungen"
         subtitle="Abgelaufene Mitgliedschaften"
         actionsRole={role === 'employee' ? 'employee' : 'admin'}
         userRole={userRole}
+        actions={
+          <>
+            <select value={period} onChange={e => setPeriod(e.target.value as FilterPeriod)} style={{ ...input, fontSize: 11 }}>
+              {(Object.keys(FILTER_LABELS) as FilterPeriod[]).map(k => <option key={k} value={k}>{FILTER_LABELS[k]}</option>)}
+            </select>
+            <button onClick={sendReengagement} style={{ padding: '5px 12px', background: 'var(--accent)', border: 'none', borderRadius: 8, fontSize: 11, color: '#0F1117', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-body)' }}>
+              📨 Re-Engagement senden
+            </button>
+            <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
+          </>
+        }
       />
 
-<select value={period} onChange={e => setPeriod(e.target.value as FilterPeriod)} style={{ ...input, fontSize: 11 }}>
-            {(Object.keys(FILTER_LABELS) as FilterPeriod[]).map(k => <option key={k} value={k}>{FILTER_LABELS[k]}</option>)}
-          </select>
-          <button onClick={sendReengagement} style={{ padding: '5px 12px', background: 'var(--accent)', border: 'none', borderRadius: 8, fontSize: 11, color: '#0F1117', cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--font-body)' }}>
-            📨 Re-Engagement senden
-          </button>
-          <button onClick={load} style={{ padding: '5px 10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>↻</button>
-        </div>
-      }
-    >
       {/* Stats */}
       <div className="grid-3" style={{ marginBottom: 16 }}>
         {[

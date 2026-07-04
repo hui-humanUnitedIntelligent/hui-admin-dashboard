@@ -85,17 +85,13 @@ export default function AnalyticsPage() {
   const db = useDashboard(30000);
 
   return (
-    <DashboardLayout
-      title="Analytics"
-      headerActions={
-        <PageHeader
-          title="Analytics"
-          subtitle="Verteilungs-Kuchendiagramme · komplette App-Aktivität"
-          actionsRole="superadmin"
-          userRole={userRole}
-        />
-      }
-    >
+    <DashboardLayout title="Analytics">
+      <PageHeader
+        title="Analytics"
+        subtitle="Verteilungs-Kuchendiagramme · komplette App-Aktivität"
+        actionsRole="superadmin"
+        userRole={userRole}
+      />
       <div style={{
         background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 10,
         padding: '10px 14px', fontSize: 12, color: 'var(--accent)', marginBottom: 16,

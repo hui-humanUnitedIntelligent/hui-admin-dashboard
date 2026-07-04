@@ -97,21 +97,22 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
     <DashboardLayout
       employeeMode={role === 'employee'}
       title="Transaktionen & Zahlungen"
-      headerActions={
-        <button
-          onClick={refetch}
-          style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5 }}
-        >
-          <PageHeader
-            title="Transaktionen"
-            subtitle={role === 'employee' ? 'Zahlungs-Übersicht' : 'Alle Zahlungen & Buchungen'}
-            actionsRole={role === 'employee' ? 'employee' : 'admin'}
-            userRole={userRole}
-          />
-          ↻ Live Refresh
-        </button>
-      }
     >
+      <PageHeader
+        title="Transaktionen"
+        subtitle={role === 'employee' ? 'Zahlungs-Übersicht' : 'Alle Zahlungen & Buchungen'}
+        actionsRole={role === 'employee' ? 'employee' : 'admin'}
+        userRole={userRole}
+        actions={
+          <button
+            onClick={refetch}
+            style={{ padding: '5px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            ↻ Live Refresh
+          </button>
+        }
+      />
+
       {/* ── Summary Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 18 }} className="grid-4">
         {[
