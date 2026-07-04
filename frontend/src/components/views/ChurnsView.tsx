@@ -128,12 +128,12 @@ export function ChurnsView({ role }: { role: 'superadmin' | 'employee' }) {
   return (
     <DashboardLayout
       employeeMode={role === 'employee'}
-      title="Kündigungen & Churns"
+      title="Kündigungen"
       headerActions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           
       <PageHeader
-        title="Churns"
+        title="Kündigungen"
         subtitle="Abgelaufene Mitgliedschaften"
         actionsRole={role === 'employee' ? 'employee' : 'admin'}
         userRole={userRole}
@@ -204,7 +204,7 @@ export function ChurnsView({ role }: { role: 'superadmin' | 'employee' }) {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
-                  Keine Churns im gewählten Zeitraum
+                  Keine Kündigungen im gewählten Zeitraum
                 </td></tr>
               ) : filtered.map(u => {
                 const lastSeenDays = daysSince(u.last_seen);

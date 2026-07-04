@@ -71,7 +71,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/tickets',   label_de: 'Support-Tickets', label_en: 'Support Tickets', icon: '🎫', roles: ['superadmin'] },
       { href: '/reports',   label_de: 'Reports',         label_en: 'Reports',         icon: '📊', roles: ['superadmin'] },
       { href: '/flags',     label_de: 'Feature-Flags',   label_en: 'Feature Flags',   icon: '🚩', roles: ['superadmin'], superadminOnly: true },
-      { href: '/churns',    label_de: 'Churns & Kündig.',label_en: 'Churns',          icon: '📉', roles: ['superadmin'] },
+      { href: '/churns',    label_de: 'Kündigungen',label_en: 'Churns',          icon: '📉', roles: ['superadmin'] },
     ],
   },
   {
@@ -125,7 +125,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     icon: '🛠️',
     items: [
       { href: '/employee/reports', label_de: 'Reports',          label_en: 'Reports', icon: '📊', roles: ['superadmin'] },
-      { href: '/employee/churns',  label_de: 'Churns & Kündig.', label_en: 'Churns',  icon: '📉', roles: ['superadmin'] },
+      { href: '/employee/churns',  label_de: 'Kündigungen', label_en: 'Churns',  icon: '📉', roles: ['superadmin'] },
     ],
   },
   {
