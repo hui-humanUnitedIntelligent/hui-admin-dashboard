@@ -7,6 +7,22 @@ import { getServiceClient } from '@/app/lib/supabase-server';
 import { APPLICATION_STATUS, ApplicationStatus, ALLOWED_STATUS_TRANSITIONS } from '@/lib/impact-status';
 // ─────────────────────────────────────────────────────────────────────────────
 
+// 'reviewed_by'/'actor_id' sind uuid-Spalten -- niemals einen Nicht-UUID-Fallback wie 'admin'
+// hineinschreiben (crasht mit Postgres 22P02). Liest den echten Nutzer aus dem bereits von
+// guardSuperAdmin geprueften 'hui_admin_token'-Cookie (gleiches Muster wie validateCookie()
+// in auth-guard.ts), ohne zusaetzlichen Supabase-Roundtrip. Gibt null zurueck wenn nicht lesbar --
+// dann bleibt reviewed_by/actor_id explizit ungesetzt statt eines falschen Platzhalters.
+function getAdminIdFromCookie(req: NextRequest): string | null {
+  const token = req.cookies.get('hui_admin_token')?.value;
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── PATCH: Status-Update + activity_log ─────────────────────────────────────
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await guardSuperAdmin(req);
@@ -48,15 +64,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       }
     }
 
-    // Admin-User aus Auth-Header ermitteln
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const token = authHeader.replace('Bearer ', '');
-    const anonSb = (await import('@/app/lib/supabase-server')).getAnonClient();
-    const { data: { user: adminUser } } = await anonSb.auth.getUser(token);
-    const adminId = adminUser?.id ?? 'admin';
+    // Admin-User-ID aus dem 'hui_admin_token'-Cookie lesen (gleiches Muster wie
+    // validateCookie() in auth-guard.ts: JWT 'sub'-Claim ohne Extra-Roundtrip dekodieren).
+    // Vorher: Versuch ueber einen nie gesendeten 'Authorization'-Header + getUser() --
+    // adminId landete IMMER beim Fallback-String 'admin', der als 'reviewed_by' (Spaltentyp
+    // uuid) jeden Request mit Postgres-Fehler 22P02 crashen liess (500, jede Freigabe/Ablehnung
+    // betroffen).
+    const adminId = getAdminIdFromCookie(req);
 
     // Update-Payload zusammenbauen
-    const updatePayload: Record<string, unknown> = { updated_at: now };
+    // Hinweis: 'impact_applications' hat KEINE 'updated_at'-Spalte (verifiziert per Schema-Check) -- 
+    // Feld zuvor faelschlich immer gesetzt, liess JEDE Freigabe/Ablehnung mit PGRST204 crashen (500).
+    const updatePayload: Record<string, unknown> = {};
     if (status) {
       updatePayload.status      = status;
       updatePayload.reviewed_at = now;
@@ -118,11 +137,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const { data: existing } = await sb
       .from('impact_applications').select('id,project_name,user_id,status').eq('id', id).single();
 
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const token = authHeader.replace('Bearer ', '');
-    const anonSb = (await import('@/app/lib/supabase-server')).getAnonClient();
-    const { data: { user: adminUser } } = await anonSb.auth.getUser(token);
-    const adminId = adminUser?.id ?? 'admin';
+    const adminId = getAdminIdFromCookie(req);
 
     const { error } = await sb.from('impact_applications').delete().eq('id', id);
     if (error) throw error;
