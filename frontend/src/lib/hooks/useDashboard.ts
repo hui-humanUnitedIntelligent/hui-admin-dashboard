@@ -30,7 +30,7 @@ export interface DashboardData {
     bookingDistribution: { work: number; talent: number; project: number };
     purchaseDistribution: { work: number; talent: number; project: number; donation: number; subscription: number };
     impactDistribution: { work: number; talent: number; project: number; donation: number };
-    ambassadorTiers: { bronze: number; silber: number; gold: number; platin: number };
+    ambassadorTiers: { starter: number; bronze: number; silver: number; gold: number };
     paymentStatusDistribution: { succeeded: number; pending: number; failed: number; refunded: number };
   };
   loading:     boolean;
@@ -69,7 +69,7 @@ const EMPTY: Omit<DashboardData, 'refetch'> = {
     bookingDistribution: { work: 0, talent: 0, project: 0 },
     purchaseDistribution: { work: 0, talent: 0, project: 0, donation: 0, subscription: 0 },
     impactDistribution: { work: 0, talent: 0, project: 0, donation: 0 },
-    ambassadorTiers: { bronze: 0, silber: 0, gold: 0, platin: 0 },
+    ambassadorTiers: { starter: 0, bronze: 0, silver: 0, gold: 0 },
     paymentStatusDistribution: { succeeded: 0, pending: 0, failed: 0, refunded: 0 },
   },
   loading: true, error: null, lastUpdated: null,

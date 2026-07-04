@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
+import { calcLevel } from '@/lib/ambassador-levels';
 
 // ARCH-006.1 Analytics-Konsolidierung: guardEmployee statt guardAdmin, damit SADB
 // und EDB dieselbe Single-Source-of-Truth-Route nutzen koennen (keine zweite,
@@ -261,13 +262,25 @@ export async function GET(req: NextRequest) {
       refunded:  allPayments.filter(p => p.status === 'refunded' || p.status === 'partially_refunded').length,
     };
 
-    // 7) Ambassador-Tier-Verteilung — je Ambassador der jeweils aktuellste (neueste) Tier-Stand
-    const latestTierByAmbassador = new Map<string, string>();
-    (ambassadorCommissionsRes.data ?? []).forEach(row => {
-      if (!latestTierByAmbassador.has(row.ambassador_id) && row.tier) latestTierByAmbassador.set(row.ambassador_id, row.tier);
+    // 7) Ambassador-Tier-Verteilung — BUGFIX (2026-07-04): vorher aus dem stalen
+    // 'tier'-Snapshot der letzten Provision berechnet, mit veralteten Level-Namen
+    // (bronze/silber/gold/platin) -- passte nicht mehr zum aktuellen Schema
+    // (starter/bronze/silver/gold, siehe lib/ambassador-levels.ts). Zwei Folgen:
+    // 'starter' wurde nie gezählt (Key fehlte komplett), 'silver' wurde nie gezählt
+    // (Key hieß 'silber'), und Ambassadors ganz OHNE Provision (z.B. Lars/4visionglobal)
+    // tauchten im Chart gar nicht auf, weil sie keine Commission-Zeile haben.
+    // Fix: Level jetzt live aus der tatsächlichen Referral-Anzahl berechnet (SSOT,
+    // gleiche calcLevel()-Funktion wie überall sonst im System) für JEDEN Ambassador,
+    // unabhängig davon ob er je eine Provision erhalten hat.
+    const referralCountByAmbassador = new Map<string, number>();
+    profiles.forEach(p => {
+      if (p.referred_by) referralCountByAmbassador.set(p.referred_by, (referralCountByAmbassador.get(p.referred_by) ?? 0) + 1);
     });
-    const ambassadorTiers = { bronze: 0, silber: 0, gold: 0, platin: 0 } as Record<string, number>;
-    latestTierByAmbassador.forEach(tier => { if (tier in ambassadorTiers) ambassadorTiers[tier]++; });
+    const ambassadorTiers = { starter: 0, bronze: 0, silver: 0, gold: 0 } as Record<string, number>;
+    profiles.filter(p => p.is_ambassador).forEach(p => {
+      const level = calcLevel(referralCountByAmbassador.get(p.id) ?? 0);
+      ambassadorTiers[level]++;
+    });
 
     // Impact Pool: live aus stripe_impact_pool (aktueller Monat) — keine lokale Berechnung
     // ADMIN-DASH-FIX (2026-07-04): stripe_impact_pool hat SEIT dem Entfernen des

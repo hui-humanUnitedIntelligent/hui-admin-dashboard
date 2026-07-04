@@ -181,10 +181,10 @@ export default function AnalyticsPage() {
           <div>
             {pieCard('🤝', 'Ambassador-Tier-Verteilung', (
               <Donut segments={[
-                { label: 'Bronze', value: db.pieData.ambassadorTiers.bronze, color: '#CD7F32' },
-                { label: 'Silber', value: db.pieData.ambassadorTiers.silber, color: '#C0C0C0' },
-                { label: 'Gold',   value: db.pieData.ambassadorTiers.gold,   color: '#F7B731' },
-                { label: 'Platin', value: db.pieData.ambassadorTiers.platin, color: '#5C7CFA' },
+                { label: 'Starter', value: db.pieData.ambassadorTiers.starter, color: '#69DB7C' },
+                { label: 'Bronze',  value: db.pieData.ambassadorTiers.bronze,  color: '#CD7F32' },
+                { label: 'Silber',  value: db.pieData.ambassadorTiers.silver, color: '#C0C0C0' },
+                { label: 'Gold',    value: db.pieData.ambassadorTiers.gold,    color: '#F7B731' },
               ]} />
             ))}
           </div>
