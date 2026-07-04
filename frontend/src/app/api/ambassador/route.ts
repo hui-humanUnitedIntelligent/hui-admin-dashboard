@@ -272,15 +272,23 @@ export async function GET(req: NextRequest) {
     // Live-Umsatz: Single Source of Truth ist stripe_payments.ambassador_id (ARCH-006.1)
     // Ersetzt das nie befüllte Shadow-Feld profile_modules.ambassador.revenue_generated
     const revenueMap: Record<string, number> = {};
+    // Live-Impact: gleiche Quelle/Zeilen wie Umsatz, aber impact_pool_share statt amount —
+    // ersetzt das tote profiles.impact_eur (nie beschrieben, immer 0). Zeigt den Impact-Anteil
+    // (15% der Gebühr, siehe rpc_process_order_fees), der aus den DIESEM Ambassador zugeordneten
+    // (referral-getriggerten) Transaktionen entstand — analog/parallel zu revenueMap, nicht die
+    // persönliche Käufer/Verkäufer-Impact-Summe (das ist rpc_get_user_impact_totals für User-Mgmt).
+    const impactAttributedMap: Record<string, number> = {};
     if (ambassadorIds.length > 0) {
       const { data: ambPayments } = await sb
         .from('stripe_payments')
-        .select('ambassador_id, amount')
+        .select('ambassador_id, amount, impact_pool_share')
         .in('ambassador_id', ambassadorIds)
         .eq('status', 'succeeded');
       for (const pay of (ambPayments ?? [])) {
-        const aid = (pay as { ambassador_id: string; amount: number }).ambassador_id;
-        revenueMap[aid] = (revenueMap[aid] ?? 0) + (pay as { amount: number }).amount / 100;
+        const aid = (pay as { ambassador_id: string; amount: number; impact_pool_share: number | null }).ambassador_id;
+        const p = pay as { ambassador_id: string; amount: number; impact_pool_share: number | null };
+        revenueMap[aid] = (revenueMap[aid] ?? 0) + p.amount / 100;
+        impactAttributedMap[aid] = (impactAttributedMap[aid] ?? 0) + (p.impact_pool_share ?? 0) / 100;
       }
     }
 
@@ -312,7 +320,7 @@ export async function GET(req: NextRequest) {
         email:         p.email ?? null,
         role:          p.role ?? 'ambassador',
         isWirker:      ['ambassador','talent','wirker'].includes(p.role ?? ''),
-        impactEur:     p.impact_eur ?? 0,
+        impactEur:     impactAttributedMap[p.id] ?? 0,
         createdAt:     p.created_at,
         // Autoritative Quelle: profiles.username → https://be-hui.com/<username>
         // ambassador_ref_links ist Fallback/Cache, aber Link wird immer aus username berechnet
