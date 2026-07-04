@@ -70,7 +70,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/broadcast', label_de: 'Broadcast',       label_en: 'Broadcast',       icon: '📨', roles: ['superadmin'], superadminOnly: true },
       { href: '/tickets',   label_de: 'Support-Tickets', label_en: 'Support Tickets', icon: '🎫', roles: ['superadmin'] },
       { href: '/reports',   label_de: 'Reports',         label_en: 'Reports',         icon: '📊', roles: ['superadmin'] },
-      { href: '/flags',     label_de: 'Feature-Flags',   label_en: 'Feature Flags',   icon: '🚩', roles: ['superadmin'], superadminOnly: true },
+      { href: '/flags',     label_de: 'Funktionsschalter',   label_en: 'Feature Flags',   icon: '🚩', roles: ['superadmin'], superadminOnly: true },
       { href: '/churns',    label_de: 'Kündigungen',label_en: 'Churns',          icon: '📉', roles: ['superadmin'] },
     ],
   },

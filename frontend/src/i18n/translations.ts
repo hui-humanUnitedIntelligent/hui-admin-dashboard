@@ -23,7 +23,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.broadcast':     'Broadcast',
     'nav.tickets':       'Support-Tickets',
     'nav.reports':       'Reports',
-    'nav.flags':         'Feature-Flags',
+    'nav.flags':         'Funktionsschalter',
     'nav.churns':        'Kündigungen',
     'nav.ambassadors':   'Ambassadors',
     'nav.admins':        'Admin-Verwaltung',

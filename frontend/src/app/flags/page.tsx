@@ -383,7 +383,7 @@ export default function FlagsPage() {
   return (
     <DashboardLayout>
       <PageHeader
-        title="Feature-Flags"
+        title="Funktionsschalter"
         subtitle="Plattform-Features steuern"
         actions={
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
@@ -416,7 +416,7 @@ export default function FlagsPage() {
         <div style={{ padding:'10px 14px', background:'rgba(78,205,196,0.06)',
           border:'1px solid rgba(78,205,196,0.2)', borderRadius:8, marginBottom:16,
           fontSize:12, color:'var(--text-secondary)', lineHeight:1.5 }}>
-          <strong style={{ color:'var(--accent)' }}>ℹ️ Feature-Flags</strong> — Schalte App-Funktionen ohne Code-Deploy ein/aus.
+          <strong style={{ color:'var(--accent)' }}>ℹ️ Funktionsschalter</strong> — Schalte App-Funktionen ohne Code-Deploy ein/aus.
           Änderungen wirken sofort für die gewählte Zielgruppe. Flags ohne DB-Persistenz werden beim nächsten Deploy zurückgesetzt.
         </div>
 
