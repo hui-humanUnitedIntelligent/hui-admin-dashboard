@@ -80,7 +80,7 @@ export default function MfaEnrollPage() {
               display: 'flex', justifyContent: 'center', marginBottom: 16,
             }}>
               <img
-                src={`data:image/svg+xml;utf-8,${encodeURIComponent(qrSvg)}`}
+                src={qrSvg}
                 alt="QR-Code für Authenticator-App"
                 width={200} height={200}
               />
