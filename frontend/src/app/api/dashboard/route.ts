@@ -6,6 +6,18 @@ import { getServiceClient } from '@/app/lib/supabase-server';
 // ARCH-006.1 Analytics-Konsolidierung: guardEmployee statt guardAdmin, damit SADB
 // und EDB dieselbe Single-Source-of-Truth-Route nutzen koennen (keine zweite,
 // separat berechnete Kennzahlen-Route mehr fuer Employees noetig -> /api/kpis entfernt).
+//
+// ADMIN-DASH-FIX (2026-07-04): Next.js cached GET-fetch-Aufrufe (die supabase-js
+// fuer .from().select() intern macht) standardmaessig, sofern die Route nicht
+// explizit als dynamisch/uncached markiert ist. rpc()-basierte Routes (z.B.
+// /api/transactions) sind davon nicht betroffen (POST, nie automatisch gecacht) --
+// deshalb aktualisierten sich Transaktionen live, das Dashboard hier aber nicht.
+// force-dynamic + force-no-store erzwingen bei JEDEM Request frische Daten,
+// passend zum "Live"-Badge/30s-Polling, das die UI bereits verspricht.
+export const dynamic    = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const guard = await guardEmployee(req);
   if (guard) return guard;
@@ -258,15 +270,21 @@ export async function GET(req: NextRequest) {
     latestTierByAmbassador.forEach(tier => { if (tier in ambassadorTiers) ambassadorTiers[tier]++; });
 
     // Impact Pool: live aus stripe_impact_pool (aktueller Monat) — keine lokale Berechnung
+    // ADMIN-DASH-FIX (2026-07-04): stripe_impact_pool hat SEIT dem Entfernen des
+    // fehlerhaften UNIQUE(month)-Constraints korrekterweise EINE ZEILE PRO BESTELLUNG
+    // (nicht mehr eine pro Monat) -- .maybeSingle() wirft jetzt PGRST116 ("contains N
+    // rows"), sobald mehr als 1 Bestellung im Monat existiert. Fix: alle Zeilen des
+    // Monats laden und summieren (gleiches Muster wie sumAmt() fuer bookingStats oben).
     const currentPoolMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const { data: poolRow } = await sb
+    const { data: poolRows } = await sb
       .from('stripe_impact_pool')
       .select('total_inflow, project_share, company_share')
-      .eq('month', currentPoolMonth)
-      .maybeSingle();
-    const impactPool     = (poolRow?.total_inflow   ?? 0) / 100; // Brutto-Pool (15% vom Umsatz)
-    const projectShareEur = (poolRow?.project_share ?? 0) / 100; // 15% davon → Projekte
-    const companyShareEur = (poolRow?.company_share ?? 0) / 100; // 85% davon → Firma
+      .eq('month', currentPoolMonth);
+    const sumPool = (field: 'total_inflow' | 'project_share' | 'company_share') =>
+      (poolRows ?? []).reduce((s, r) => s + (r[field] ?? 0), 0);
+    const impactPool      = sumPool('total_inflow')  / 100; // Brutto-Pool (15% vom Umsatz)
+    const projectShareEur = sumPool('project_share') / 100; // 15% davon → Projekte
+    const companyShareEur = sumPool('company_share') / 100; // 85% davon → Firma
 
     // ── Growth Chart ─────────────────────────────────────────────────────────
     const growthData = growthRes.data ?? [];
