@@ -61,6 +61,16 @@ const TABS: TabConfig[] = [
       { key: 'status',        label: 'Status',      width: 100 },
     ],
   },
+  { key: 'talents', label: 'Talente', icon: '🌟',
+    cols: [
+      { key: 'created_at',       label: 'Zeit',      width: 130 },
+      { key: 'title',            label: 'Angebot' },
+      { key: 'category',         label: 'Kategorie', width: 150 },
+      { key: 'location_type',    label: 'Ort',        width: 90 },
+      { key: 'status',           label: 'Status',    width: 100 },
+      { key: 'price_per_hour',   label: 'Preis/Std', width: 90 },
+    ],
+  },
   { key: 'reviews', label: 'Website Reviews', icon: '⭐',
     cols: [
       { key: 'created_at', label: 'Zeit',    width: 130 },
@@ -91,7 +101,7 @@ function fmtVal(col: string, v: unknown): string {
   if (col === 'created_at') return fmtTime(v);
   if (typeof v === 'boolean') return v ? 'ja' : 'nein';
   if (col === 'user_id' || col === 'chat_id') return String(v).slice(0, 8) + '…';
-  if (col === 'price_eur' || col === 'price') {
+  if (col === 'price_eur' || col === 'price' || col === 'price_per_hour') {
     const n = parseFloat(String(v));
     return isNaN(n) ? '—' : `€ ${n.toFixed(2)}`;
   }

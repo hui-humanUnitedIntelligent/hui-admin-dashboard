@@ -70,6 +70,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, data: data ?? [], total: count ?? 0 });
     }
 
+    // ── Talente (Angebote/Dienstleistungen, TALENT-OFFERS-001/TALENT-SERVICES-001) ──
+    if (tab === 'talents') {
+      let q = sb.from('talents')
+        .select('id,user_id,title,category,status,location_type,price_per_hour,price_per_session,created_at', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (search) q = q.or(`title.ilike.%${search}%,category.ilike.%${search}%`);
+      const { data, error, count } = await q;
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, data: data ?? [], total: count ?? 0 });
+    }
+
     // ── Messages / Chats ──────────────────────────────────────────────────
     if (tab === 'messages') {
       const { data, error, count } = await sb.from('messages')
