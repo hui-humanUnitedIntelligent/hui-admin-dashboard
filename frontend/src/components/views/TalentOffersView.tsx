@@ -123,7 +123,7 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
   const [items, setItems] = useState<TalentOffer[]>([]);
   const [counts, setCounts] = useState({ all: 0, pending: 0, approved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<StatusTab>('pending');
+  const [tab, setTab] = useState<StatusTab>('all'); // Nutzeranfrage 2026-07-05: 'Alle' immer zuerst anzeigen
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<TalentOffer | null>(null);
   const [toast, setToast] = useState('');
