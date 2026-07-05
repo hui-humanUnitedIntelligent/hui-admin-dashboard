@@ -22,6 +22,23 @@ interface TalentOffer {
   created_at: string;
   updated_at: string;
   author: { display_name?: string; username?: string; avatar_url?: string; email?: string } | null;
+  // Dienstleistungsfelder (MASTER-PROMPT 2026-07-05, additiv, siehe Migration 20260705_061)
+  price_per_hour: number | null;
+  price_per_session: number | null;
+  currency: string | null;
+  location_type: 'online' | 'vor_ort' | 'hybrid' | null;
+  location_address: string | null;
+  location_notes: string | null;
+  map_link: string | null;
+  available_dates: string[] | null;
+  available_time_slots: { start: string; end: string }[] | null;
+  recurring: 'weekly' | 'monthly' | null;
+  duration_minutes: number | null;
+  max_participants: number | null;
+  min_participants: number | null;
+  booking_type: 'einzel' | 'gruppe' | null;
+  booking_window_start: string | null;
+  booking_window_end: string | null;
 }
 
 type StatusTab = 'all' | 'pending' | 'approved' | 'rejected';
@@ -35,6 +52,67 @@ function timeAgo(iso: string) {
   if (d === 0) return 'Heute';
   if (d < 30) return `Vor ${d}d`;
   return `Vor ${Math.floor(d / 30)}mo`;
+}
+
+// ── Dienstleistungsdetails-Block (MASTER-PROMPT 2026-07-05) ──────────────
+// Kompakte, gruppierte Read-Only-Anzeige aller neuen Felder — identisch fuer
+// Superadmin (im Freigabe-Drawer) und Employee (Read-Only-Ansicht), da die
+// gesamte TalentOffersView bereits rollenbasiert rendert (isAdmin gated nur
+// die Aktions-Buttons, nicht die Anzeige).
+const LOCATION_LABEL: Record<string, string> = { online: 'Online', vor_ort: 'Vor Ort', hybrid: 'Hybrid' };
+const RECURRING_LABEL: Record<string, string> = { weekly: 'Wöchentlich', monthly: 'Monatlich' };
+const BOOKING_LABEL: Record<string, string> = { einzel: 'Einzelbuchung', gruppe: 'Gruppenbuchung' };
+
+function DetailRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value === undefined || value === null || value === '') return null;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5 }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: 'right' }}>{value}</span>
+    </div>
+  );
+}
+
+function ServiceDetailBlock({ offer }: { offer: TalentOffer }) {
+  const hasPrice = offer.price_per_hour != null || offer.price_per_session != null;
+  const hasLocation = !!offer.location_type || !!offer.location_address;
+  const hasSchedule = (offer.available_dates?.length ?? 0) > 0 || (offer.available_time_slots?.length ?? 0) > 0 || !!offer.recurring || !!offer.duration_minutes;
+  const hasCapacity = !!offer.booking_type || offer.max_participants != null || offer.min_participants != null || !!offer.booking_window_start;
+
+  if (!hasPrice && !hasLocation && !hasSchedule && !hasCapacity) return null;
+
+  const section = (title: string, children: React.ReactNode) => (
+    <div style={{ marginBottom: 12, background: 'var(--bg-tertiary)', borderRadius: 10, padding: '10px 12px' }}>
+      <div style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 4 }}>{title}</div>
+      {children}
+    </div>
+  );
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {hasPrice && section('Preis', <>
+        <DetailRow label="Pro Stunde" value={offer.price_per_hour != null ? `${offer.price_per_hour} ${offer.currency || 'EUR'}` : undefined} />
+        <DetailRow label="Pro Termin/Session" value={offer.price_per_session != null ? `${offer.price_per_session} ${offer.currency || 'EUR'}` : undefined} />
+      </>)}
+      {hasLocation && section('Ort', <>
+        <DetailRow label="Art" value={offer.location_type ? LOCATION_LABEL[offer.location_type] : undefined} />
+        <DetailRow label="Adresse" value={offer.location_address} />
+        <DetailRow label="Hinweise" value={offer.location_notes} />
+        {offer.map_link && <DetailRow label="Karte" value={<a href={offer.map_link} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Link öffnen</a>} />}
+      </>)}
+      {hasSchedule && section('Datum & Zeiten', <>
+        <DetailRow label="Termine" value={offer.available_dates && offer.available_dates.length > 0 ? offer.available_dates.join(', ') : undefined} />
+        <DetailRow label="Zeitfenster" value={offer.available_time_slots && offer.available_time_slots.length > 0 ? offer.available_time_slots.map(s => `${s.start}–${s.end}`).join(', ') : undefined} />
+        <DetailRow label="Wiederholung" value={offer.recurring ? RECURRING_LABEL[offer.recurring] : undefined} />
+        <DetailRow label="Dauer" value={offer.duration_minutes ? `${offer.duration_minutes} Min.` : undefined} />
+      </>)}
+      {hasCapacity && section('Kapazität & Buchbarkeit', <>
+        <DetailRow label="Buchungsart" value={offer.booking_type ? BOOKING_LABEL[offer.booking_type] : undefined} />
+        <DetailRow label="Teilnehmer" value={(offer.min_participants || offer.max_participants) ? `${offer.min_participants ?? '–'}–${offer.max_participants ?? '–'}` : undefined} />
+        <DetailRow label="Buchungszeitraum" value={(offer.booking_window_start || offer.booking_window_end) ? `${offer.booking_window_start ? new Date(offer.booking_window_start).toLocaleDateString('de-DE') : '–'} – ${offer.booking_window_end ? new Date(offer.booking_window_end).toLocaleDateString('de-DE') : '–'}` : undefined} />
+      </>)}
+    </div>
+  );
 }
 
 export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) {
@@ -213,6 +291,9 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
                 Ablehnungsgrund: {selected.rejection_reason}
               </div>
             )}
+
+            {/* ── Dienstleistungsdetails (MASTER-PROMPT 2026-07-05, Read-Only fuer beide Rollen — Bearbeitung nur in der App) ── */}
+            <ServiceDetailBlock offer={selected} />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--border)', fontSize: 13 }}>
               <span style={{ color: 'var(--text-muted)' }}>Anbieter</span>

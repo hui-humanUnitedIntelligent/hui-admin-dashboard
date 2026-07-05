@@ -99,12 +99,13 @@ export async function PATCH(req: NextRequest) {
     if (error) return serverError(error, 'talent-offers PATCH');
 
     // Leichtgewichtiges Event-Log (notification_events, gleiches Muster wie andere Admin-Aktionen).
-    // Kein Aufruf der Resonanz-/Matching-RPCs (compute_match_scores etc.) — die bleiben bewusst
-    // unimplementiert (siehe Memory #467), hier nur ein einfacher Status-Change-Log.
+    // Event-Namen 'talent.service.approved'/'talent.service.rejected' (MASTER-PROMPT 2026-07-05,
+    // 'Resonanzzentrum-Trigger'). Kein Aufruf der Resonanz-/Matching-RPCs (compute_match_scores etc.)
+    // — die bleiben bewusst unimplementiert (siehe Memory #467), hier nur ein einfacher Status-Change-Log.
     try {
       await sb.from('notification_events').insert({
         user_id: data.user_id,
-        event_type: _action === 'approve_talent' ? 'talent_approved' : 'talent_rejected',
+        event_type: _action === 'approve_talent' ? 'talent.service.approved' : 'talent.service.rejected',
         payload: { talent_id: id, title: data.title, rejection_reason: data.rejection_reason ?? null },
         created_at: new Date().toISOString(),
       });
