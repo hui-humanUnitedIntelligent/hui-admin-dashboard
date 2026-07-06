@@ -57,7 +57,7 @@ function DetailPanel({ booking, loadingDetail }: { booking: HuiBooking; loadingD
 
     ['Typ', TYPE_LABEL[booking.type || 'work'] || booking.type],
     ['Werk/Talent/Projekt', booking.item_title
-      ? <a key="it" href={booking.type === 'project' ? '/impact-projekte' : '/works'} style={{ color: 'var(--accent)' }}>{booking.item_title}</a>
+      ? <a key="it" href={booking.type === 'project' ? '/impact-projekte' : booking.type === 'talent' ? '/talent-offers' : '/works'} style={{ color: 'var(--accent)' }}>{booking.item_title}</a>
       : '—'],
 
     ['Zahlungs-ID (Stripe)', stripeUrl
