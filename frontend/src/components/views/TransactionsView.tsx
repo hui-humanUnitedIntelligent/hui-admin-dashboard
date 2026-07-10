@@ -25,6 +25,20 @@ const CATEGORY_LABEL: Record<string, string> = {
   work: 'Werk', talent: 'Talent', project: 'Projekt', donation: 'Spende', one_time: 'Einmalig',
 };
 
+/** Extrahiert das Impact-Zielprojekt aus dem Metadaten-Objekt einer Transaktion.
+ *  Die Impact-Engine schreibt in metadata.impact_distribution.distributions ein
+ *  Array mit { project_name, amount_eur, share_pct }.  P1 (Index 0) ist der
+ *  Top-Empfänger (50 % Anteil) — dieser wird in der Tabellen-Spalte gezeigt. */
+function getImpactProject(t: HuiTransaction): string | null {
+  const dists = (t.metadata as Record<string, unknown> | null)?.impact_distribution as
+    { distributions?: { project_name?: string }[] } | undefined;
+  const p1 = dists?.distributions?.[0]?.project_name;
+  if (p1) return p1;
+  // Fallback: generisches project_title-Feld (falls von RPC gesetzt)
+  if (t.project_title) return t.project_title;
+  return null;
+}
+
 function recordTypeBadge(t: HuiTransaction) {
   const label = t.record_type === 'payment' ? (CATEGORY_LABEL[t.category] || t.category) : CATEGORY_LABEL[t.record_type];
   const color =
@@ -42,7 +56,7 @@ function recordTypeBadge(t: HuiTransaction) {
 function Skeleton() {
   return (
     <tr>
-      {[...Array(9)].map((_, i) => (
+      {[...Array(10)].map((_, i) => (
         <td key={i} style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ height: 11, background: 'var(--bg-tertiary)', borderRadius: 4, animation: 'pulse 2s ease-in-out infinite', width: `${40 + (i * 10) % 40}%` }} />
         </td>
@@ -53,6 +67,8 @@ function Skeleton() {
 
 const STATUS_FILTERS = ['all', 'completed', 'pending', 'failed', 'refund', 'subscription'];
 const CATEGORY_FILTERS = ['work', 'talent', 'project', 'donation'];
+
+const TABLE_HEADERS = ['ID', 'Typ', 'Betrag', 'Impact-Anteil', 'Projekt', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'];
 
 export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) {
   const { currentUser } = useAuth();
@@ -92,6 +108,8 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
     refund: 'Refunds', subscription: 'Abos',
     work: 'Werke', talent: 'Talente', project: 'Projekte', donation: 'Spenden',
   };
+
+  const tdBase: React.CSSProperties = { padding: '10px 14px', borderBottom: '1px solid var(--border)' };
 
   return (
     <DashboardLayout
@@ -172,7 +190,7 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                {['ID', 'Typ', 'Betrag', 'Impact/Provision', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'].map((h) => (
+                {TABLE_HEADERS.map((h) => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                     {h}
                   </th>
@@ -184,47 +202,55 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
                 <><Skeleton /><Skeleton /><Skeleton /><Skeleton /><Skeleton /></>
               ) : sortedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                  <td colSpan={TABLE_HEADERS.length} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
                     Keine Zahlungen gefunden
                   </td>
                 </tr>
               ) : (
-                sortedPayments.map((p) => (
-                  <tr
-                    key={p.row_id}
-                    className="tr-hover"
-                    onClick={() => setSelected(p === selected ? null : p)}
-                    style={{ background: selected?.row_id === p.row_id ? 'var(--accent-dim)' : 'transparent', cursor: 'pointer' }}
-                  >
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10, borderBottom: '1px solid var(--border)' }}>
-                      {p.row_id.slice(0, 10)}…
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                      {recordTypeBadge(p)}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
-                      €{(p.amount || 0).toFixed(2)}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
-                      {p.impact_share != null ? `€${p.impact_share.toFixed(2)}` : p.commission_amount != null ? `€${p.commission_amount.toFixed(2)}` : '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                      {statusToBadge(p.status)}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid var(--border)' }}>
-                      {p.currency || 'eur'}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
-                      {p.user_name || p.user_username || '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
-                      {p.ambassador_name || p.ambassador_username || '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 11, borderBottom: '1px solid var(--border)' }}>
-                      {timeAgo(p.created_at)}
-                    </td>
-                  </tr>
-                ))
+                sortedPayments.map((p) => {
+                  const impactProject = getImpactProject(p);
+                  return (
+                    <tr
+                      key={p.row_id}
+                      className="tr-hover"
+                      onClick={() => setSelected(p === selected ? null : p)}
+                      style={{ background: selected?.row_id === p.row_id ? 'var(--accent-dim)' : 'transparent', cursor: 'pointer' }}
+                    >
+                      <td style={{ ...tdBase, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+                        {p.row_id.slice(0, 10)}…
+                      </td>
+                      <td style={tdBase}>
+                        {recordTypeBadge(p)}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500 }}>
+                        €{(p.amount || 0).toFixed(2)}
+                      </td>
+                      {/* Impact-Anteil — aus stripe_payments.impact_fee_eur (RPC-Feld: impact_share) */}
+                      <td style={{ ...tdBase, color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                        {p.impact_share != null ? `€${p.impact_share.toFixed(2)}` : '—'}
+                      </td>
+                      {/* Projekt — welchem Impact-Projekt wurde dieser Anteil zugewiesen (P1 / 50 %) */}
+                      <td style={{ ...tdBase, color: 'var(--text-secondary)', fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={impactProject ?? undefined}>
+                        {impactProject ?? '—'}
+                      </td>
+                      <td style={tdBase}>
+                        {statusToBadge(p.status)}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase' }}>
+                        {p.currency || 'eur'}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--text-secondary)', fontSize: 11 }}>
+                        {p.user_name || p.user_username || '—'}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--text-secondary)', fontSize: 11 }}>
+                        {p.ambassador_name || p.ambassador_username || '—'}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--text-muted)', fontSize: 11 }}>
+                        {timeAgo(p.created_at)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

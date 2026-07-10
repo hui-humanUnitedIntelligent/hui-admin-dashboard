@@ -138,14 +138,29 @@ async function sendResonanzNotification(
 interface ImpactRanking {
   project_id: string;
   project_name: string;
+  short_desc: string | null;
   funding_goal: number;
   current_amount: number;
   vote_count: number;
   rank: number | null;
   share_pct: number | null;
   is_completed: boolean;
+  status: string;
+  applicant_name: string | null;
   cover_url: string | null;
   contact_email: string | null;
+  created_at: string | null;
+  reviewed_at: string | null;
+}
+
+interface RankingResponse {
+  ok: boolean;
+  ranking: ImpactRanking[];
+  month_total_eur: number;
+  month_by_project: Record<string, number>;
+  grand_total_eur: number;
+  total_by_project: Record<string, number>;
+  pool_month: string;
 }
 
 interface ImpactDistribution {
@@ -159,11 +174,24 @@ interface ImpactDistribution {
   distributed_at: string;
 }
 
-async function fetchImpactRanking(): Promise<ImpactRanking[]> {
-  const res = await fetch('/api/impact-ranking', { credentials: 'include' });
+async function fetchImpactRanking(month?: string): Promise<RankingResponse> {
+  const url = month
+    ? `/api/impact-distributions?mode=ranking&month=${month}`
+    : '/api/impact-distributions?mode=ranking';
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error(`Ranking fetch failed: ${res.status}`);
   const j = await res.json();
-  return (j?.data ?? j ?? []) as ImpactRanking[];
+  // Fallback: alte API ohne ranking-Wrapper
+  if (j?.ranking) return j as RankingResponse;
+  return {
+    ok: true,
+    ranking: Array.isArray(j) ? j : (j?.data ?? []),
+    month_total_eur: 0,
+    month_by_project: {},
+    grand_total_eur: 0,
+    total_by_project: {},
+    pool_month: new Date().toISOString().slice(0, 7),
+  };
 }
 
 async function fetchImpactDistributions(): Promise<ImpactDistribution[]> {
@@ -173,15 +201,108 @@ async function fetchImpactDistributions(): Promise<ImpactDistribution[]> {
   return (j?.data ?? j ?? []) as ImpactDistribution[];
 }
 
+// ── VotingDetailPanel (Detail-Panel bei Klick auf ein Projekt) ──────────────────
+function VotingDetailPanel({
+  project,
+  ranking,
+  monthByProject,
+  totalByProject,
+  onClose,
+}: {
+  project: ImpactRanking;
+  ranking: ImpactRanking[];
+  monthByProject: Record<string, number>;
+  totalByProject: Record<string, number>;
+  onClose: () => void;
+}) {
+  const totalVotes = ranking.reduce((s, r) => s + r.vote_count, 0);
+  const votePct = totalVotes > 0 ? ((project.vote_count / totalVotes) * 100).toFixed(1) : '0.0';
+  const fundingPct = project.funding_goal > 0 ? Math.min(100, (project.current_amount / project.funding_goal) * 100) : 0;
+  const monthAmt = monthByProject[project.project_id] ?? 0;
+  const totalAmt = totalByProject[project.project_id] ?? 0;
+
+  const fmtEur = (n: number | null | undefined) =>
+    n != null ? `€ ${Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+
+  const fmtDate = (s: string | null | undefined) => {
+    if (!s) return '—';
+    return new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const row = (label: string, value: React.ReactNode, highlight?: boolean) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 8, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+      <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', paddingTop: 2 }}>{label}</span>
+      <span style={{ fontSize: 13, color: highlight ? 'var(--green)' : 'var(--text-primary)', fontWeight: highlight ? 700 : 400 }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9000, backdropFilter: 'blur(4px)' }} />
+      <div style={{ position: 'fixed', inset: 0, zIndex: 9001, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+        <div style={{ background: 'var(--bg-secondary)', borderRadius: 16, border: '1px solid var(--border)', width: '100%', maxWidth: 640, boxShadow: '0 24px 80px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {project.rank === 1 && <span style={{ fontSize: 24 }}>🥇</span>}
+                {project.rank === 2 && <span style={{ fontSize: 24 }}>🥈</span>}
+                {project.rank === 3 && <span style={{ fontSize: 24 }}>🥉</span>}
+                {project.rank == null || project.rank > 3 ? <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-muted)' }}>#{project.rank ?? '—'}</span> : null}
+                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{project.project_name}</span>
+              </div>
+              {project.short_desc && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{project.short_desc}</div>}
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 20, padding: 4, flexShrink: 0 }}>✕</button>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: '20px 24px' }}>
+            {row('Rang', project.rank != null ? `Platz ${project.rank}` : 'Nicht gerankt')}
+            {row('Status', project.is_completed
+              ? <span style={{ background: '#22c55e22', color: '#22c55e', padding: '2px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>✅ Abgeschlossen</span>
+              : <span style={{ background: '#3b82f622', color: '#3b82f6', padding: '2px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>🔄 Aktiv</span>
+            )}
+            {row('Stimmen', `${project.vote_count} (${votePct}% der Gesamtstimmen)`, true)}
+            {row('Anteil an Ausschüttung', project.share_pct != null ? `${project.share_pct}%` : '—')}
+            {row('Förderziel', fmtEur(project.funding_goal))}
+            {row('Bisher erhalten', fmtEur(project.current_amount), true)}
+            {row('Fortschritt', (
+              <div>
+                <div style={{ background: 'var(--border)', borderRadius: 6, height: 10, overflow: 'hidden', minWidth: 200 }}>
+                  <div style={{ width: `${fundingPct}%`, background: project.is_completed ? '#22c55e' : 'var(--accent)', height: '100%', borderRadius: 6, transition: 'width 0.4s' }} />
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{fundingPct.toFixed(1)}% des Förderziels</div>
+              </div>
+            ))}
+            {row('Diesen Monat ausgeschüttet', fmtEur(monthAmt), monthAmt > 0)}
+            {row('Gesamt ausgeschüttet', fmtEur(totalAmt), totalAmt > 0)}
+            {row('Antragsteller', project.applicant_name ?? '—')}
+            {row('Kontakt', project.contact_email ?? '—')}
+            {row('Eingereicht am', fmtDate(project.created_at))}
+            {project.is_completed && row('Abgeschlossen am', fmtDate(project.reviewed_at))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── VotingTab Komponente ───────────────────────────────────────────────────────
 function VotingTab() {
-  const [ranking, setRanking]             = useState<ImpactRanking[]>([]);
-  const [distributions, setDistributions] = useState<ImpactDistribution[]>([]);
-  const [months, setMonths]               = useState<{month:string;total:number;entries:number}[]>([]);
-  const [stats, setStats]                 = useState<{total_eur:number;count:number}|null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
-  const [loading, setLoading]             = useState(true);
-  const [distLoading, setDistLoading]     = useState(false);
+  const [ranking, setRanking]                     = useState<ImpactRanking[]>([]);
+  const [monthByProject, setMonthByProject]       = useState<Record<string, number>>({});
+  const [totalByProject, setTotalByProject]       = useState<Record<string, number>>({});
+  const [monthTotal, setMonthTotal]               = useState(0);
+  const [grandTotal, setGrandTotal]               = useState(0);
+  const [distributions, setDistributions]         = useState<ImpactDistribution[]>([]);
+  const [months, setMonths]                       = useState<{month:string;total:number;entries:number}[]>([]);
+  const [stats, setStats]                         = useState<{total_eur:number;count:number}|null>(null);
+  const [selectedMonth, setSelectedMonth]         = useState<string>('all');
+  const [statusFilter, setStatusFilter]           = useState<string>('all');
+  const [loading, setLoading]                     = useState(true);
+  const [distLoading, setDistLoading]             = useState(false);
+  const [selectedProject, setSelectedProject]     = useState<ImpactRanking | null>(null);
 
   // Initial load
   useEffect(() => {
@@ -192,7 +313,11 @@ function VotingTab() {
       fetch('/api/impact-distributions?mode=stats', { credentials: 'include' }).then(r => r.json()),
     ])
       .then(([r, m, s]) => {
-        setRanking(r);
+        setRanking(r.ranking ?? []);
+        setMonthByProject(r.month_by_project ?? {});
+        setTotalByProject(r.total_by_project ?? {});
+        setMonthTotal(r.month_total_eur ?? 0);
+        setGrandTotal(r.grand_total_eur ?? 0);
         setMonths(Array.isArray(m) ? m : []);
         setStats(s?.total_eur != null ? s : null);
       })
@@ -232,14 +357,30 @@ function VotingTab() {
     return `#${r ?? '—'}`;
   };
 
-  const totalVotes     = ranking.reduce((s, r) => s + (r.vote_count ?? 0), 0);
-  const totalAmt       = stats?.total_eur ?? 0;
-  const top3           = ranking.filter(r => r.rank != null && r.rank <= 3).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  const weitere        = ranking.filter(r => r.rank == null || r.rank > 3);
+  const totalVotes = ranking.reduce((s, r) => s + (r.vote_count ?? 0), 0);
+  const totalAmt   = stats?.total_eur ?? grandTotal;
+  const top3       = ranking.filter(r => r.rank != null && r.rank <= 3).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  const completed  = ranking.filter(r => r.is_completed);
+
+  // All projects (approved + pending) with status filter
+  const allProjects = ranking.filter(r => {
+    if (statusFilter === 'completed') return r.is_completed;
+    if (statusFilter === 'active') return !r.is_completed;
+    if (statusFilter === 'approved') return r.status === 'approved' || r.status === 'published';
+    if (statusFilter === 'pending') return r.status === 'pending' || r.status === 'submitted';
+    return true;
+  });
+
   const filteredDist   = distributions;
 
   // Aggregat für gewählten Monat
   const filteredTotal  = filteredDist.reduce((s, d) => s + Number(d.amount_eur ?? 0), 0);
+
+  // Per-project aggregation for selected month
+  const perProjectDist: Record<string, number> = {};
+  for (const d of filteredDist) {
+    perProjectDist[d.project_id] = (perProjectDist[d.project_id] ?? 0) + Number(d.amount_eur ?? 0);
+  }
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -256,7 +397,7 @@ function VotingTab() {
           { label: 'Bewilligte Projekte', value: ranking.filter(r => !r.is_completed).length, icon: '💚' },
           { label: 'Stimmen gesamt',      value: totalVotes,          icon: '🗳️' },
           { label: 'Gesamt ausgeschüttet', value: fmtEur2(totalAmt),  icon: '💸' },
-          { label: 'Abgeschlossen',       value: ranking.filter(r => r.is_completed).length, icon: '✅' },
+          { label: 'Abgeschlossen',       value: completed.length,    icon: '✅' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
             <div style={{ fontSize: 20 }}>{k.icon}</div>
@@ -279,7 +420,9 @@ function VotingTab() {
                 border: '1px solid var(--border)',
                 borderRadius: 10, padding: '10px 16px',
                 minWidth: 140, textAlign: 'center',
-              }}>
+                cursor: 'pointer',
+                borderColor: selectedMonth === m.month ? 'var(--accent)' : 'var(--border)',
+              }} onClick={() => setSelectedMonth(selectedMonth === m.month ? 'all' : m.month)}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{fmtMonth(m.month)}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--green)', marginTop: 4 }}>{fmtEur2(m.total)}</div>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{m.entries} Ausschüttungen</div>
@@ -291,9 +434,14 @@ function VotingTab() {
 
       {/* Aktuelles Ranking — Top 3 */}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>🏆 Aktuelles Ranking — Top 3</span>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>erhalten 50 / 30 / 20 % der Projektförderung</span>
+          {monthTotal > 0 && (
+            <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600, marginLeft: 'auto' }}>
+              Diesen Monat: {fmtEur2(monthTotal)}
+            </span>
+          )}
         </div>
         {top3.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -312,7 +460,11 @@ function VotingTab() {
               {top3.map(r => {
                 const pct = r.funding_goal ? Math.min(100, (r.current_amount / r.funding_goal) * 100) : 0;
                 return (
-                  <tr key={r.project_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <tr key={r.project_id} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => setSelectedProject(r)}
+                    onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-primary)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                  >
                     <td style={{ padding: '12px 14px', fontSize: 20 }}>{rankMedal(r.rank)}</td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{r.project_name}</div>
@@ -344,63 +496,124 @@ function VotingTab() {
         )}
       </div>
 
-      {/* Weitere Projekte (Platz 4+) */}
-      {weitere.length > 0 && (
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Weitere Projekte (erhalten aktuell keine Ausschüttung)</span>
+      {/* Alle Projekte-Liste (approved + pending) mit Filter */}
+      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>📋 Alle Projekte ({allProjects.length})</span>
+          {/* Status-Filter */}
+          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexWrap: 'wrap' }}>
+            {[
+              { key: 'all',       label: 'Alle' },
+              { key: 'active',    label: 'Aktiv' },
+              { key: 'completed', label: 'Abgeschlossen' },
+              { key: 'approved',  label: 'Bewilligt' },
+              { key: 'pending',   label: 'Ausstehend' },
+            ].map(f => (
+              <button key={f.key} onClick={() => setStatusFilter(f.key)} style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${statusFilter === f.key ? 'var(--accent)' : 'var(--border)'}`,
+                background: statusFilter === f.key ? 'rgba(78,205,196,0.15)' : 'var(--bg-primary)',
+                color: statusFilter === f.key ? 'var(--accent)' : 'var(--text-muted)',
+              }}>
+                {f.label}
+              </button>
+            ))}
           </div>
+        </div>
+        {allProjects.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            Keine Projekte in diesem Filter
+          </div>
+        ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
-                {['Projekt', 'Stimmen', 'Ziel', 'Erhalten', 'Status'].map(h => (
-                  <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                {['Rang', 'Projekt', 'Stimmen', 'Status', 'Diesen Monat', 'Gesamt erhalten', 'Fortschritt'].map(h => (
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {weitere.map(r => (
-                <tr key={r.project_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>{r.project_name}</td>
-                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{r.vote_count}</td>
-                  <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{fmtEur2(r.funding_goal)}</td>
-                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{fmtEur2(r.current_amount)}</td>
-                  <td style={{ padding: '10px 14px' }}>
-                    {r.is_completed
-                      ? <span style={{ background: '#22c55e22', color: '#22c55e', padding: '2px 9px', borderRadius: 20, fontSize: 11 }}>✅ Abgeschlossen</span>
-                      : <span style={{ background: '#6b728022', color: '#6b7280', padding: '2px 9px', borderRadius: 20, fontSize: 11 }}>Wartet auf Stimmen</span>
-                    }
-                  </td>
-                </tr>
-              ))}
+              {allProjects.map(r => {
+                const pct = r.funding_goal ? Math.min(100, (r.current_amount / r.funding_goal) * 100) : 0;
+                const mAmt = monthByProject[r.project_id] ?? 0;
+                const tAmt = totalByProject[r.project_id] ?? 0;
+                return (
+                  <tr key={r.project_id} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => setSelectedProject(r)}
+                    onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-primary)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '10px 14px', fontSize: 16 }}>{rankMedal(r.rank)}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {r.project_name}
+                      {r.applicant_name && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>{r.applicant_name}</div>}
+                    </td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{r.vote_count}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      {r.is_completed
+                        ? <span style={{ background: '#22c55e22', color: '#22c55e', padding: '2px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>✅ Abgeschlossen</span>
+                        : r.status === 'pending' || r.status === 'submitted'
+                        ? <span style={{ background: '#f59e0b22', color: '#f59e0b', padding: '2px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>⏳ Ausstehend</span>
+                        : <span style={{ background: '#3b82f622', color: '#3b82f6', padding: '2px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>🔄 Aktiv</span>
+                      }
+                    </td>
+                    <td style={{ padding: '10px 14px', color: mAmt > 0 ? 'var(--green)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: mAmt > 0 ? 600 : 400 }}>{fmtEur2(mAmt)}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>{fmtEur2(tAmt)}</td>
+                    <td style={{ padding: '10px 14px', minWidth: 100 }}>
+                      <div style={{ background: 'var(--border)', borderRadius: 6, height: 6, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, background: r.is_completed ? '#22c55e' : 'var(--accent)', height: '100%', borderRadius: 6 }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{pct.toFixed(0)}%</div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Verteilungshistorie mit Monatsfilter */}
+      {/* Monatliche Ausschüttungen pro Projekt */}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>📊 Verteilungshistorie</span>
-          {/* Monatsfilter */}
-          <select
-            value={selectedMonth}
-            onChange={e => setSelectedMonth(e.target.value)}
-            style={{
-              border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px',
-              fontSize: 12, background: 'var(--bg-primary)', color: 'var(--text-primary)',
-              cursor: 'pointer', marginLeft: 'auto',
-            }}
-          >
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>💸 Monatliche Ausschüttungen pro Projekt</span>
+          {/* Monat-Filter */}
+          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={{
+            padding: '5px 12px', borderRadius: 8, fontSize: 12, border: '1px solid var(--border)',
+            background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer', marginLeft: 'auto',
+          }}>
             <option value="all">Alle Monate</option>
             {months.map(m => (
               <option key={m.month} value={m.month}>{fmtMonth(m.month)} — {fmtEur2(m.total)}</option>
             ))}
           </select>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            {filteredDist.length} Einträge · {fmtEur2(filteredTotal)}
+            {filteredDist.length} Einträge · Total: {fmtEur2(filteredTotal)}
           </span>
         </div>
+
+        {/* Per-project summary */}
+        {Object.keys(perProjectDist).length > 0 && (
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {Object.entries(perProjectDist)
+              .sort((a, b) => b[1] - a[1])
+              .map(([pid, amt]) => {
+                const proj = ranking.find(r => r.project_id === pid);
+                return (
+                  <div key={pid} style={{
+                    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                    borderRadius: 10, padding: '8px 14px', minWidth: 160,
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                      {proj?.project_name ?? pid.slice(0, 8) + '…'}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)', marginTop: 2 }}>{fmtEur2(amt)}</div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
 
         {distLoading ? (
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>⏳ Lade…</div>
@@ -449,10 +662,62 @@ function VotingTab() {
           </div>
         )}
       </div>
+
+      {/* Completed Projects */}
+      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>🏁 Abgeschlossene Projekte ({completed.length})</span>
+        </div>
+        {completed.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            Noch keine abgeschlossenen Projekte
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['Projekt', 'Stimmen', 'Förderziel', 'Gesamt erhalten', 'Abgeschlossen am'].map(h => (
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {completed.map(r => {
+                const tAmt = totalByProject[r.project_id] ?? r.current_amount;
+                return (
+                  <tr key={r.project_id} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => setSelectedProject(r)}
+                    onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-primary)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>{r.project_name}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{r.vote_count}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{fmtEur2(r.funding_goal)}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700 }}>{fmtEur2(tAmt)}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 12 }}>
+                      {r.reviewed_at ? fmtDate(r.reviewed_at).split(',')[0] : (r.created_at ? fmtDate(r.created_at).split(',')[0] : '—')}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Detail-Panel */}
+      {selectedProject && (
+        <VotingDetailPanel
+          project={selectedProject}
+          ranking={ranking}
+          monthByProject={monthByProject}
+          totalByProject={totalByProject}
+          onClose={() => setSelectedProject(null)}
+        />
+      )}
     </div>
   );
 }
-
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 function statusColor(status: string) {
   if (status === 'approved') return '#22c55e';
@@ -507,6 +772,22 @@ function DetailModal({
   const [reason, setReason]           = useState('');
   const [saving, setSaving]           = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [milestones, setMilestones]   = useState<any[]>([]);
+  const [updates, setUpdates]         = useState<any[]>([]);
+
+  // ── Meilensteine & Updates laden ──────────────────────────────
+  useEffect(() => {
+    if (!app?.id) return;
+    setMilestones([]);
+    setUpdates([]);
+    Promise.all([
+      fetch(`/api/impact-milestones?project_id=${app.id}`).then(r => r.json()).catch(() => ({ data: [] })),
+      fetch(`/api/impact-updates?project_id=${app.id}`).then(r => r.json()).catch(() => ({ data: [] })),
+    ]).then(([ms, upds]) => {
+      setMilestones(ms.data || []);
+      setUpdates(upds.data || []);
+    }).catch(() => {});
+  }, [app?.id]);
 
   // ── Medien-Klassifikation ──────────────────────────────────────
   const isImage = (url: string) => /\.(jpg|jpeg|png|webp|gif|bmp|svg)(\?|$)/i.test(url);
@@ -948,6 +1229,63 @@ function DetailModal({
                   >
                     Abbrechen
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Meilensteine ── */}
+            {milestones.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+                  🏁 Meilensteine ({milestones.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {milestones.map((m, i) => (
+                    <div key={m.id || i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: '#0d948811', borderRadius: 10, border: '1px solid #0d948822' }}>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: '50%', background: '#0d9488',
+                        color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      }}>{i + 1}</div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.title}</div>
+                        {m.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{m.description}</div>}
+                        {m.target_date && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>📅 {new Date(m.target_date).toLocaleDateString('de-DE')}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Projekt-Updates ── */}
+            {updates.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+                  📢 Projekt-Updates ({updates.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {updates.map((u, i) => (
+                    <div key={u.id || i} style={{ padding: '12px 14px', background: '#16a34a11', borderRadius: 10, border: '1px solid #16a34a22' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        {u.update_type && (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#0d9488', background: '#0d948815', padding: '2px 8px', borderRadius: 99 }}>{u.update_type}</span>
+                        )}
+                        {u.created_at && (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(u.created_at).toLocaleDateString('de-DE')}</span>
+                        )}
+                      </div>
+                      {u.title && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{u.title}</div>}
+                      {u.content && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.5 }}>{u.content}</div>}
+                      {u.media_urls && Array.isArray(u.media_urls) && u.media_urls.length > 0 && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                          {u.media_urls.map((url: string, j: number) => (
+                            <img key={j} src={url} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

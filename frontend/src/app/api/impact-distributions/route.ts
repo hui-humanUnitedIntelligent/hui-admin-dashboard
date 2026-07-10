@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit  = Math.min(parseInt(searchParams.get('limit') || '200'), 1000);
     const month  = searchParams.get('month') ?? null;   // e.g. "2026-07"
-    const mode   = searchParams.get('mode') ?? 'list';  // "list" | "months" | "stats"
+    const mode   = searchParams.get('mode') ?? 'list';  // "list" | "months" | "stats" | "ranking"
 
     const sb = getServiceClient();
 
@@ -49,6 +49,14 @@ export async function GET(req: NextRequest) {
         grouped[m].entries += 1;
       }
       return NextResponse.json(Object.values(grouped).sort((a, b) => b.month.localeCompare(a.month)));
+    }
+
+
+    // ── Modus: Ranking (via RPC) ─────────────────────────────────────────────
+    if (mode === 'ranking') {
+      const { data, error } = await sb.rpc('rpc_get_impact_ranking');
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ data: data || [] });
     }
 
     // ── Modus: Liste (default) ──────────────────────────────────────────────
