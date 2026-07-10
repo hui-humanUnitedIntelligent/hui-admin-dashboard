@@ -142,9 +142,9 @@ export default function DashboardPage() {
           info="Alle registrierten Accounts aus der Nutzerverwaltung (auth.users) — unabhängig vom Status, inklusive gesperrter Accounts. 'Wirker' darunter zeigt, wie viele davon aktuell als Wirker markiert sind." />
         <KPICard label="Umsatz (Monat)"    value={db.loading ? '—' : fmtEur(kpis.monthlyRevenue)}     delta={`${kpis.totalPayments} Zahlungen`}           deltaPositive icon="€"  variant="gold"
           info="Summe aller erfolgreich bezahlten Bestellungen seit dem 1. dieses Monats (Single Source of Truth: stripe_payments). 'Zahlungen' darunter ist die Gesamtzahl aller je erfolgreich abgeschlossenen Zahlungen." />
-        <KPICard label="Projekt-Anteil"    value={db.loading ? '—' : fmtEur(kpis.projectShareEur)} delta="15 % des Pools"                              deltaPositive icon="🌱" variant="green"
+        <KPICard label="Projekt-Anteil"    value={db.loading ? '—' : fmtEur(kpis.projectShareEur)} delta="6 % des Umsatzes"                              deltaPositive icon="🌱" variant="green"
           info="Vom Umsatz fließen 6% in den Impact Pool (= 30% des HUI-Anteils von 20%, Balanced Growth v1) — hier die Summe für den aktuellen Kalendermonat." />
-        <KPICard label="Firmenanteil"      value={db.loading ? '—' : fmtEur(kpis.companyShareEur)} delta="85 % des Pools"                                 deltaPositive icon="🏢" variant="blue"
+        <KPICard label="Firmenanteil"      value={db.loading ? '—' : fmtEur(kpis.companyShareEur)} delta="10 % des Umsatzes"                                 deltaPositive icon="🏢" variant="blue"
           info="10% des Umsatzes verbleiben beim Unternehmen (= 50% des HUI-Anteils, Balanced Growth v1) — abzüglich Ambassador-Provisionen, Summe für den aktuellen Kalendermonat." />
         <KPICard label="Aktive Mitglieder" value={db.loading ? '—' : fmtNum(kpis.activeMembers)}      delta={`${kpis.activeBookings} Buchungen aktiv`}    deltaPositive icon="🏅" variant="purple"
           info="Nutzer mit aktiver Mitgliedschaft (is_member oder membership_active = true). 'Buchungen aktiv' zeigt Erlebnis-Buchungen der letzten 90 Tage." />
