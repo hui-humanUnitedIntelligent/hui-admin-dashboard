@@ -68,7 +68,7 @@ function Skeleton() {
 const STATUS_FILTERS = ['all', 'completed', 'pending', 'failed', 'refund', 'subscription'];
 const CATEGORY_FILTERS = ['work', 'talent', 'project', 'donation'];
 
-const TABLE_HEADERS = ['ID', 'Typ', 'Betrag', 'Impact-Anteil', 'Projekt', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'];
+const TABLE_HEADERS = ['ID', 'Typ', 'Betrag', 'Impact-Anteil', 'Projekt', 'Unternehmen €', 'Impact €', 'Innovation €', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'];
 
 export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) {
   const { currentUser } = useAuth();
@@ -232,6 +232,15 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
                       {/* Projekt — welchem Impact-Projekt wurde dieser Anteil zugewiesen (P1 / 50 %) */}
                       <td style={{ ...tdBase, color: 'var(--text-secondary)', fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={impactProject ?? undefined}>
                         {impactProject ?? '—'}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                        {p.hui_company_eur != null ? `€${p.hui_company_eur.toFixed(2)}` : '—'}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                        {p.impact_pool_eur != null ? `€${p.impact_pool_eur.toFixed(2)}` : '—'}
+                      </td>
+                      <td style={{ ...tdBase, color: 'var(--purple)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                        {p.innovation_fund_eur != null ? `€${p.innovation_fund_eur.toFixed(2)}` : '—'}
                       </td>
                       <td style={tdBase}>
                         {statusToBadge(p.status)}

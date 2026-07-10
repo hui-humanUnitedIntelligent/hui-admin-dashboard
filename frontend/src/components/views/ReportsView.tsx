@@ -11,7 +11,7 @@ interface PeriodReport {
   period: string;
   new_users: number; new_wirker: number; new_members: number;
   new_works: number; new_bookings: number; transactions: number;
-  revenue: number; impact_pool: number; net_impact: number; company_share: number;
+  revenue: number; impact_pool: number; net_impact: number; company_share: number; impact_pool_total: number; innovation_total: number; projects_total: number; flex_pool_total: number;
 }
 interface ReportData { type: string; periods: PeriodReport[]; totals: { users: number; wirker: number; members: number; works: number; bookings: number }; generated_at: string; }
 
@@ -200,6 +200,9 @@ export function ReportsView({ role }: { role: 'superadmin' | 'employee' }) {
                   { label: 'Neue Werke',   value: latest.new_works,    color: 'var(--blue)',   fmt: String },
                   { label: 'Buchungen',    value: latest.new_bookings, color: 'var(--gold)',   fmt: String },
                   { label: 'Umsatz',       value: latest.revenue,      color: 'var(--green)',  fmt: fmtEur },
+                  { label: 'Unternehmen (Firma)', value: latest.company_share, color: 'var(--gold)',   fmt: fmtEur },
+                  { label: 'Innovation',   value: latest.innovation_total, color: 'var(--purple)', fmt: fmtEur },
+                  { label: 'Flex-Pool',    value: latest.flex_pool_total, color: 'var(--accent)',  fmt: fmtEur },
                   { label: 'Impact Netto', value: latest.net_impact,   color: 'var(--green)',  fmt: fmtEur },
                 ].map(({ label, value, color, fmt }) => (
                   <div key={label}>
@@ -220,7 +223,7 @@ export function ReportsView({ role }: { role: 'superadmin' | 'employee' }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-tertiary)' }}>
-                    {['Zeitraum','Neue User','Wirker','Members','Werke','Buchungen','Umsatz','Impact','Netto-Impact'].map(h => (
+                    {['Zeitraum','Neue User','Wirker','Members','Werke','Buchungen','Umsatz','Impact','Netto-Impact','Firma €','Innovation €','Flex-Pool €'].map(h => (
                       <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -239,6 +242,9 @@ export function ReportsView({ role }: { role: 'superadmin' | 'employee' }) {
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtEur(p.revenue)}</td>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtEur(p.impact_pool)}</td>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtEur(p.net_impact)}</td>
+                      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', color: 'var(--gold)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtEur(p.company_share)}</td>
+                      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', color: 'var(--purple)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtEur(p.innovation_total || 0)}</td>
+                      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtEur(p.flex_pool_total || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
