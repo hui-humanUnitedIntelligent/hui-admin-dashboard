@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       // SSOT für Impact-Pool-Zahlen: echte, pro Bestellung von rpc_process_order_fees
       // gespeicherte Werte (total_inflow=Gesamt-Gebühr, project_share=Netto-Impact,
       // company_share=Firmenanteil nach Ambassador-Provision)
-      sb.from('stripe_impact_pool').select('created_at,total_inflow,project_share,company_share').limit(10000),
+      sb.from('stripe_impact_pool').select('created_at,total_inflow,project_share,company_share,hui_company_eur,impact_pool_eur,innovation_fund_eur,impact_projects_eur,impact_flex_pool_eur,finance_model,company_phase').limit(10000),
       sb.from('works').select('created_at').limit(10000),
       sb.from('bookings').select('created_at').limit(10000),
       sb.from('experiences').select('created_at').limit(10000),
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     const safeProfiles    = (profiles       ?? []) as Array<{ created_at: string; is_wirker?: boolean; is_member?: boolean }>;
     const safePayments    = (stripePayments ?? []) as Array<{ created_at: string; amount?: number; status?: string }>;
-    const safePool        = (impactPoolRows ?? []) as Array<{ created_at: string; total_inflow?: number; project_share?: number; company_share?: number }>;
+    const safePool        = (impactPoolRows ?? []) as Array<{ created_at: string; total_inflow?: number; project_share?: number; company_share?: number; hui_company_eur?: number; impact_pool_eur?: number; innovation_fund_eur?: number; impact_projects_eur?: number; impact_flex_pool_eur?: number; finance_model?: string; company_phase?: string }>
     const safeWorks       = (works       ?? []) as Array<{ created_at: string }>;
     const safeBookings    = (bookings    ?? []) as Array<{ created_at: string }>;
     const safeExperiences = (experiences ?? []) as Array<{ created_at: string }>;
@@ -82,7 +82,11 @@ export async function GET(req: NextRequest) {
       const revenue       = pPay.reduce((s, p) => s + ((Number(p.amount) || 0) / 100), 0);
       const impact_pool   = pPool.reduce((s, p) => s + ((Number(p.total_inflow)   || 0) / 100), 0);
       const net_impact    = pPool.reduce((s, p) => s + ((Number(p.project_share)  || 0) / 100), 0);
-      const company_share = pPool.reduce((s, p) => s + ((Number(p.company_share)  || 0) / 100), 0);
+      const company_share      = pPool.reduce((s, p) => s + ((Number(p.hui_company_eur)      || Number(p.company_share)  || 0)), 0);
+      const impact_pool_total   = pPool.reduce((s, p) => s + ((Number(p.impact_pool_eur)         || 0)), 0);
+      const innovation_total    = pPool.reduce((s, p) => s + ((Number(p.innovation_fund_eur)      || 0)), 0);
+      const projects_total      = pPool.reduce((s, p) => s + ((Number(p.impact_projects_eur)      || 0)), 0);
+      const flex_pool_total     = pPool.reduce((s, p) => s + ((Number(p.impact_flex_pool_eur)     || 0)), 0);
 
       return {
         period:        pk,
@@ -96,7 +100,7 @@ export async function GET(req: NextRequest) {
         revenue,
         impact_pool,
         net_impact,
-        company_share,
+        company_share, impact_pool_total, innovation_total, projects_total, flex_pool_total,
       };
     });
 

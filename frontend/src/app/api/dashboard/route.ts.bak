@@ -291,13 +291,13 @@ export async function GET(req: NextRequest) {
     const currentPoolMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const { data: poolRows } = await sb
       .from('stripe_impact_pool')
-      .select('total_inflow, project_share, company_share, hui_company_eur, impact_pool_eur, innovation_fund_eur, impact_projects_eur, impact_flex_pool_eur, finance_model, company_phase')
+      .select('total_inflow, project_share, company_share')
       .eq('month', currentPoolMonth);
-    const sumPool = (field: 'total_inflow' | 'project_share' | 'company_share' | 'hui_company_eur' | 'impact_pool_eur' | 'innovation_fund_eur' | 'impact_projects_eur' | 'impact_flex_pool_eur') =>
+    const sumPool = (field: 'total_inflow' | 'project_share' | 'company_share') =>
       (poolRows ?? []).reduce((s, r) => s + (r[field] ?? 0), 0);
-    const impactPool      = sumPool('total_inflow')  / 100; // Brutto-Umsatz
-    const projectShareEur = sumPool('impact_projects_eur') / 100 || sumPool('project_share') / 100; // 70% von Impact-Pool
-    const companyShareEur = sumPool('hui_company_eur') / 100 || sumPool('company_share') / 100; // Balanced Growth: 50% von HUI (= 10% Brutto)
+    const impactPool      = sumPool('total_inflow')  / 100; // Brutto-Pool (15% vom Umsatz)
+    const projectShareEur = sumPool('project_share') / 100; // 15% davon → Projekte
+    const companyShareEur = sumPool('company_share') / 100; // 85% davon → Firma
 
     // ── Growth Chart ─────────────────────────────────────────────────────────
     const growthData = growthRes.data ?? [];
@@ -339,12 +339,6 @@ export async function GET(req: NextRequest) {
         impactPool,
         projectShareEur,
         companyShareEur,
-
-        hui_company_eur:      sumPool('hui_company_eur') / 100,
-        impact_pool_eur:      sumPool('impact_pool_eur') / 100,
-        innovation_fund_eur:  sumPool('innovation_fund_eur') / 100,
-        impact_projects_eur: sumPool('impact_projects_eur') / 100,
-        impact_flex_pool_eur: sumPool('impact_flex_pool_eur') / 100,
         totalPayments,
         activeBookings:  activeBookingsCount,
         activeAmbassadors,

@@ -14,7 +14,7 @@ export interface LevelDef {
   bg:       string;
   minRefs:  number;   // minimale Empfehlungen für dieses Level
   maxRefs:  number;   // maximale Empfehlungen (inklusiv), Infinity für letztes Level
-  rewardRate: number; // Anteil am Unternehmensanteil (85% der 15%-Gebuehr), z.B. 0.05 = 5 %
+  rewardRate: number; // Anteil am Unternehmensanteil (10% des Bruttoumsatzes), z.B. 0.05 = 5 %
 }
 
 export const AMBASSADOR_LEVELS: LevelDef[] = [
