@@ -1,12 +1,12 @@
 // frontend/src/app/api/impact/route.ts
-// Impact Pool — Stripe-ready: alle Zahlen kommen aus payments-Tabelle (Balanced Growth v1: 6% Impact vom Bruttoumsatz)
+// Impact Pool — Stripe-ready: alle Zahlen kommen aus payments-Tabelle (15% von amount_eur)
 import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee, guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-const IMPACT_RATE    = 0.06; // Balanced Growth v1: 6% des Umsatzes → Impact-Pool (30% von 20% HUI)
-const NETTO_RATE     = 0.70; // Balanced Growth v1: 70% des Impact-Pools → Projekte
-const FIRMA_RATE     = 0.50; // Balanced Growth v1: 50% von HUI = Unternehmensanteil (10% Brutto)
+const IMPACT_RATE    = 0.15; // 15% des Umsatzes → Brutto-Impact-Pool
+const NETTO_RATE     = 0.85; // 85% davon → Netto-Impact (Projekte)
+const FIRMA_RATE     = 0.15; // 15% davon → Firmenanteil (Systemkosten)
 
 export async function GET(req: NextRequest) {
   const guard = await guardEmployee(req);
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       const rows = poolRows ?? [];
       const bruttoPool   = rows.reduce((s, r) => s + (r.total_inflow   ?? 0), 0) / 100;
       // projekte_foerdern_eur = was tatsächlich per 50/30/20 an die Projekte geht (40% des Unternehmensanteils)
-      // project_share/100 = legacy-Feld; impact_projects_eur = korrekte SSOT (70% von 6% Impact)
+      // project_share/100 = nur der 15%-Impact-Anteil der Gebühr (kleinerer Betrag, falsch für KPI)
       const nettoImpact  = rows.reduce((s, r) => s + (Number(r.projekte_foerdern_eur) || 0), 0);
       const firmenanteil = rows.reduce((s, r) => s + (r.company_share  ?? 0), 0) / 100;
       const distributed  = rows.filter(r => r.distributed)
@@ -67,8 +67,8 @@ export async function GET(req: NextRequest) {
       // Monatliche Aufschlüsselung direkt aus stripe_impact_pool (letzte 6 Monate)
       const monthly = rows.slice(0, 6).map(r => ({
         month:   r.month,
-        revenue: (r.total_inflow ?? 0) / 100, // Bruttoumsatz direkt aus total_inflow
-        impact:  (r.total_inflow ?? 0) / 100 * IMPACT_RATE, // 6% = Impact-Anteil
+        revenue: (r.total_inflow ?? 0) / 100 / IMPACT_RATE,
+        impact:  (r.total_inflow ?? 0) / 100,
         count:   0,
       }));
 

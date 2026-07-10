@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-// ── Level-Helfer (Balanced Growth v1: Starter/Bronze/Silber/Gold, 5/10/15/20% — aus Unternehmensanteil) ──
+// ── Level-Helfer (COM-MIGRATION-015.3: Starter/Bronze/Silber/Gold, 5/10/15/20% -- gleiche Schwellen wie zuvor) ──
 function calcLevel(count: number): string {
   if (count >= 201) return 'Gold';
   if (count >= 51)  return 'Silber';
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, messages: enriched });
     }
 
-    // ── Typ: commissions — Provisionen pro Ambassador (Balanced Growth v1) ──
+    // ── Typ: commissions — Provisionen pro Ambassador (COM-MIGRATION-015.3) ──
     if (type === 'commissions' && ambassadorId) {
       const { data: commissions } = await sb
         .from('stripe_ambassador_commissions')
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
               is_active: !!u.first_transaction_at,
               first_transaction_at: u.first_transaction_at ?? null,
               joined_at: u.created_at,
-              // Balanced Growth v1: 365-Tage-Provisionsfenster ab Registrierung
+              // COM-MIGRATION-015.3: 365-Tage-Provisionsfenster ab Registrierung
               commission_valid_until: validUntil,
               commission_window_active: validUntil ? new Date(validUntil).getTime() >= Date.now() : false,
             };
@@ -274,7 +274,7 @@ export async function GET(req: NextRequest) {
     const revenueMap: Record<string, number> = {};
     // Live-Impact: gleiche Quelle/Zeilen wie Umsatz, aber impact_pool_share statt amount —
     // ersetzt das tote profiles.impact_eur (nie beschrieben, immer 0). Zeigt den Impact-Anteil
-    // (aus dem Unternehmensanteil, 10% vom Brutto, siehe rpc_process_order_fees), der aus den DIESEM Ambassador zugeordneten
+    // (15% der Gebühr, siehe rpc_process_order_fees), der aus den DIESEM Ambassador zugeordneten
     // (referral-getriggerten) Transaktionen entstand — analog/parallel zu revenueMap, nicht die
     // persönliche Käufer/Verkäufer-Impact-Summe (das ist rpc_get_user_impact_totals für User-Mgmt).
     const impactAttributedMap: Record<string, number> = {};
@@ -292,7 +292,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Balanced Growth v1: Gesamtprovision pro Ambassador (aus Unternehmensanteil, 10% vom Brutto)
+    // COM-MIGRATION-015.3: Gesamtprovision pro Ambassador (Commerce 2.0 orders, neues 15%-Modell)
     const commissionTotalMap: Record<string, number> = {};
     if (ambassadorIds.length > 0) {
       const { data: ambCommissions } = await sb
@@ -331,7 +331,7 @@ export async function GET(req: NextRequest) {
         activeCount:   refData.active,
         sleepingCount: refData.sleeping,
         revenueEur:    revenue,
-        // Balanced Growth v1: Gesamtprovision aus stripe_ambassador_commissions
+        // COM-MIGRATION-015.3: Gesamtprovision aus stripe_ambassador_commissions (neues 15%-Modell)
         totalCommissionEur: commissionTotalMap[p.id] ?? 0,
         level:         level,
         levelRatePercent: levelRate(level) * 100,

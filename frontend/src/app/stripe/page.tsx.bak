@@ -265,7 +265,7 @@ export default function StripeDashboardPage() {
                     {[
                       { label:'Gesamt-Einfluss',      val: eur(p.total_inflow),    col:'#3ECF8E' },
                       { label:'Projekt-Anteil (15%)', val: eur(p.project_share),   col:'#6C63FF' },
-                      { label:'Unternehmen (10%)',    val: eur(p.company_share),   col:'#F59E0B' },
+                      { label:'Firmen-Anteil (85%)',  val: eur(p.company_share),   col:'#F59E0B' },
                     ].map(s => (
                       <div key={s.label} style={{ background:'var(--bg-tertiary)', borderRadius:8, padding:'8px 12px' }}>
                         <div style={{ fontSize:10, color:'var(--text-muted)', marginBottom:2 }}>{s.label}</div>

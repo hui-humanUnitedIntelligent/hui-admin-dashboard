@@ -105,7 +105,7 @@ function StripeDataflow() {
     { name:'stripe_webhooks',              icon:'📡', desc:'Webhook-Log & Audit Trail' },
     { name:'stripe_payouts',               icon:'📤', desc:'Auszahlungen (Ambassador, Talent)' },
     { name:'stripe_ambassador_commissions',icon:'🤝', desc:'Provisions-Buchungen (5%)' },
-    { name:'stripe_impact_pool',           icon:'🌱', desc:'Pool-Monat: Balanced Growth v1 (80% Talent / 20% HUI)' },
+    { name:'stripe_impact_pool',           icon:'🌱', desc:'Pool-Monat: 15% Projekt + 85% Firma' },
   ];
 
   const RPCS = [
@@ -309,8 +309,8 @@ function StripeDataflow() {
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:12 }}>
           {[
-            { icon:'🌱', label:'Impact Pool', pct:'6%', color:'#3ECF8E',
-              desc:'Davon 30% Impact / 50% Unternehmen / 20% Innovation' },
+            { icon:'🌱', label:'Impact Pool', pct:'15%', color:'#3ECF8E',
+              desc:'Davon 15% → Projekte, 85% → Unternehmen' },
             { icon:'🤝', label:'Ambassador-Provision', pct:'5%', color:'#F59E0B',
               desc:'Automatisch wenn User über Ambassador geworben' },
             { icon:'💳', label:'Werk / Talent-Einnahmen', pct:'80%', color:'#6C63FF',

@@ -222,11 +222,11 @@ export default function ImpactPage() {
               <Kachel label="Gesamtumsatz" value={eur(o.totalRevenue)} sub={`${o.paymentCount} Zahlungen`} stripe
                 info="Summe aller bezahlten Bestellungen (Commerce 2.0), aus denen sich der Impact-Pool speist." />
               <Kachel label="Brutto-Pool (15%)" value={eur(o.bruttoPool)} color="var(--accent)" stripe
-                info="HUI-Anteil: 20% vom Umsatz (Balanced Growth v1). Split: 30% Impact-Pool / 50% Unternehmen / 20% Innovation." />
+                info="15% Plattformgebühr vom Gesamtumsatz. Teilt sich auf in Projekt-Anteil (15% davon) und Firmenanteil (85% davon)." />
               <Kachel label="Projekt-Anteil (15%)" value={eur(o.nettoImpact)} color="#22C55E" stripe
-                info="70% des Impact-Pools (= 4,2% vom Umsatz) fließen als Projektmittel in die Top-3 Herzensprojekte (50/30/20)." />
-              <Kachel label="Unternehmensanteil (10%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe
-                info="50% des HUI-Anteils (= 10% vom Umsatz). Davon werden zuerst Ambassador-Provisionen bezahlt, der Rest verteilt sich nach Unternehmensphase (Betrieb/Gewinn/Rücklagen)." />
+                info="15% des Brutto-Pools (= 2,25% vom Gesamtumsatz) fließen direkt in soziale Projekte — das ist der eigentliche 'Impact'." />
+              <Kachel label="Firmenanteil (85%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe
+                info="85% des Brutto-Pools. Davon werden zuerst Ambassador-Provisionen bezahlt, der Rest verteilt sich auf Projekte fördern/HUI weiterentwickeln/Neue Ideen/Qualität sichern (40/30/20/10%)." />
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
               <Kachel label="Vergeben" value={eur(o.distributed)}

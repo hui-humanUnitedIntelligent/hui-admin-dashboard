@@ -3,7 +3,7 @@
 
 // COM-MIGRATION-015.3: Level-Namen + Provisionsraten neu (Starter/Bronze/Silber/Gold, 5/10/15/20%).
 // Schwellen unveraendert (auf Wunsch von Michael, 2026-07-03). rewardRate = Anteil AM UNTERNEHMENSANTEIL
-// (85% der 15%-Gebuehr), NICHT mehr am Bruttoumsatz -- siehe rpc_process_order_fees in be-hui.
+// (50% von 20% HUI-Anteil = 10% vom Brutto, Balanced Growth v1) -- siehe rpc_process_order_fees in be-hui.
 export type AmbLevel = 'starter' | 'bronze' | 'silver' | 'gold';
 
 export interface LevelDef {

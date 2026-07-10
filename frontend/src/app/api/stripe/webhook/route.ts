@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         const pendingId   = meta.pending_id       || null;
 
         // ARCH-006.1: Alles in einem RPC → kein Shadow State, keine lokale Berechnung
-        // rpc_record_payment: speichert Zahlung + aktualisiert Impact Pool (15%) + Ambassador (5%)
+        // rpc_record_payment: speichert Zahlung + aktualisiert Impact Pool (Balanced Growth: 6% Impact) + Ambassador-Provision
         await sb.rpc("rpc_record_payment", {
           p_stripe_payment_id:  data.id,
           p_stripe_customer_id: data.customer ?? "cus_unknown",

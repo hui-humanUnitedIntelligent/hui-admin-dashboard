@@ -130,17 +130,17 @@ export default function EmployeeDashboard() {
           {card('💳', 'Umsatz (Monat)',    val(kpis.monthlyRevenue, 'eur'),                `${kpis.totalPayments} Zahlungen gesamt`, undefined,
             "Summe aller erfolgreich bezahlten Bestellungen seit dem 1. dieses Monats (Single Source of Truth: stripe_payments). 'Zahlungen gesamt' ist die Gesamtzahl aller je erfolgreich abgeschlossenen Zahlungen.")}
           {card('🤝', 'Ambassadors aktiv', val(kpis.activeAmbassadors),                     kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen', undefined,
-            "Nutzer mit Ambassador-Status. Provisionsstufen je nach Anzahl geworbener Nutzer: Starter 5%, Bronze 10%, Silber 15%, Gold 20% — berechnet vom Unternehmensanteil (10% vom Brutto, Balanced Growth v1).")}
+            "Nutzer mit Ambassador-Status. Provisionsstufen je nach Anzahl geworbener Nutzer: Starter 5%, Bronze 10%, Silber 15%, Gold 20% — berechnet vom Firmenanteil.")}
         </div>
 
         {/* Impact Pool */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
-          {card('🌱', 'Impact Pool Netto', val(kpis.impactPool, 'eur'), '6% des Umsatzes', '#4ECDC4',
-            "Von jeder Bestellung wird ein HUI-Anteil von 20% erhoben. Davon fließen 30% in den Impact Pool (= 6% vom Umsatz) für soziale Projekte — Summe für den aktuellen Kalendermonat.")}
-          {card('🏢', 'Firmenanteil',      val(kpis.companyShareEur, 'eur'), '10% des Umsatzes', '#5C7CFA',
-            "50% des HUI-Anteils (= 10% vom Umsatz) verbleiben beim Unternehmen (abzüglich Ambassador-Provisionen) — Summe für den aktuellen Kalendermonat.")}
-          {card('🌍', 'Projekt-Anteil',    val(kpis.projectShareEur, 'eur'), '70% des Impact-Pools', '#51CF66',
-            "70% des Impact-Pools (= 4,2% vom Umsatz) fließen direkt in soziale Herzensprojekte — Summe für den aktuellen Kalendermonat.")}
+          {card('🌱', 'Impact Pool Netto', val(kpis.impactPool, 'eur'), '15% des Umsatzes', '#4ECDC4',
+            "Von jeder Bestellung wird eine Plattformgebühr von 15% erhoben. Davon fließen 15% in den Impact Pool für soziale Projekte — Summe für den aktuellen Kalendermonat.")}
+          {card('🏢', 'Firmenanteil',      val(kpis.companyShareEur, 'eur'), '85% des Pools', '#5C7CFA',
+            "85% der Plattformgebühr verbleiben beim Unternehmen (abzüglich bereits abgezogener Ambassador-Provisionen) — Summe für den aktuellen Kalendermonat.")}
+          {card('🌍', 'Projekt-Anteil',    val(kpis.projectShareEur, 'eur'), '15% des Pools', '#51CF66',
+            "15% der Plattformgebühr fließen direkt in soziale Impact-Projekte — Summe für den aktuellen Kalendermonat.")}
         </div>
 
         {/* Talente / Werke / Projekte — konsolidiert aus Analytics */}

@@ -554,15 +554,15 @@ export default function ImpactPage() {
             {pool ? (
               <>
                 {kpiCard('Gesamtumsatz',    fmtEur(pool.totalEur / 0.15), '\uD83D\uDCB0', 'var(--text-primary)')}
-                {kpiCard('Impact-Pool (6%)',fmtEur(pool.bruttoPool),      '\uD83C\uDF31', '#74C0FC')}
-                {kpiCard('Projekte-Anteil (70% v. Pool)',fmtEur(pool.nettoImpact),    '\uD83C\uDF1F', '#51CF66')}
-                {kpiCard('Unternehmensanteil (10%)',fmtEur(pool.firmenanteil),   '\uD83C\uDFE2', '#ffd43b')}
+                {kpiCard('Brutto-Pool (15%)',fmtEur(pool.bruttoPool),      '\uD83C\uDF31', '#74C0FC')}
+                {kpiCard('Netto-Impact (85%)',fmtEur(pool.nettoImpact),    '\uD83C\uDF1F', '#51CF66')}
+                {kpiCard('Firmenanteil (15%)',fmtEur(pool.firmenanteil),   '\uD83C\uDFE2', '#ffd43b')}
               </>
             ) : (
               <>
                 {kpiCard('Gesamtumsatz',    '\u20ac0,00', '\uD83D\uDCB0', 'var(--text-primary)')}
                 {kpiCard('Brutto-Pool (15%)','\u20ac0,00', '\uD83C\uDF31', '#74C0FC')}
-                {kpiCard('Projekte-Anteil (70%)','\u20ac0,00','\uD83C\uDF1F', '#51CF66')}
+                {kpiCard('Netto-Impact (85%)','\u20ac0,00','\uD83C\uDF1F', '#51CF66')}
                 {kpiCard('Firmenanteil (15%)','\u20ac0,00', '\uD83C\uDFE2', '#ffd43b')}
               </>
             )}
