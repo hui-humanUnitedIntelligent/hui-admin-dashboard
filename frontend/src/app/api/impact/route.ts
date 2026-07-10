@@ -38,15 +38,17 @@ export async function GET(req: NextRequest) {
       // Impact-Pool-Zahlen: alle Monate aus stripe_impact_pool aufsummieren
       const { data: poolRows } = await sb
         .from('stripe_impact_pool')
-        .select('month,total_inflow,project_share,company_share,distributed')
+        .select('month,total_inflow,project_share,company_share,distributed,projekte_foerdern_eur,hui_weiterentwickeln_eur,neue_ideen_eur,qualitaet_sichern_eur')
         .order('month', { ascending: false });
 
       const rows = poolRows ?? [];
       const bruttoPool   = rows.reduce((s, r) => s + (r.total_inflow   ?? 0), 0) / 100;
-      const nettoImpact  = rows.reduce((s, r) => s + (r.project_share  ?? 0), 0) / 100;
+      // projekte_foerdern_eur = was tatsächlich per 50/30/20 an die Projekte geht (40% des Unternehmensanteils)
+      // project_share/100 = nur der 15%-Impact-Anteil der Gebühr (kleinerer Betrag, falsch für KPI)
+      const nettoImpact  = rows.reduce((s, r) => s + (Number(r.projekte_foerdern_eur) || 0), 0);
       const firmenanteil = rows.reduce((s, r) => s + (r.company_share  ?? 0), 0) / 100;
       const distributed  = rows.filter(r => r.distributed)
-        .reduce((s, r) => s + (r.project_share ?? 0), 0) / 100;
+        .reduce((s, r) => s + (Number(r.projekte_foerdern_eur) || 0), 0);
       const latestPool   = rows[0] ?? null;
 
       // Bewerbungen zählen
