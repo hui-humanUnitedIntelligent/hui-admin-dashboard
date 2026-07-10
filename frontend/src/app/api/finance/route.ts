@@ -17,16 +17,18 @@ export async function GET() {
     ]);
 
     const rows = (poolRes.data ?? []) as any[];
-    const sum = (field: string) => rows.reduce((s, r) => s + (Number(r[field]) || 0), 0);
+    // total_inflow ist in DB als Cent gespeichert — alle _eur Felder sind bereits in EUR
+    const sumEur  = (field: string) => rows.reduce((s, r) => s + (Number(r[field]) || 0), 0);
+    const sumCent = (field: string) => rows.reduce((s, r) => s + (Number(r[field]) || 0), 0) / 100;
 
-    const total_volume_eur   = sum('total_inflow');
-    const hui_total_eur      = sum('impact_pool_eur') + sum('hui_company_eur') + sum('innovation_fund_eur');
-    const company_eur        = sum('hui_company_eur') || sum('company_share') * 0.50;
-    const impact_eur         = sum('impact_pool_eur') || total_volume_eur * 0.06;
-    const innovation_eur     = sum('innovation_fund_eur') || total_volume_eur * 0.04;
-    const impact_projects_eur = sum('impact_projects_eur') || impact_eur * 0.70;
-    const impact_flex_eur    = impact_eur - impact_projects_eur;
-    const talent_total_eur   = total_volume_eur - hui_total_eur;
+    const total_volume_eur    = sumCent('total_inflow');            // Cent → EUR
+    const company_eur         = sumEur('hui_company_eur');           // 10% von total
+    const impact_eur          = sumEur('impact_pool_eur');           // 6% von total
+    const innovation_eur      = sumEur('innovation_fund_eur');       // 4% von total
+    const hui_total_eur       = company_eur + impact_eur + innovation_eur; // 20% von total
+    const talent_total_eur    = total_volume_eur - hui_total_eur;   // 80% von total
+    const impact_projects_eur = sumEur('impact_projects_eur') || impact_eur * 0.70;
+    const impact_flex_eur     = sumEur('impact_flex_pool_eur') || impact_eur * 0.30;
 
     return NextResponse.json({
       total_volume_eur,
