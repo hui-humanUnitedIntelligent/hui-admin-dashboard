@@ -1019,7 +1019,7 @@ export default function ImpactApplicationsView() {
           <KPICard label="Gesamt"      value={String(counts.all)}      icon="📋" variant="teal" />
           <KPICard label="Bewilligt" value={String(counts.approved)} icon="✅" variant="green" deltaPositive />
           <KPICard label="Abgelehnt" value={String(counts.rejected)} icon="❌" variant="red" />
-          <KPICard label="Abgelehnt"   value={String(counts.rejected)} icon="❌" variant="red" />
+          <KPICard label="Abgeschlossen" value={String(apps.filter(a => (a as any).is_completed).length)} icon="🏁" variant="teal" />
         </div>
 
         {/* Tabs + Suche */}
@@ -1054,7 +1054,9 @@ export default function ImpactApplicationsView() {
         </div>
 
         {/* Liste */}
-        {loading ? (
+        {tab === 'voting' ? (
+          <VotingTab />
+        ) : loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Lade Projekte…</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
