@@ -94,7 +94,11 @@ export interface HuiTransaction {
   impact_pool_eur: number | null;
   innovation_fund_eur: number | null;
   impact_projects_eur: number | null;
-  impact_flex_pool_eur: number | null;}
+  impact_flex_pool_eur: number | null;
+  talent_share_eur: number | null;
+  total_inflow: number | null;
+  finance_model: string | null;
+  company_phase: string | null;}
 // Backward-compat: alte Importe von HuiPayment funktionieren weiter
 export type HuiPayment = HuiTransaction;
 
