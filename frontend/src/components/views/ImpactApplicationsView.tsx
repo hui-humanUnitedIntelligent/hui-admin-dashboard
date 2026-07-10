@@ -1234,29 +1234,77 @@ function DetailModal({
             )}
 
             {/* ── Meilensteine ── */}
-            {milestones.length > 0 && (
-              <div style={{ marginTop: 24 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
-                  🏁 Meilensteine ({milestones.length})
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+                🏁 Meilensteine{milestones.length > 0 ? ` (${milestones.length})` : ''}
+              </div>
+              {milestones.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  Keine Meilensteine definiert.
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {milestones.map((m, i) => (
-                    <div key={m.id || i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: '#0d948811', borderRadius: 10, border: '1px solid #0d948822' }}>
-                      <div style={{
-                        width: 26, height: 26, borderRadius: '50%', background: '#0d9488',
-                        color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 700, flexShrink: 0,
-                      }}>{i + 1}</div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.title}</div>
-                        {m.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{m.description}</div>}
-                        {m.target_date && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>📅 {new Date(m.target_date).toLocaleDateString('de-DE')}</div>}
+                    <div key={m.id || i} style={{ padding: '12px 14px', background: '#0d948811', borderRadius: 10, border: '1px solid #0d948822' }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                        <div style={{
+                          width: 26, height: 26, borderRadius: '50%', background: '#0d9488',
+                          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        }}>{i + 1}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.title}</div>
+                            {m.status && (
+                              <span style={{
+                                fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, whiteSpace: 'nowrap',
+                                background: m.status === 'completed' ? '#22c55e15' : m.status === 'in_progress' ? '#3b82f615' : '#6b728015',
+                                color: m.status === 'completed' ? '#22c55e' : m.status === 'in_progress' ? '#3b82f6' : '#6b7280',
+                              }}>
+                                {m.status === 'completed' ? '✅ Abgeschlossen' : m.status === 'in_progress' ? '🔄 In Arbeit' : '📅 Geplant'}
+                              </span>
+                            )}
+                          </div>
+                          {m.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{m.description}</div>}
+                          {m.target_date && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>📅 Geplant: {new Date(m.target_date).toLocaleDateString('de-DE')}</div>}
+                        </div>
                       </div>
+
+                      {/* Milestone Updates */}
+                      {m.impact_milestone_updates && Array.isArray(m.impact_milestone_updates) && m.impact_milestone_updates.length > 0 && (
+                        <div style={{ marginTop: 10, marginLeft: 38, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
+                            Updates ({m.impact_milestone_updates.length}):
+                          </div>
+                          {m.impact_milestone_updates.map((u: any, j: number) => (
+                            <div key={u.id || j} style={{ padding: '8px 10px', background: 'var(--bg-primary)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                                  {u.content ? (u.content.length > 100 ? u.content.slice(0, 100) + '...' : u.content) : ''}
+                                </span>
+                                {u.created_at && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                    {new Date(u.created_at).toLocaleDateString('de-DE')}
+                                  </span>
+                                )}
+                              </div>
+                              {u.media_urls && Array.isArray(u.media_urls) && u.media_urls.length > 0 && (
+                                <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+                                  {u.media_urls.slice(0, 3).map((url: string, k: number) => (
+                                    <img key={k} src={url} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
 
             {/* ── Projekt-Updates ── */}
             {updates.length > 0 && (

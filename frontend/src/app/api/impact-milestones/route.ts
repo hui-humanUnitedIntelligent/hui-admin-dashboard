@@ -1,5 +1,5 @@
 // frontend/src/app/api/impact-milestones/route.ts
-// Liefert Meilensteine für ein Impact-Projekt
+// Liefert Meilensteine für ein Impact-Projekt (inkl. verschachtelter Updates)
 import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const sb = getServiceClient();
     const { data, error } = await sb
       .from('impact_milestones')
-      .select('*')
+      .select('*, impact_milestone_updates(*)')
       .eq('project_id', projectId)
       .order('sort_order');
 
