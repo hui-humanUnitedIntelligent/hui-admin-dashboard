@@ -24,9 +24,13 @@ const T = {
   border: "rgba(20,20,34,0.08)",
 };
 
+function fmtEur(n: number): string {
+  return Math.round(n).toLocaleString("de-DE");
+}
+
 function Kachel({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 18px", flex: 1, minWidth: 140 }}>
+    <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 18px", flex: 1, minWidth: 120 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 900, color: color || T.ink }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>{sub}</div>}
@@ -80,12 +84,12 @@ export function FinanceView() {
       {loading ? (
         <div style={{ color: T.muted, fontSize: 13 }}>Lade Live-Daten…</div>
       ) : data ? (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 28 }}>
-          <Kachel label="Gesamtumsatz" value={`€${data.total_volume_eur.toFixed(0)}`} sub={`${data.tx_count} Transaktionen`} />
-          <Kachel label="Talent-Auszahlung" value={`€${data.talent_total_eur.toFixed(0)}`} sub="80% des Umsatzes" color="#22c55e" />
-          <Kachel label="HUI-Anteil" value={`€${data.hui_total_eur.toFixed(0)}`} sub="20% des Umsatzes" color={T.teal} />
-          <Kachel label="Impact-Pool" value={`€${data.impact_eur.toFixed(0)}`} sub="30% von HUI" color="#8b5cf6" />
-          <Kachel label="Innovation" value={`€${data.innovation_eur.toFixed(0)}`} sub="20% von HUI" color="#f59e0b" />
+        <div style={{ display: "flex", gap: 10, flexWrap: "nowrap", marginBottom: 28, overflowX: "auto" }}>
+          <Kachel label="Gesamtumsatz" value={`€${fmtEur(data.total_volume_eur)}`} sub={`${data.tx_count} Transaktionen`} />
+          <Kachel label="Talent-Auszahlung" value={`€${fmtEur(data.talent_total_eur)}`} sub="80% des Umsatzes" color="#22c55e" />
+          <Kachel label="HUI-Anteil" value={`€${fmtEur(data.hui_total_eur)}`} sub="20% des Umsatzes" color={T.teal} />
+          <Kachel label="Impact-Pool" value={`€${fmtEur(data.impact_eur)}`} sub="30% von HUI" color="#8b5cf6" />
+          <Kachel label="Innovation" value={`€${fmtEur(data.innovation_eur)}`} sub="20% von HUI" color="#f59e0b" />
         </div>
       ) : (
         <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 28 }}>Keine Daten — API-Verbindung prüfen</div>
