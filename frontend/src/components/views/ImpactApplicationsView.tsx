@@ -175,23 +175,55 @@ async function fetchImpactDistributions(): Promise<ImpactDistribution[]> {
 
 // ── VotingTab Komponente ───────────────────────────────────────────────────────
 function VotingTab() {
-  const [ranking, setRanking]           = useState<ImpactRanking[]>([]);
+  const [ranking, setRanking]             = useState<ImpactRanking[]>([]);
   const [distributions, setDistributions] = useState<ImpactDistribution[]>([]);
-  const [loading, setLoading]           = useState(true);
+  const [months, setMonths]               = useState<{month:string;total:number;entries:number}[]>([]);
+  const [stats, setStats]                 = useState<{total_eur:number;count:number}|null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [loading, setLoading]             = useState(true);
+  const [distLoading, setDistLoading]     = useState(false);
 
+  // Initial load
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchImpactRanking(), fetchImpactDistributions()])
-      .then(([r, d]) => { setRanking(r); setDistributions(d); })
+    Promise.all([
+      fetchImpactRanking(),
+      fetch('/api/impact-distributions?mode=months', { credentials: 'include' }).then(r => r.json()),
+      fetch('/api/impact-distributions?mode=stats', { credentials: 'include' }).then(r => r.json()),
+    ])
+      .then(([r, m, s]) => {
+        setRanking(r);
+        setMonths(Array.isArray(m) ? m : []);
+        setStats(s?.total_eur != null ? s : null);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // Distributions laden wenn Monat gewählt
+  useEffect(() => {
+    setDistLoading(true);
+    const url = selectedMonth === 'all'
+      ? '/api/impact-distributions?limit=200'
+      : `/api/impact-distributions?month=${selectedMonth}&limit=200`;
+    fetch(url, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setDistributions(Array.isArray(d) ? d : []))
+      .catch(console.error)
+      .finally(() => setDistLoading(false));
+  }, [selectedMonth]);
 
   const fmtEur2 = (n: number | null | undefined) =>
     n != null ? `€ ${Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
   const fmtDate = (s: string) =>
-    new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    new Date(s).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const fmtMonth = (m: string) => {
+    const [y, mo] = m.split('-');
+    const names = ['','Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    return `${names[parseInt(mo)]} ${y}`;
+  };
 
   const rankMedal = (r: number | null) => {
     if (r === 1) return '🥇';
@@ -200,10 +232,14 @@ function VotingTab() {
     return `#${r ?? '—'}`;
   };
 
-  const totalVotes = ranking.reduce((s, r) => s + (r.vote_count ?? 0), 0);
-  const totalDistributed = distributions.reduce((s, d) => s + (Number(d.amount_eur) ?? 0), 0);
-  const top3 = ranking.filter(r => r.rank != null && r.rank <= 3).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  const weitere = ranking.filter(r => r.rank == null || r.rank > 3);
+  const totalVotes     = ranking.reduce((s, r) => s + (r.vote_count ?? 0), 0);
+  const totalAmt       = stats?.total_eur ?? 0;
+  const top3           = ranking.filter(r => r.rank != null && r.rank <= 3).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  const weitere        = ranking.filter(r => r.rank == null || r.rank > 3);
+  const filteredDist   = distributions;
+
+  // Aggregat für gewählten Monat
+  const filteredTotal  = filteredDist.reduce((s, d) => s + Number(d.amount_eur ?? 0), 0);
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -218,9 +254,9 @@ function VotingTab() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {[
           { label: 'Bewilligte Projekte', value: ranking.filter(r => !r.is_completed).length, icon: '💚' },
-          { label: 'Stimmen gesamt', value: totalVotes, icon: '🗳️' },
-          { label: 'Ausgeschüttet', value: fmtEur2(totalDistributed), icon: '💸' },
-          { label: 'Abgeschlossen', value: ranking.filter(r => r.is_completed).length, icon: '✅' },
+          { label: 'Stimmen gesamt',      value: totalVotes,          icon: '🗳️' },
+          { label: 'Gesamt ausgeschüttet', value: fmtEur2(totalAmt),  icon: '💸' },
+          { label: 'Abgeschlossen',       value: ranking.filter(r => r.is_completed).length, icon: '✅' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
             <div style={{ fontSize: 20 }}>{k.icon}</div>
@@ -229,6 +265,29 @@ function VotingTab() {
           </div>
         ))}
       </div>
+
+      {/* Monatliche Zusammenfassung */}
+      {months.length > 0 && (
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>📅 Monatliche Ausschüttungen</span>
+          </div>
+          <div style={{ display: 'flex', gap: 10, padding: '14px 18px', flexWrap: 'wrap' }}>
+            {months.map(m => (
+              <div key={m.month} style={{
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 10, padding: '10px 16px',
+                minWidth: 140, textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{fmtMonth(m.month)}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--green)', marginTop: 4 }}>{fmtEur2(m.total)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{m.entries} Ausschüttungen</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Aktuelles Ranking — Top 3 */}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
@@ -319,15 +378,35 @@ function VotingTab() {
         </div>
       )}
 
-      {/* Verteilungshistorie */}
+      {/* Verteilungshistorie mit Monatsfilter */}
       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>📊 Verteilungshistorie</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{distributions.length} Einträge</span>
+          {/* Monatsfilter */}
+          <select
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(e.target.value)}
+            style={{
+              border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px',
+              fontSize: 12, background: 'var(--bg-primary)', color: 'var(--text-primary)',
+              cursor: 'pointer', marginLeft: 'auto',
+            }}
+          >
+            <option value="all">Alle Monate</option>
+            {months.map(m => (
+              <option key={m.month} value={m.month}>{fmtMonth(m.month)} — {fmtEur2(m.total)}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            {filteredDist.length} Einträge · {fmtEur2(filteredTotal)}
+          </span>
         </div>
-        {distributions.length === 0 ? (
+
+        {distLoading ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>⏳ Lade…</div>
+        ) : filteredDist.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-            Noch keine Ausschüttungen — wird nach der ersten Transaktion befüllt
+            Noch keine Ausschüttungen — wird nach der ersten echten Transaktion befüllt
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -340,17 +419,28 @@ function VotingTab() {
                 </tr>
               </thead>
               <tbody>
-                {distributions.slice(0, 50).map(d => {
+                {filteredDist.map(d => {
                   const proj = ranking.find(r => r.project_id === d.project_id);
                   return (
                     <tr key={d.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '9px 13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{fmtDate(d.distributed_at)}</td>
-                      <td style={{ padding: '9px 13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.pool_month}</td>
-                      <td style={{ padding: '9px 13px', color: 'var(--text-primary)', fontWeight: 500 }}>{proj?.project_name ?? d.project_id.slice(0, 8) + '…'}</td>
+                      <td style={{ padding: '9px 13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                        <span style={{ background: '#8b5cf622', color: '#8b5cf6', padding: '2px 7px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>
+                          {fmtMonth(d.pool_month)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 13px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                        {proj?.project_name ?? d.project_id.slice(0, 8) + '…'}
+                      </td>
                       <td style={{ padding: '9px 13px', fontSize: 16 }}>{rankMedal(d.rank_at_time)}</td>
                       <td style={{ padding: '9px 13px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{d.share_pct}%</td>
-                      <td style={{ padding: '9px 13px', color: 'var(--green)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmtEur2(Number(d.amount_eur))}</td>
-                      <td style={{ padding: '9px 13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{d.order_id.slice(0, 12)}…</td>
+                      <td style={{ padding: '9px 13px', fontFamily: 'var(--font-mono)', fontWeight: 700,
+                        color: d.rank_at_time === 1 ? '#f59e0b' : d.rank_at_time === 2 ? '#6b7280' : '#cd7c32' }}>
+                        {fmtEur2(Number(d.amount_eur))}
+                      </td>
+                      <td style={{ padding: '9px 13px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
+                        {d.order_id.slice(0, 12)}…
+                      </td>
                     </tr>
                   );
                 })}
