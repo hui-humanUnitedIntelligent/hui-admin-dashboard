@@ -42,13 +42,15 @@ export async function GET(req: NextRequest) {
         .order('month', { ascending: false });
 
       const rows = poolRows ?? [];
-      const bruttoPool   = rows.reduce((s, r) => s + (r.total_inflow   ?? 0), 0) / 100;
-      // projekte_foerdern_eur = was tatsächlich per 50/30/20 an die Projekte geht (40% des Unternehmensanteils)
-      // project_share/100 = legacy-Feld; impact_projects_eur = korrekte SSOT (70% von 6% Impact)
-      const nettoImpact  = rows.reduce((s, r) => s + (Number(r.projekte_foerdern_eur) || 0), 0);
-      const firmenanteil = rows.reduce((s, r) => s + (r.company_share  ?? 0), 0) / 100;
+      // SSOT: impact_pool_eur = tatsächlicher Impact-Anteil (6% des Umsatzes) in EUR
+      // NICHT total_inflow/100 (das wäre der Gesamtumsatz!)
+      const bruttoPool   = rows.reduce((s, r) => s + (Number((r as Record<string,unknown>)['impact_pool_eur']) || 0), 0);
+      // impact_projects_eur = 70% von Impact-Pool → an Projekte ausgeschüttet
+      const nettoImpact  = rows.reduce((s, r) => s + (Number((r as Record<string,unknown>)['impact_projects_eur']) || Number(r.projekte_foerdern_eur) || 0), 0);
+      // hui_company_eur = 50% von HUI-Anteil (10% Brutto)
+      const firmenanteil = rows.reduce((s, r) => s + (Number((r as Record<string,unknown>)['hui_company_eur']) || (r.company_share ?? 0) / 100), 0);
       const distributed  = rows.filter(r => r.distributed)
-        .reduce((s, r) => s + (Number(r.projekte_foerdern_eur) || 0), 0);
+        .reduce((s, r) => s + (Number((r as Record<string,unknown>)['impact_projects_eur']) || Number(r.projekte_foerdern_eur) || 0), 0);
       const latestPool   = rows[0] ?? null;
 
       // Bewerbungen zählen
@@ -65,10 +67,11 @@ export async function GET(req: NextRequest) {
         .eq('status', 'submitted');
 
       // Monatliche Aufschlüsselung direkt aus stripe_impact_pool (letzte 6 Monate)
+      // SSOT: impact_pool_eur = tatsächlicher Monat-Impact-Pool; total_inflow/100 = Monat-Umsatz
       const monthly = rows.slice(0, 6).map(r => ({
         month:   r.month,
-        revenue: (r.total_inflow ?? 0) / 100, // Bruttoumsatz direkt aus total_inflow
-        impact:  (r.total_inflow ?? 0) / 100 * IMPACT_RATE, // 6% = Impact-Anteil
+        revenue: (r.total_inflow ?? 0) / 100, // Bruttoumsatz des Monats (korrekt für Kontext)
+        impact:  Number((r as Record<string,unknown>)['impact_pool_eur']) || (r.total_inflow ?? 0) / 100 * IMPACT_RATE,
         count:   0,
       }));
 

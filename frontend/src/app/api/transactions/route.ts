@@ -31,14 +31,12 @@ export async function GET(req: NextRequest) {
 
     const transactions = data.transactions ?? [];
 
-    // Gesamtvolumen: IMMER aus DB-Aggregat (nicht aus paginierten Zeilen) — ARCH-006.1
-    // stripe_payments.amount ist in EUR (nicht Cent)
-    const { data: volData } = await sb
-      .from('stripe_payments')
-      .select('amount, impact_pool_share')
-      .eq('status', 'succeeded');
-    const totalVolume = (volData ?? []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-    const totalImpact = (volData ?? []).reduce((s, p) => s + (Number(p.impact_pool_share) || 0), 0);
+    // Gesamtvolumen: DB-seitige Aggregation via rpc_get_payment_stats — kein vollständiges
+    // Laden aller Rows. stripe_payments.amount ist in EUR (nicht Cent). — ARCH-006.1
+    const { data: statsRaw } = await sb.rpc('rpc_get_payment_stats');
+    const stats = (statsRaw ?? {}) as { total_volume_eur?: number; total_impact_eur?: number; total_count?: number };
+    const totalVolume = stats.total_volume_eur ?? 0;
+    const totalImpact = stats.total_impact_eur ?? 0;
     const completed = data.total ?? 0; // total = count of matched rows from RPC
 
     return NextResponse.json({
