@@ -30,12 +30,16 @@ export async function GET(req: NextRequest) {
     if (!data?.ok) return NextResponse.json({ ok: false, error: data?.error || 'unknown' }, { status: 500 });
 
     const transactions = data.transactions ?? [];
-    const totalVolume = transactions
-      .filter((t: { record_type: string; status: string }) => t.record_type === 'payment' && t.status === 'succeeded')
-      .reduce((s: number, t: { amount: number }) => s + (t.amount ?? 0), 0);
-    const totalImpact = transactions
-      .reduce((s: number, t: { impact_share: number | null }) => s + (t.impact_share ?? 0), 0);
-    const completed = transactions.filter((t: { status: string }) => t.status === 'succeeded' || t.status === 'active' || t.status === 'paid').length;
+
+    // Gesamtvolumen: IMMER aus DB-Aggregat (nicht aus paginierten Zeilen) — ARCH-006.1
+    // stripe_payments.amount ist in EUR (nicht Cent)
+    const { data: volData } = await sb
+      .from('stripe_payments')
+      .select('amount, impact_pool_share')
+      .eq('status', 'succeeded');
+    const totalVolume = (volData ?? []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const totalImpact = (volData ?? []).reduce((s, p) => s + (Number(p.impact_pool_share) || 0), 0);
+    const completed = data.total ?? 0; // total = count of matched rows from RPC
 
     return NextResponse.json({
       ok: true,

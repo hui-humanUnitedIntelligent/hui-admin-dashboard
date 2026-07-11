@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       const pExp  = safeExperiences.filter(x => keyFn(x.created_at) === pk);
 
       // Beträge in stripe_payments/stripe_impact_pool sind in Cent gespeichert → /100 für EUR
-      const revenue       = pPay.reduce((s, p) => s + ((Number(p.amount) || 0) / 100), 0);
+      const revenue       = pPay.reduce((s, p) => s + (Number(p.amount) || 0), 0); // amount in EUR
       const impact_pool   = pPool.reduce((s, p) => s + ((Number(p.total_inflow)   || 0) / 100), 0);
       const net_impact    = pPool.reduce((s, p) => s + ((Number(p.project_share)  || 0) / 100), 0);
       const company_share      = pPool.reduce((s, p) => s + ((Number(p.hui_company_eur)      || Number(p.company_share)  || 0)), 0);
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
       experiences: safeExperiences.length,
       bookings: safeBookings.length,
       transactions: succeededPayments.length,
-      revenue:  succeededPayments.reduce((s, p) => s + ((Number(p.amount) || 0) / 100), 0),
+      revenue:  succeededPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0), // amount in EUR
     };
 
     return NextResponse.json({
