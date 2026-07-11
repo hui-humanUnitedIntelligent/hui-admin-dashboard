@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { filterGroups, navLabel, groupLabel, ADMIN_NAV } from '@/config/navigation';
+import { usePendingCounts } from '@/lib/hooks/usePendingCounts';
 import { isSuperAdmin as checkSuperAdmin } from '@/lib/roles';
 
 interface AdminNavigationProps {
@@ -35,6 +36,17 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
     return open;
   };
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaults);
+  const pending = usePendingCounts(30_000);
+
+  // Mapping: href → pending count
+  const pendingForHref: Record<string, number> = {
+    '/works':         pending.works,
+    '/talent-offers': pending.talents,
+    '/experiences':   pending.experiences,
+    '/employee/works':           pending.works,
+    '/employee/talent-offers':   pending.talents,
+    '/employee/experiences':     pending.experiences,
+  };
 
   const isActive = matchesHref;
 
@@ -109,7 +121,26 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
                       }}
                     >
                       <span style={{ fontSize: 14, lineHeight: 1, width: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.icon}</span>
-                      <span>{navLabel(item, lang)}</span>
+                      <span style={{ flex: 1 }}>{navLabel(item, lang)}</span>
+                      {(pendingForHref[item.href] ?? 0) > 0 && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          background: '#ef4444',
+                          color: '#fff',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '0 5px',
+                          lineHeight: 1,
+                          flexShrink: 0,
+                        }}>
+                          {pendingForHref[item.href]! > 99 ? '99+' : pendingForHref[item.href]}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
