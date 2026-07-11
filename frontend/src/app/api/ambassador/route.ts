@@ -269,26 +269,26 @@ export async function GET(req: NextRequest) {
 
     const refMap = new Map((refLinks ?? []).map((r: any) => [r.user_id, r]));
 
-    // Live-Umsatz: Single Source of Truth ist stripe_payments.ambassador_id (ARCH-006.1)
-    // Ersetzt das nie befüllte Shadow-Feld profile_modules.ambassador.revenue_generated
+    // Live-Umsatz: SSOT ist stripe_ambassador_commissions.base_purchase_amount_cents
+    // (stripe_payments.ambassador_id ist nicht befüllt — commissions-Tabelle ist die korrekte Quelle)
     const revenueMap: Record<string, number> = {};
-    // Live-Impact: gleiche Quelle/Zeilen wie Umsatz, aber impact_pool_share statt amount —
-    // ersetzt das tote profiles.impact_eur (nie beschrieben, immer 0). Zeigt den Impact-Anteil
-    // (aus dem Unternehmensanteil, 10% vom Brutto, siehe rpc_process_order_fees), der aus den DIESEM Ambassador zugeordneten
-    // (referral-getriggerten) Transaktionen entstand — analog/parallel zu revenueMap, nicht die
-    // persönliche Käufer/Verkäufer-Impact-Summe (das ist rpc_get_user_impact_totals für User-Mgmt).
     const impactAttributedMap: Record<string, number> = {};
+    const commissionFromPoolMap: Record<string, number> = {};
     if (ambassadorIds.length > 0) {
-      const { data: ambPayments } = await sb
-        .from('stripe_payments')
-        .select('ambassador_id, amount, impact_pool_share')
-        .in('ambassador_id', ambassadorIds)
-        .eq('status', 'succeeded');
-      for (const pay of (ambPayments ?? [])) {
-        const aid = (pay as { ambassador_id: string; amount: number; impact_pool_share: number | null }).ambassador_id;
-        const p = pay as { ambassador_id: string; amount: number; impact_pool_share: number | null };
-        revenueMap[aid] = (revenueMap[aid] ?? 0) + p.amount / 100;
-        impactAttributedMap[aid] = (impactAttributedMap[aid] ?? 0) + (p.impact_pool_share ?? 0) / 100;
+      const { data: ambCommPurchases } = await sb
+        .from('stripe_ambassador_commissions')
+        .select('ambassador_id, base_purchase_amount_cents, amount, order_id')
+        .in('ambassador_id', ambassadorIds);
+      for (const comm of (ambCommPurchases ?? [])) {
+        const c = comm as { ambassador_id: string; base_purchase_amount_cents: number; amount: number; order_id: string | null };
+        // base_purchase_amount_cents = Kaufbetrag in Cent → /100 für EUR
+        revenueMap[c.ambassador_id] = (revenueMap[c.ambassador_id] ?? 0) + (c.base_purchase_amount_cents ?? 0) / 100;
+        // amount = Provision in Cent → /100 für EUR (für impactAttributed: approximation via 30% Impact-Anteil)
+        commissionFromPoolMap[c.ambassador_id] = (commissionFromPoolMap[c.ambassador_id] ?? 0) + (c.amount ?? 0) / 100;
+      }
+      // Impact-Anteil approximiert: 30% von HUI (= 6% vom Brutto) aus Transaktionen der Geworbenen
+      for (const aid of ambassadorIds) {
+        impactAttributedMap[aid] = (revenueMap[aid] ?? 0) * 0.06;
       }
     }
 
