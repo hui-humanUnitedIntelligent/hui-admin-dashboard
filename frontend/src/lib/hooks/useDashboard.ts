@@ -6,7 +6,7 @@ import { useSupabaseRealtime } from './useSupabaseRealtime';
 export interface BookingPeriodStat { count: number; revenue: number; }
 export interface DashboardData {
   kpis: {
-    totalUsers: number; activeWirker: number; activeMembers: number;
+    totalUsers: number; activeWirker: number; activeMembers: number; escrow?: { holding_eur: number; count: number };
     totalWorks: number; monthlyRevenue: number; impactPool: number;
     projectShareEur: number; companyShareEur: number;
     totalPayments: number; activeBookings: number;
@@ -41,7 +41,7 @@ export interface DashboardData {
 
 const EMPTY: Omit<DashboardData, 'refetch'> = {
   kpis: {
-    totalUsers:0, activeWirker:0, activeMembers:0,
+    totalUsers:0, activeWirker:0, activeMembers:0, escrow: { holding_eur: 0, count: 0 },
     totalWorks:0, monthlyRevenue:0, impactPool:0,
     projectShareEur:0, companyShareEur:0,
     totalPayments:0, activeBookings:0,

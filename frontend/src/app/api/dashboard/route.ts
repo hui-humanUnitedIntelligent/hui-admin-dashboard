@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
     const day90 = new Date(now.getTime() - 90 * 86400000).toISOString();
 
     const [
+      escrowDataRes,
       profilesRes,
       worksRes,
       paymentsMonthRes,
@@ -55,6 +56,9 @@ export async function GET(req: NextRequest) {
       allPaymentsRes,
       ambassadorCommissionsRes,
     ] = await Promise.all([
+      // Escrow holding query
+      sb.from('orders').select('total_eur').eq('escrow_status', 'holding'),
+
       // 1) Alle Profile (keine Filterung — geblockte zählen MIT)
       sb.from('profiles')
         .select('id, is_wirker, role, is_member, membership_active, is_ambassador, created_at, blocked, referred_by, is_talent, location_label, membership_type', { count: 'exact' })
@@ -153,6 +157,10 @@ export async function GET(req: NextRequest) {
     } catch { /* fallback auf profiles */ }
 
     // ── Berechnungen ─────────────────────────────────────────────────────────
+    const escrowHoldingData = escrowDataRes.data ?? [];
+    const escrowHoldingEur = escrowHoldingData.reduce((s: number, o: any) => s + (Number(o.total_eur) || 0), 0);
+    const escrowCount = escrowHoldingData.length;
+
     const profiles      = profilesRes.data ?? [];
     const profileCount  = profilesRes.count ?? profiles.length;
 
@@ -329,6 +337,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       kpis: {
+        escrow: { holding_eur: escrowHoldingEur, count: escrowCount },
         totalUsers,      // auth.users — Single Source of Truth
         activeUsers,     // profiles ohne blocked
         blockedUsers,    // profiles mit blocked=true
