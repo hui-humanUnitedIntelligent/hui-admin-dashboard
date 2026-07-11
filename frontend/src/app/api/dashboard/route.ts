@@ -163,8 +163,8 @@ export async function GET(req: NextRequest) {
     const activeWirker  = profiles.filter(p => p.is_wirker).length;
     const activeMembers = profiles.filter(p => p.is_member || p.membership_active).length;
 
-    // Stripe-Beträge sind in Cent gespeichert → /100 für EUR
-    const monthlyRevenue = (paymentsMonthRes.data ?? []).reduce((s, p) => s + ((p.amount ?? 0) / 100), 0);
+    // Hinweis: stripe_payments.amount ist in EUR (NICHT Cent). stripe_impact_pool.total_inflow ist in Cent.
+    const monthlyRevenue = (paymentsMonthRes.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0);
     const totalPayments  = paymentsAllRes.count ?? 0;
     const activeAmbassadors = ambassadorsRes.count ?? 0;
     const pendingAmbassadors = pendingAmbassadorsRes.count ?? 0;
@@ -248,7 +248,7 @@ export async function GET(req: NextRequest) {
       donation:     succeededPayments.filter(p => p.payment_type === 'donation').length,
       subscription: succeededPayments.filter(p => p.payment_type === 'subscription').length,
     };
-    const sumShare = (rows: typeof allPayments) => rows.reduce((s, p) => s + ((p.impact_pool_share ?? 0) / 100), 0);
+    const sumShare = (rows: typeof allPayments) => rows.reduce((s, p) => s + (p.impact_pool_share ?? 0), 0);
     const impactDistribution = {
       work:     sumShare(succeededPayments.filter(p => p.payment_type === 'work')),
       talent:   sumShare(succeededPayments.filter(p => p.payment_type === 'talent')),
@@ -296,8 +296,8 @@ export async function GET(req: NextRequest) {
     const sumPool = (field: 'total_inflow' | 'project_share' | 'company_share' | 'hui_company_eur' | 'impact_pool_eur' | 'innovation_fund_eur' | 'impact_projects_eur' | 'impact_flex_pool_eur') =>
       (poolRows ?? []).reduce((s, r) => s + (r[field] ?? 0), 0);
     const impactPool      = sumPool('total_inflow')  / 100; // Brutto-Umsatz
-    const projectShareEur = sumPool('impact_projects_eur') / 100 || sumPool('project_share') / 100; // 70% von Impact-Pool
-    const companyShareEur = sumPool('hui_company_eur') / 100 || sumPool('company_share') / 100; // Balanced Growth: 50% von HUI (= 10% Brutto)
+    const projectShareEur = sumPool('impact_projects_eur') || sumPool('project_share') / 100; // 70% von Impact-Pool
+    const companyShareEur = sumPool('hui_company_eur') || sumPool('company_share') / 100; // Balanced Growth: 50% von HUI (= 10% Brutto)
 
     // ── Growth Chart ─────────────────────────────────────────────────────────
     const growthData = growthRes.data ?? [];
@@ -322,7 +322,7 @@ export async function GET(req: NextRequest) {
     // Für's UI-Format (id, amount_eur, status, created_at) auf stripe_payments mappen
     const recentPaymentsMapped = (recentPaymentsRes.data ?? []).map((p: { id: string; stripe_payment_id?: string; amount?: number; status: string; created_at: string }) => ({
       id:         p.stripe_payment_id ?? p.id,
-      amount_eur: (p.amount ?? 0) / 100,
+      amount_eur: (p.amount ?? 0),
       status:     p.status,
       created_at: p.created_at,
     }));
@@ -340,11 +340,11 @@ export async function GET(req: NextRequest) {
         projectShareEur,
         companyShareEur,
 
-        hui_company_eur:      sumPool('hui_company_eur') / 100,
-        impact_pool_eur:      sumPool('impact_pool_eur') / 100,
-        innovation_fund_eur:  sumPool('innovation_fund_eur') / 100,
-        impact_projects_eur: sumPool('impact_projects_eur') / 100,
-        impact_flex_pool_eur: sumPool('impact_flex_pool_eur') / 100,
+        hui_company_eur:      sumPool('hui_company_eur'),
+        impact_pool_eur:      sumPool('impact_pool_eur'),
+        innovation_fund_eur:  sumPool('innovation_fund_eur'),
+        impact_projects_eur: sumPool('impact_projects_eur'),
+        impact_flex_pool_eur: sumPool('impact_flex_pool_eur'),
         totalPayments,
         activeBookings:  activeBookingsCount,
         activeAmbassadors,
