@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
       const revenue       = pPay.reduce((s, p) => s + (Number(p.amount) || 0), 0); // amount in EUR
       const impact_pool   = pPool.reduce((s, p) => s + ((Number(p.total_inflow)   || 0) / 100), 0);
       const net_impact    = pPool.reduce((s, p) => s + ((Number(p.project_share)  || 0) / 100), 0);
-      const company_share      = pPool.reduce((s, p) => s + ((Number(p.hui_company_eur)      || Number(p.company_share)  || 0)), 0);
+      const company_share      = pPool.reduce((s, p) => s + (p.hui_company_eur != null ? Number(p.hui_company_eur) : (Number(p.company_share) || 0) / 100), 0);
       const impact_pool_total   = pPool.reduce((s, p) => s + ((Number(p.impact_pool_eur)         || 0)), 0);
       const innovation_total    = pPool.reduce((s, p) => s + ((Number(p.innovation_fund_eur)      || 0)), 0);
       const projects_total      = pPool.reduce((s, p) => s + ((Number(p.impact_projects_eur)      || 0)), 0);
