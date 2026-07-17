@@ -68,7 +68,7 @@ function Skeleton() {
 const STATUS_FILTERS = ['all', 'completed', 'pending', 'failed', 'refund', 'subscription'];
 const CATEGORY_FILTERS = ['work', 'talent', 'project', 'donation'];
 
-const TABLE_HEADERS = ['ID', 'Typ', 'Betrag', 'Impact-Anteil', 'Projekt', 'Unternehmen €', 'Impact €', 'Innovation €', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'];
+const TABLE_HEADERS = ['ID', 'Typ', 'Betrag', 'Impact-Anteil', 'Projekt', 'Unternehmen €', 'Impact €', 'Innovation €', 'Flex-Pool €', 'Status', 'Währung', 'Nutzer', 'Ambassador', 'Datum'];
 
 export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) {
   const { currentUser } = useAuth();
@@ -242,6 +242,9 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
                       <td style={{ ...tdBase, color: 'var(--purple)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
                         {p.innovation_fund_eur != null ? `€${p.innovation_fund_eur.toFixed(2)}` : '—'}
                       </td>
+                      <td style={{ ...tdBase, color: 'var(--green-muted, var(--text-muted))', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                        {p.impact_flex_pool_eur != null ? '€' + p.impact_flex_pool_eur.toFixed(2) : '—'}
+                      </td>
                       <td style={tdBase}>
                         {statusToBadge(p.status)}
                       </td>
@@ -289,6 +292,7 @@ export function TransactionsView({ role }: { role: 'superadmin' | 'employee' }) 
                 ['HUI Unternehmen (10 %)',   selected.hui_company_eur != null ? `€${selected.hui_company_eur.toFixed(2)}` : '—'],
                 ['HUI Impact (6 %)',         selected.impact_pool_eur != null ? `€${selected.impact_pool_eur.toFixed(2)}` : '—'],
                 ['HUI Innovation (4 %)',     selected.innovation_fund_eur != null ? `€${selected.innovation_fund_eur.toFixed(2)}` : '—'],
+                ['Flex-Pool (1.2 %)', selected.impact_flex_pool_eur != null ? '€' + selected.impact_flex_pool_eur.toFixed(2) : '—'],
                 ['Finanz-Modell',            selected.finance_model || '—'],
                 ['Impact P1 (50%)',           ((selected.metadata as any)?.impact_distribution?.distributions?.[0]?.amount_eur != null) ? `€${Number((selected.metadata as any).impact_distribution.distributions[0].amount_eur).toFixed(2)} → ${(selected.metadata as any).impact_distribution.distributions[0].project_name ?? ''}` : '—'],
                 ['Impact P2 (30%)',           ((selected.metadata as any)?.impact_distribution?.distributions?.[1]?.amount_eur != null) ? `€${Number((selected.metadata as any).impact_distribution.distributions[1].amount_eur).toFixed(2)} → ${(selected.metadata as any).impact_distribution.distributions[1].project_name ?? ''}` : '—'],

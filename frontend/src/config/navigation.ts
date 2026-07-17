@@ -42,6 +42,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/escrow',       label_de: 'Escrow',           label_en: 'Escrow',           icon: '🔒', roles: ['superadmin'] },
       { href: '/impact',       label_de: 'Impact Pool',      label_en: 'Impact Pool',      icon: '🌱', roles: ['superadmin'], superadminOnly: true },
       { href: '/finance',      label_de: 'Finanzen',         label_en: 'Finance',          icon: '💶', roles: ['superadmin'], superadminOnly: true },
+      { href: '/stripe', label_de: 'Stripe', label_en: 'Stripe', icon: '💳', roles: ['superadmin'], superadminOnly: true },
       // ARCHIVIERT (2026-07-04, Michael): 'App Review' (/reviews) wird nicht mehr benoetigt --
       // aus der Navigation entfernt, Route/Daten bewusst NICHT geloescht. Nur bei einer spaeteren
       // Bereinigungsrunde nach Rueckfrage entfernen, nicht jetzt.
