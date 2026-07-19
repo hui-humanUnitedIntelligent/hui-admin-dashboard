@@ -250,9 +250,29 @@ function UserDetailModal({
   onSoftDelete: (u: MergedUser) => void;
   refetch: () => void;
 }) {
-  const [view,        setView]        = useState<'info' | 'activity' | 'block' | 'note'>('info');
+  const [view,        setView]        = useState<'info' | 'activity' | 'block' | 'note' | 'edit'>('info');
   const [blockReason, setBlockReason] = useState(user.blocked_reason || '');
   const [saving,      setSaving]      = useState(false);
+  const [editPhone,   setEditPhone]   = useState(user.phone   || '');
+  const [editWebsite, setEditWebsite] = useState((user as unknown as Record<string,string|null>).website || '');
+  const [editSaving,  setEditSaving]  = useState(false);
+  const [editOk,      setEditOk]      = useState(false);
+
+  const saveContact = async () => {
+    setEditSaving(true); setEditOk(false);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, phone: editPhone || null, website: editWebsite || null }),
+      });
+      if (!res.ok) throw new Error('Fehler');
+      setEditOk(true);
+      refetch();
+      setTimeout(() => setEditOk(false), 2000);
+    } catch { showToast('Fehler beim Speichern.', 'error'); }
+    finally { setEditSaving(false); }
+  };
 
   const saveNote = async () => {
     setSaving(true);
@@ -331,7 +351,7 @@ function UserDetailModal({
 
         {/* Sub-Tabs */}
         <div style={{ display:'flex', gap:6, marginBottom:18, borderBottom:'1px solid var(--border)', paddingBottom:12 }}>
-          {([['info','Profil-Info'], ['activity','Aktivität'], ['block', isBlocked ? 'Entsperren' : 'Blockieren'], ['note','Admin-Notiz']] as const).map(([k,l])=>(
+          {([['info','Profil-Info'], ['edit','Kontakt'], ['activity','Aktivität'], ['block', isBlocked ? 'Entsperren' : 'Blockieren'], ['note','Admin-Notiz']] as const).map(([k,l])=>(
             <button key={k} onClick={()=>setView(k)}
               style={{ padding:'5px 14px', borderRadius:16, fontSize:12, cursor:'pointer',
                 border:`1px solid ${view===k?'var(--accent)':'var(--border)'}`,
@@ -343,12 +363,50 @@ function UserDetailModal({
           ))}
         </div>
 
+        {/* Kontakt bearbeiten */}
+        {view === 'edit' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <p style={{ fontSize:12, color:'var(--text-muted)', margin:'0 0 4px' }}>
+              Änderungen werden direkt in Supabase (profiles) gespeichert und sind sofort live.
+            </p>
+            <label style={{ fontSize:12, color:'var(--text-secondary)' }}>Telefonnummer</label>
+            <input
+              value={editPhone}
+              onChange={e => setEditPhone(e.target.value)}
+              placeholder="+49 123 456789"
+              type="tel"
+              style={{ width:'100%', padding:'10px 12px', borderRadius:8,
+                border:'1px solid var(--border)', background:'var(--bg-secondary)',
+                color:'var(--text-primary)', fontSize:13, boxSizing:'border-box' }}
+            />
+            <label style={{ fontSize:12, color:'var(--text-secondary)' }}>Website / Portfolio</label>
+            <input
+              value={editWebsite}
+              onChange={e => setEditWebsite(e.target.value)}
+              placeholder="https://deine-website.de"
+              type="url"
+              style={{ width:'100%', padding:'10px 12px', borderRadius:8,
+                border:'1px solid var(--border)', background:'var(--bg-secondary)',
+                color:'var(--text-primary)', fontSize:13, boxSizing:'border-box' }}
+            />
+            <button
+              onClick={saveContact}
+              disabled={editSaving}
+              style={{ marginTop:4, padding:'10px 18px', borderRadius:8, border:'none',
+                background: editOk ? '#68d391' : 'var(--accent)', color:'#fff',
+                fontWeight:700, fontSize:13, cursor:'pointer', transition:'background .2s' }}>
+              {editSaving ? 'Speichern…' : editOk ? '✓ Gespeichert' : 'Änderungen speichern'}
+            </button>
+          </div>
+        )}
+
         {/* Profil-Info */}
         {view === 'info' && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             <Row label="ID"           val={user.id} />
             <Row label="E-Mail"       val={user.email} />
             <Row label="Telefon"      val={user.phone} />
+            <Row label="Website"      val={(user as unknown as Record<string,string|null>).website} />
             <Row label="Name"         val={user.full_name || user.display_name} />
             <Row label="Username"     val={user.username} />
             <Row label="Rolle"        val={user.role} />

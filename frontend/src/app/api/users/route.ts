@@ -26,7 +26,7 @@ interface Profile {
   blocked: boolean | null;
   blocked_at: string | null;
   blocked_by: string | null;
-  phone: string | null;
+  phone: string | null; website: string | null;
   impact_eur: number | null;
   trust_score: number | null;
   last_seen_at: string | null;
@@ -40,7 +40,7 @@ interface MergedUser {
   avatar_url: string | null; role: string; membership_type: string | null;
   is_wirker: boolean; is_member: boolean;
   blocked: boolean; blocked_reason: string | null; blocked_at: string | null;
-  phone: string | null; is_deleted: boolean;
+  phone: string | null; website: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
   location_label: string | null;
   bio: string | null;
@@ -54,7 +54,7 @@ interface MergedUser {
 const PROFILE_COLS = [
   'id','display_name','username','full_name','avatar_url','role',
   'membership_type','is_wirker','is_member',
-  'blocked','blocked_at','blocked_by','phone',
+  'blocked','blocked_at','blocked_by','phone','website',
   'impact_eur','trust_score','last_seen_at','email','created_at',
   'location_label','bio','tagline','location','dna_tags',
 ].join(',');
@@ -151,6 +151,7 @@ export async function GET(req: NextRequest) {
         blocked_reason:  p?.blocked_by ?? null,   // blocked_by als Grund-Fallback
         blocked_at:      p?.blocked_at ?? null,
         phone:           p?.phone ?? null,
+          website:         p?.website ?? null,
         is_deleted:      (p?.blocked === true && (p?.blocked_by?.toLowerCase().includes('gelöscht') || p?.blocked_by?.toLowerCase().includes('deleted'))) ?? false,
         impact_eur:      impactMap.get(au.id) ?? 0,
         trust_score:     Number(p?.trust_score ?? 0),
@@ -178,6 +179,7 @@ export async function GET(req: NextRequest) {
           blocked_reason: p.blocked_by ?? null,
           blocked_at: p.blocked_at ?? null,
           phone: p.phone ?? null,
+          website: p.website ?? null,
           is_deleted: (p.blocked === true && (p.blocked_by?.toLowerCase().includes('gelöscht') || p.blocked_by?.toLowerCase().includes('deleted'))) ?? false,
           impact_eur: impactMap.get(p.id) ?? 0,
           trust_score: Number(p.trust_score ?? 0),
@@ -224,6 +226,37 @@ export async function GET(req: NextRequest) {
 
   } catch (err) {
     console.error('[users GET]', err);
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
+}
+
+// ── PATCH: Kontaktdaten eines Nutzers aktualisieren ───────────────────────────
+export async function PATCH(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+  try {
+    const body = await req.json() as {
+      userId: string;
+      phone?:   string | null;
+      website?: string | null;
+    };
+    const { userId, phone, website } = body;
+    if (!userId) return NextResponse.json({ ok: false, error: 'userId required' }, { status: 400 });
+
+    const supabase = getServiceClient();
+    const updates: Record<string, string | null> = {};
+    if (phone   !== undefined) updates.phone   = phone   ?? null;
+    if (website !== undefined) updates.website = website ?? null;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (error) throw error;
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (err) {
+    console.error('[users PATCH]', err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
