@@ -129,6 +129,9 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState(false);
   const [rejectModal, setRejectModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' });
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<Partial<TalentOffer>>({});
+  const [saving, setSaving] = useState(false);
 
   const showToast = useCallback((msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); }, []);
 
@@ -183,6 +186,24 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
     if (success) { showToast('❌ Talent-Angebot abgelehnt'); setSelected(null); load(); }
     else showToast('Fehler');
   }
+
+  const handleSaveEdit = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/talents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_talent_offer', id: selected.id, ...editData }),
+      });
+      if (res.ok) {
+        setSelected(prev => prev ? { ...prev, ...editData } as TalentOffer : null);
+        setEditMode(false);
+        setEditData({});
+        await load();
+      }
+    } finally { setSaving(false); }
+  };
 
   async function handleDelete(t: TalentOffer) {
     if (!confirm(`„${t.title}" endgültig löschen?`)) return;
@@ -282,8 +303,36 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
               </div>
             )}
 
-            {selected.description && (
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>{selected.description}</div>
+            {editMode ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>TITEL</label>
+                  <input value={editData.title ?? selected.title} onChange={e => setEditData(p => ({ ...p, title: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>KATEGORIE</label>
+                  <input value={editData.category ?? selected.category ?? ''} onChange={e => setEditData(p => ({ ...p, category: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>PREIS / STD (€)</label>
+                  <input type="number" value={String(editData.price_per_hour ?? selected.price_per_hour ?? '')} onChange={e => setEditData(p => ({ ...p, price_per_hour: parseFloat(e.target.value) || 0 }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 4 }}>BESCHREIBUNG</label>
+                  <textarea value={editData.description ?? selected.description ?? ''} onChange={e => setEditData(p => ({ ...p, description: e.target.value }))}
+                    rows={3}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box', resize: 'vertical' }} />
+                </div>
+              </div>
+            ) : (
+              <>
+                {selected.description && (
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>{selected.description}</div>
+                )}
+              </>
             )}
 
             {selected.status === 'rejected' && selected.rejection_reason && (
@@ -304,26 +353,49 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
               <span style={{ fontWeight: 600 }}>{new Date(selected.created_at).toLocaleDateString('de-DE')}</span>
             </div>
 
-            <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              {isAdmin && selected.status !== 'approved' && (
-                <button disabled={busy} onClick={() => handleApprove(selected)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#51CF66', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
-                  Freigeben
+            {!editMode ? (
+              <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                {isAdmin && selected.status !== 'approved' && (
+                  <button disabled={busy} onClick={() => handleApprove(selected)}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#51CF66', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                    ✅ Bestätigen
+                  </button>
+                )}
+                {isAdmin && selected.status !== 'rejected' && (
+                  <button disabled={busy} onClick={handleReject}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#FF6B6B', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                    ❌ Ablehnen
+                  </button>
+                )}
+                <button onClick={() => { setSelected(null); setEditMode(false); }}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
+                  Schließen
                 </button>
-              )}
-              {isAdmin && selected.status !== 'rejected' && (
-                <button disabled={busy} onClick={handleReject} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#FF6B6B', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
-                  Ablehnen
+                {isAdmin && (
+                  <button onClick={() => { setEditMode(true); setEditData({ title: selected.title, description: selected.description, price_per_hour: selected.price_per_hour, category: selected.category }); }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                    ✏️ Bearbeiten
+                  </button>
+                )}
+                {isAdmin && (
+                  <button disabled={busy} onClick={() => handleDelete(selected)}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: '#FF6B6B', cursor: 'pointer', fontSize: 13 }}>
+                    🗑 Löschen
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button onClick={() => { setEditMode(false); setEditData({}); }}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
+                  Abbrechen
                 </button>
-              )}
-              {isAdmin && (
-                <button disabled={busy} onClick={() => handleDelete(selected)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: '#FF6B6B', cursor: 'pointer', fontSize: 13 }}>
-                  Löschen
+                <button disabled={saving} onClick={handleSaveEdit}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--teal)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                  {saving ? '…' : '💾 Speichern'}
                 </button>
-              )}
-              <button onClick={() => setSelected(null)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
-                Schließen
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}

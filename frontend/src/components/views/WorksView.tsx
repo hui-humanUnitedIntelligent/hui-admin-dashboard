@@ -973,6 +973,13 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                       {isSuperadmin && <Button variant="danger" disabled={!!busy[selected.id]} onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
                     </>
                   )}
+                  {selected.status === 'pending_review' && (
+                    <>
+                      <Button variant="primary" loading={busy[selected.id]} disabled={!!busy[selected.id]} onClick={() => handleApprove(selected)}>✅ Bestätigen</Button>
+                      <Button variant="danger" disabled={!!busy[selected.id]} onClick={() => handleReject(selected)}>❌ Ablehnen</Button>
+                      {isSuperadmin && <Button variant="ghost" disabled={!!busy[selected.id]} onClick={() => handleDelete(selected)}>🗑 Löschen</Button>}
+                    </>
+                  )}
                 </>
               ) : (
                 <>
