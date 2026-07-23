@@ -88,8 +88,25 @@ export async function PATCH(req: NextRequest) {
       updates.rejection_reason = rejection_reason ?? reason ?? 'Nicht genehmigt';
       updates.reviewed_at = new Date().toISOString();
     } else if (_action === 'delete_talent') {
-      const { error: delErr } = await sb.from('talents').delete().eq('id', id);
+      // Soft-Delete mit Begründung (Resonanzzentrum-Notification)
+      const deleteReason = reason ?? rejection_reason ?? 'Verstoß gegen Community-Richtlinien';
+      const { data: talent } = await sb.from('talents').select('user_id,title').eq('id', id).single();
+      const { error: delErr } = await sb.from('talents').update({ status: 'deleted', deletion_reason: deleteReason }).eq('id', id);
       if (delErr) return serverError(delErr, 'talent-offers DELETE');
+      // Resonanzzentrum-Notification
+      if (talent?.user_id) {
+        try {
+          await sb.from('notifications').insert({
+            user_id: talent.user_id,
+            type: 'talent_rejected',
+            title: '🗑️ Talent-Angebot entfernt',
+            body: `„${talent.title || 'Dein Talent'}" wurde vom Admin entfernt.${deleteReason ? ' Begründung: ' + deleteReason : ''}`,
+            metadata: { entry_title: talent.title, rejection_reason: deleteReason },
+            entity_id: id, entity_type: 'talent',
+            is_read: false, read: false,
+          });
+        } catch { /* non-blocking */ }
+      }
       return ok({ message: 'Gelöscht', id });
     } else {
       return fail('Unbekannte Aktion');

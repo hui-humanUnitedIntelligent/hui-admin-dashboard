@@ -457,6 +457,8 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   const [rejectReason,  setRejectReason] = useState('');
   const [rejectLoading, setRejectLoading]= useState(false);
   const [deleteTarget,  setDeleteTarget] = useState<HuiEntry|null>(null);
+  const [deleteReason,  setDeleteReason]  = useState<string>('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [localDel,      setLocalDel]     = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading]= useState<string|null>(null);
 
@@ -544,17 +546,19 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   };
 
   const handleDelete = async (e: HuiEntry) => {
+    const reason = deleteReason.trim() || 'Verstoß gegen Community-Richtlinien';
     setLocalDel(p => new Set([...p, e.id]));
     setDeleteTarget(null);
-    setActionLoading(e.id);
-    const ok = await entryAction('delete_experience', e.id);
-    setActionLoading(null);
+    setDeleteLoading(true);
+    const ok = await entryAction('delete_experience', e.id, { reason });
+    setDeleteLoading(false);
     if (ok) {
-      showToast('Geloescht! Der Eintrag ist nicht mehr in der App sichtbar.', 'info');
+      showToast('Gelöscht! Der Eintrag ist nicht mehr in der App sichtbar.', 'info');
+      setDeleteReason('');
       setLocalDel(new Set());
       await refetchAll();
     } else {
-      showToast('Fehler beim Loeschen.', 'error');
+      showToast('Fehler beim Löschen.', 'error');
       setLocalDel(p => { const s = new Set(p); s.delete(e.id); return s; });
     }
   };
@@ -867,16 +871,54 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
           </div>
         </Modal>
 
-        {/* ── Delete Confirm ── */}
-        <ConfirmModal
-          open={deleteTarget!==null}
-          title="🗑 Eintrag löschen?"
-          message={`„${deleteTarget?.title||'Kein Titel'}" wird gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`}
-          confirmLabel="Löschen"
-          confirmVariant="danger"
-          onClose={()=>setDeleteTarget(null)}
-          onConfirm={()=>{if(deleteTarget)handleDelete(deleteTarget);}}
-        />
+        {/* ── Delete mit Begründung ── */}
+        {deleteTarget && (
+          <div style={{ position:'fixed', inset:0, zIndex:10600, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+            onClick={e=>{ if(e.target===e.currentTarget&&!deleteLoading){ setDeleteTarget(null); setDeleteReason(''); }}}>
+            <div style={{ background:'var(--bg-secondary)', borderRadius:16, padding:28, maxWidth:440, width:'100%', boxShadow:'0 8px 40px rgba(0,0,0,0.18)' }}>
+              {/* Header */}
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+                <span style={{ fontSize:22 }}>🗑️</span>
+                <div>
+                  <div style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)' }}>Eintrag löschen?</div>
+                  <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Der Ersteller wird im Resonanzzentrum benachrichtigt.</div>
+                </div>
+              </div>
+              {/* Vorschau */}
+              <div style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13, color:'var(--text-secondary)' }}>
+                „{deleteTarget.title || 'Kein Titel'}"
+                <div style={{ marginTop:4, fontSize:11, color:'var(--text-muted)' }}>
+                  {(deleteTarget._source as string) === 'impact_projects' ? 'Projekt' : 'Erlebnis'} · Diese Aktion kann nicht rückgängig gemacht werden.
+                </div>
+              </div>
+              {/* Begründung */}
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:'var(--text-secondary)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.4px' }}>
+                Begründung (erscheint im Resonanzzentrum des Nutzers)
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                placeholder="z.B. Verstoß gegen Community-Richtlinien, irreführender Inhalt, Spam…"
+                rows={3}
+                style={{ width:'100%', boxSizing:'border-box', padding:'10px 14px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-primary)', fontSize:13, resize:'vertical', outline:'none', fontFamily:'inherit' }}
+              />
+              <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4, marginBottom:20 }}>
+                Leer lassen = Standard: „Verstoß gegen Community-Richtlinien"
+              </div>
+              {/* Buttons */}
+              <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+                <button onClick={()=>{ setDeleteTarget(null); setDeleteReason(''); }} disabled={deleteLoading}
+                  style={{ padding:'9px 18px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-secondary)', color:'var(--text-secondary)', fontSize:13, cursor:'pointer', opacity: deleteLoading ? 0.5 : 1 }}>
+                  Abbrechen
+                </button>
+                <button onClick={()=>handleDelete(deleteTarget)} disabled={deleteLoading}
+                  style={{ padding:'9px 18px', borderRadius:8, border:'none', background: deleteLoading ? '#999' : '#ef4444', color:'#fff', fontSize:13, fontWeight:600, cursor: deleteLoading ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6 }}>
+                  {deleteLoading ? '⏳ Wird entfernt…' : '🗑️ Jetzt löschen'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
       {/* Lightbox — eine Komponente für Superadmin + Employee */}

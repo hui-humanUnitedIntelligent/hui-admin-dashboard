@@ -79,6 +79,7 @@ export async function PATCH(req: NextRequest) {
     } else if (action === 'delete_experience' || action === 'soft_delete_experience') {
       updates.status     = 'deleted';
       updates.visibility = 'private';
+      if (reason) updates.deletion_reason = reason;
     } else if (action === 'restore_experience') {
       updates.status          = 'published';
       updates.approval_status = 'approved';
@@ -117,14 +118,15 @@ export async function PATCH(req: NextRequest) {
           approve:            { type: 'content_approved', title: '\u2705 Erlebnis freigegeben', body: `\u201e${entry.title}\u201c ist jetzt live!` },
           reject_experience:  { type: 'content_rejected', title: '\u274c Erlebnis abgelehnt',  body: `\u201e${entry.title}\u201c wurde abgelehnt.` },
           reject:             { type: 'content_rejected', title: '\u274c Erlebnis abgelehnt',  body: `\u201e${entry.title}\u201c wurde abgelehnt.` },
-          delete_experience:  { type: 'content_deleted',  title: '\uD83D\uDDD1 Erlebnis gel\u00f6scht', body: `\u201e${entry.title}\u201c wurde gel\u00f6scht.` },
+          delete_experience:  { type: 'content_deleted',  title: '\uD83D\uDDD1 Erlebnis gel\u00f6scht', body: `\u201e${entry.title}\u201c wurde gel\u00f6scht.${reason ? ' Begr\u00fcndung: ' + reason : ''}` },
         };
         const notif = notifMap[action];
         if (notif) {
           await sb.from('notifications').insert({
             user_id: entry.user_id, type: notif.type, title: notif.title,
             body: notif.body, is_read: false, read: false,
-            data: {}, entity_id: id, entity_type: 'experience',
+            metadata: { entry_title: entry.title, reason: reason || null },
+            entity_id: id, entity_type: 'experience',
           });
         }
       }

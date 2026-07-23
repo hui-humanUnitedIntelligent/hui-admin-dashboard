@@ -132,6 +132,9 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Partial<TalentOffer>>({});
   const [saving, setSaving] = useState(false);
+  const [deleteTarget,  setDeleteTarget]  = useState<TalentOffer | null>(null);
+  const [deleteReason,  setDeleteReason]  = useState<string>('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const showToast = useCallback((msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); }, []);
 
@@ -205,11 +208,24 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
     } finally { setSaving(false); }
   };
 
-  async function handleDelete(t: TalentOffer) {
-    if (!confirm(`„${t.title}" endgültig löschen?`)) return;
-    const success = await doAction('delete_talent', t.id);
-    if (success) { showToast('🗑️ Gelöscht'); setSelected(null); load(); }
-    else showToast('Fehler');
+  function openDeleteDialog(t: TalentOffer) {
+    setDeleteTarget(t);
+    setDeleteReason('');
+  }
+
+  async function confirmDeleteTalent() {
+    if (!deleteTarget) return;
+    const reason = deleteReason.trim() || 'Verstoß gegen Community-Richtlinien';
+    setDeleteLoading(true);
+    const success = await doAction('delete_talent', deleteTarget.id, { reason });
+    setDeleteLoading(false);
+    if (success) {
+      showToast('🗑️ Gelöscht — Nutzer wurde benachrichtigt');
+      setDeleteTarget(null);
+      setDeleteReason('');
+      setSelected(null);
+      load();
+    } else showToast('Fehler beim Löschen');
   }
 
   const thS: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', fontWeight: 600 };
@@ -217,6 +233,48 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
 
   const statusColor = (s: string) => s === 'approved' ? '#51CF66' : s === 'rejected' ? '#FF6B6B' : '#F7B731';
   const statusLabel = (s: string) => s === 'approved' ? '✅ Live' : s === 'rejected' ? '❌ Abgelehnt' : '⏳ Prüfung';
+
+  const deleteDialog = deleteTarget ? (
+    <div style={{ position:'fixed', inset:0, zIndex:10600, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+      onClick={e=>{ if(e.target===e.currentTarget&&!deleteLoading){ setDeleteTarget(null); setDeleteReason(''); }}}>
+      <div style={{ background:'var(--bg-secondary)', borderRadius:16, padding:28, maxWidth:440, width:'100%', boxShadow:'0 8px 40px rgba(0,0,0,0.18)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+          <span style={{ fontSize:22 }}>🗑️</span>
+          <div>
+            <div style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)' }}>Talent-Angebot löschen?</div>
+            <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:2 }}>Der Ersteller wird im Resonanzzentrum benachrichtigt.</div>
+          </div>
+        </div>
+        <div style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13, color:'var(--text-secondary)' }}>
+          „{deleteTarget.title || 'Kein Titel'}"
+          <div style={{ marginTop:4, fontSize:11, color:'var(--text-muted)' }}>
+            von {deleteTarget.author?.display_name || '—'}{deleteTarget.author?.username ? ` · @${deleteTarget.author.username}` : ''}
+          </div>
+        </div>
+        <label style={{ display:'block', fontSize:12, fontWeight:600, color:'var(--text-secondary)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.4px' }}>
+          Begründung (erscheint im Resonanzzentrum des Nutzers)
+        </label>
+        <textarea
+          value={deleteReason}
+          onChange={e => setDeleteReason(e.target.value)}
+          placeholder="z.B. Verstoß gegen Community-Richtlinien, unvollständiges Angebot, Spam…"
+          rows={3}
+          style={{ width:'100%', boxSizing:'border-box', padding:'10px 14px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-tertiary)', color:'var(--text-primary)', fontSize:13, resize:'vertical', outline:'none', fontFamily:'inherit' }}
+        />
+        <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4, marginBottom:20 }}>Leer lassen = Standard: „Verstoß gegen Community-Richtlinien"</div>
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+          <button onClick={()=>{ setDeleteTarget(null); setDeleteReason(''); }} disabled={deleteLoading}
+            style={{ padding:'9px 18px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-secondary)', color:'var(--text-secondary)', fontSize:13, cursor:'pointer', opacity: deleteLoading ? 0.5 : 1 }}>
+            Abbrechen
+          </button>
+          <button onClick={confirmDeleteTalent} disabled={deleteLoading}
+            style={{ padding:'9px 18px', borderRadius:8, border:'none', background: deleteLoading ? '#999' : '#ef4444', color:'#fff', fontSize:13, fontWeight:600, cursor: deleteLoading ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6 }}>
+            {deleteLoading ? '⏳ Wird entfernt…' : '🗑️ Jetzt löschen'}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   const content = (
     <>
@@ -378,7 +436,7 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
                   </button>
                 )}
                 {isAdmin && (
-                  <button disabled={busy} onClick={() => handleDelete(selected)}
+                  <button disabled={busy} onClick={() => openDeleteDialog(selected)}
                     style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: '#FF6B6B', cursor: 'pointer', fontSize: 13 }}>
                     🗑 Löschen
                   </button>
@@ -420,9 +478,14 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
     </>
   );
 
-  return role === 'employee' ? (
-    <EmployeeLayout title="Talente">{content}</EmployeeLayout>
-  ) : (
-    <DashboardLayout title="Talente">{content}</DashboardLayout>
+  return (
+    <>
+      {role === 'employee' ? (
+        <EmployeeLayout title="Talente">{content}</EmployeeLayout>
+      ) : (
+        <DashboardLayout title="Talente">{content}</DashboardLayout>
+      )}
+      {deleteDialog}
+    </>
   );
 }
