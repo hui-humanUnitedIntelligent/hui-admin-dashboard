@@ -186,7 +186,7 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
           { label:'Gemeldet',   value:counts.reported, color:'#C0451A' },
           { label:'Entfernt',   value:counts.deleted,  color:'var(--text-muted)' },
         ].map(k => (
-          <div key={k.label} style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px' }}>
+          <div key={k.label} style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px' }}>
             <div style={{ fontSize:28, fontWeight:800, color:k.color, lineHeight:1 }}>{k.value}</div>
             <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.4px' }}>{k.label}</div>
           </div>
@@ -230,7 +230,7 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
       </div>
 
       {/* Tabelle */}
-      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
+      <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
         {loading ? (
           <div style={{ padding:40, textAlign:'center', color:'var(--text-muted)' }}>Lade Momente…</div>
         ) : filtered.length === 0 ? (
@@ -261,9 +261,9 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                 return (
                   <tr key={m.id}
                     onClick={() => setSelected(m)}
-                    style={{ background: isOdd ? 'var(--bg-card)' : 'var(--bg-secondary)', cursor:'pointer' }}
+                    style={{ background: isOdd ? 'var(--bg-secondary)' : 'var(--bg-secondary)', cursor:'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = isOdd ? 'var(--bg-card)' : 'var(--bg-secondary)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = isOdd ? 'var(--bg-secondary)' : 'var(--bg-secondary)')}
                   >
                     {/* Ersteller */}
                     <td style={tdS}>
@@ -371,11 +371,11 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
         const ss = statusStyle(selected.derived_status);
         return (
           <div
-            style={{ position:'fixed', inset:0, zIndex:10500, background:'rgba(15,20,35,0.55)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+            style={{ position:'fixed', inset:0, zIndex:10500, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
             onClick={() => setSelected(null)}
           >
             <div
-              style={{ background:'var(--bg-card)', borderRadius:16, padding:28, maxWidth:560, width:'100%', boxShadow:'0 24px 80px rgba(0,0,0,0.28)', maxHeight:'90vh', overflowY:'auto' }}
+              style={{ background:'var(--bg-secondary)', borderRadius:16, padding:28, maxWidth:560, width:'100%', boxShadow:'0 24px 80px rgba(0,0,0,0.28)', maxHeight:'90vh', overflowY:'auto' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
