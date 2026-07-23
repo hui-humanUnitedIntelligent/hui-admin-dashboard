@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-const EXP_SELECT = 'id,user_id,title,description,price,cover_url,status,approval_status,sensitivity_status,sensitivity_reason,rejection_reason,admin_comment,review_note,reviewed_at,rejected_at,created_at,updated_at,visibility,category,location_text,date,time_start,time_end,max_participants,experience_type,format,profiles!user_id(full_name,username)';
+const EXP_SELECT = 'id,user_id,title,description,price,cover_url,status,approval_status,sensitivity_status,sensitivity_reason,rejection_reason,admin_comment,review_note,reviewed_at,rejected_at,created_at,updated_at,visibility,category,location_text,date,time_start,time_end,max_participants,experience_type,format';
 
 export async function GET(req: NextRequest) {
   const guard = await guardEmployee(req);
@@ -21,7 +21,20 @@ export async function GET(req: NextRequest) {
     if (status) q = q.eq('approval_status', status);
     const { data, count } = await q.range(offset, offset + limit - 1);
 
-    const entries = (data ?? []).map((e: Record<string,unknown>) => ({ ...e, _source: 'experiences' }));
+    // Profil-Daten separat laden (kein FK-Join nötig → kein PGRST200 Risiko)
+    const userIds = [...new Set((data ?? []).map((e: any) => e.user_id).filter(Boolean))];
+    let profileMap: Record<string, { full_name: string | null; username: string | null }> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await sb.from('profiles').select('id,full_name,username').in('id', userIds);
+      (profiles ?? []).forEach((p: any) => { profileMap[p.id] = { full_name: p.full_name, username: p.username }; });
+    }
+
+    const entries = (data ?? []).map((e: Record<string,unknown>) => ({
+      ...e,
+      _source:   'experiences',
+      full_name: profileMap[(e as any).user_id]?.full_name ?? null,
+      username:  profileMap[(e as any).user_id]?.username  ?? null,
+    }));
     return NextResponse.json({ entries, total: count ?? 0 });
   } catch (err) {
     console.error('[experiences GET]', err);
