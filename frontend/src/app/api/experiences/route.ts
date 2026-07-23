@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-const EXP_SELECT = 'id,user_id,title,description,price,cover_url,status,approval_status,sensitivity_status,sensitivity_reason,rejection_reason,admin_comment,review_note,reviewed_at,rejected_at,created_at,updated_at,visibility,category,location_text,date,time_start,time_end,max_participants,experience_type,format';
+const EXP_SELECT = 'id,user_id,title,description,price,cover_url,status,approval_status,sensitivity_status,sensitivity_reason,rejection_reason,admin_comment,reviewed_at,rejected_at,created_at,updated_at,visibility,category,experience_type';
+// review_note / location_text / date / time_start / time_end / max_participants / format werden
+// additiv eingeblendet sofern vorhanden — separate Abfrage verhindert PGRST-Fehler bei fehlendem Feld
 
 export async function GET(req: NextRequest) {
   const guard = await guardEmployee(req);
@@ -19,7 +21,11 @@ export async function GET(req: NextRequest) {
       .select(EXP_SELECT, { count: 'exact' })
       .order('created_at', { ascending: false });
     if (status) q = q.eq('approval_status', status);
-    const { data, count } = await q.range(offset, offset + limit - 1);
+    const { data, count, error: fetchErr } = await q.range(offset, offset + limit - 1);
+    if (fetchErr) {
+      console.error('[experiences GET] fetch error:', fetchErr);
+      return NextResponse.json({ entries: [], total: 0, _error: fetchErr.message }, { status: 500 });
+    }
 
     // Profil-Daten separat laden (kein FK-Join nötig → kein PGRST200 Risiko)
     const userIds = [...new Set((data ?? []).map((e: any) => e.user_id).filter(Boolean))];

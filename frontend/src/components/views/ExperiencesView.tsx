@@ -590,8 +590,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
 
 
         <div style={{ display:'flex', gap:10, marginBottom:22, flexWrap:'wrap' }}>
-          <Kachel label="Erlebnisse"  value={all.filter(e=>e._source==='experiences').length} color="var(--accent)" />
-          <Kachel label="Projekte"    value={all.filter(e=>e._source==='projects').length}    color="#9370DB"       />
+          <Kachel label="Erlebnisse"  value={all.filter(e=>!isDeleted(e)).length} color="var(--accent)" />
           <Kachel label="Published"   value={counts.published}  color="var(--green)"      />
           <Kachel label="Eingereicht" value={counts.pending}    color="#F59E0B"           />
           <Kachel label="Abgelehnt"   value={counts.rejected}   color="var(--red)"        />
