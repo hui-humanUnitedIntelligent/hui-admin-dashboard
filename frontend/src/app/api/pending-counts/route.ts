@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
   const sb = getServiceClient();
 
-  const [worksRes, talentsRes, expRes] = await Promise.all([
+  const [worksRes, talentsRes, expRes, momentesRes] = await Promise.all([
     // Works: warten auf Freigabe
     sb.from('works')
       .select('id', { count: 'exact', head: true })
@@ -24,21 +24,27 @@ export async function GET(req: Request) {
       .select('id', { count: 'exact', head: true })
       .in('status', ['pending', 'pending_review']),
 
-    // Experiences: NUR wenn status=pending_review UND NICHT bereits published/rejected/deleted
-    // Verhindert falsche Badge durch inkonsistente approval_status-Felder
+    // Experiences: NUR wenn status=pending_review
     sb.from('experiences')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending_review'),
+
+    // Momente: gemeldete (status=reported) → brauchen Admin-Aufmerksamkeit
+    sb.from('beitraege')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'reported'),
   ]);
 
-  const works       = worksRes.count ?? 0;
-  const talents     = talentsRes.count ?? 0;
-  const experiences = expRes.count ?? 0;
+  const works       = worksRes.count    ?? 0;
+  const talents     = talentsRes.count  ?? 0;
+  const experiences = expRes.count      ?? 0;
+  const momente     = momentesRes.count ?? 0;
 
   return NextResponse.json({
     works,
     talents,
     experiences,
-    total: works + talents + experiences,
+    momente,
+    total: works + talents + experiences + momente,
   });
 }

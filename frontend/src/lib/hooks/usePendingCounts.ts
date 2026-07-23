@@ -10,10 +10,11 @@ export type PendingCounts = {
   works:       number;
   talents:     number;
   experiences: number;
+  momente:     number;
   total:       number;
 };
 
-const EMPTY: PendingCounts = { works: 0, talents: 0, experiences: 0, total: 0 };
+const EMPTY: PendingCounts = { works: 0, talents: 0, experiences: 0, momente: 0, total: 0 };
 
 // Supabase Client für Realtime (anon key reicht — wir hören nur auf Schema-Events)
 function getRealtimeClient() {
@@ -62,6 +63,16 @@ export function usePendingCounts(intervalMs = 30_000) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'experiences' },
+        () => refresh()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'momente_reports' },
+        () => refresh()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'beitraege' },
         () => refresh()
       )
       .subscribe();
