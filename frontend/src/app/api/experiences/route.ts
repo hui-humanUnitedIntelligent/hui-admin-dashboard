@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-const EXP_SELECT = 'id,user_id,title,description,price,cover_url,status,approval_status,sensitivity_status,sensitivity_reason,rejection_reason,admin_comment,review_note,reviewed_at,rejected_at,created_at,updated_at,visibility,category,location_text,date,time_start,time_end,max_participants,experience_type,format';
+const EXP_SELECT = 'id,user_id,title,description,price,cover_url,status,approval_status,sensitivity_status,sensitivity_reason,rejection_reason,admin_comment,review_note,reviewed_at,rejected_at,created_at,updated_at,visibility,category,location_text,date,time_start,time_end,max_participants,experience_type,format,profiles!user_id(full_name,username)';
 
 export async function GET(req: NextRequest) {
   const guard = await guardEmployee(req);

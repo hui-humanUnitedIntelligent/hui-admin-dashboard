@@ -42,12 +42,14 @@ function isUpdated(entry: HuiEntry): boolean {
 // Echte DB-Status: pending_review | published (keine approval_status-Spalte in experiences)
 function normStatus(e: HuiEntry): string {
   const s = (e as unknown as {status?:string}).status ?? '';
-  if (s === 'pending_review') return 'pending';
-  if (s === 'published')      return 'published';
-  if (s === 'rejected')       return 'rejected';
-  if (s === 'draft')          return 'draft';
-  if (s === 'deleted')        return 'deleted';
-  return s || 'unknown';
+  const a = (e as unknown as {approval_status?:string}).approval_status ?? '';
+  // Freigabe-Status-Feld bevorzugen
+  if (a === 'pending' || s === 'pending_review') return 'Warte auf Freigabe';
+  if (a === 'approved' || s === 'published')     return 'Freigegeben';
+  if (a === 'rejected' || s === 'rejected')      return 'Abgelehnt';
+  if (s === 'draft')                             return 'Entwurf';
+  if (s === 'deleted')                           return 'Gelöscht';
+  return s || 'Unbekannt';
 }
 
 const isPending   = (e: HuiEntry) => normStatus(e) === 'pending';
@@ -818,7 +820,6 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                     {/* Grid: alle Felder */}
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       <DiffFieldExp label="Typ"             newVal={selected._source==='experiences'?'Erlebnis':'Projekt'} />
-                      <DiffFieldExp label="Status (DB)"     newVal={str(selected.status)} />
                       <DiffFieldExp label="Freigabe-Status" newVal={normStatus(selected)} />
                       <DiffFieldExp label="Kategorie"       newVal={str(selected.category)}         oldVal={hasDiff?snap!.category:undefined} />
                       <DiffFieldExp label="Erlebnis-Typ"    newVal={str(sel.experience_type||'—')}  oldVal={hasDiff?snap!.experience_type:undefined} />
@@ -828,8 +829,8 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                       <DiffFieldExp label="Max. Teilnehmer" newVal={str(sel.max_participants||'—')} oldVal={hasDiff?snap!.max_participants:undefined} />
                       <DiffFieldExp label="Standort"        newVal={str(sel.location_text||'—')}    oldVal={hasDiff?snap!.location_text:undefined} />
                       <DiffFieldExp label="Erstellt"        newVal={timeAgo(selected.created_at)} />
-                      <DiffFieldExp label="Eingereicht"     newVal={timeAgo(str(selected.last_submitted_at))} />
-                      <DiffFieldExp label="User-ID"         newVal={str(selected.user_id).slice(0,18)+'…'} />
+                      <DiffFieldExp label="Erstellt von"    newVal={(selected as any).profiles?.full_name || '—'} />
+                      <DiffFieldExp label="Nickname"        newVal={(selected as any).profiles?.username ? `@${(selected as any).profiles.username}` : '—'} />
                     </div>
                     {/* Volltextfelder */}
                     <DiffFieldExp label="Titel"        newVal={str(selected.title)}       oldVal={hasDiff?snap!.title:undefined} />
