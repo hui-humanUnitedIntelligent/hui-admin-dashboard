@@ -121,6 +121,22 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
 
   useEffect(() => { load(); }, [load]);
 
+  async function handleRestore(id: string) {
+    try {
+      const res = await fetch('/api/momente', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'restore' }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        showToast('✅ Wiederhergestellt');
+        setSelected(null);
+        load();
+      } else showToast(`❌ Fehler: ${json.error || res.status}`);
+    } catch { showToast('Netzwerkfehler'); }
+  }
+
   function handleDeleteClick(m: MomentEntry) {
     setDeleteTarget(m);
     setDeleteReason('');
@@ -362,7 +378,7 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleAction(m.id, 'restore')}
+                            onClick={() => handleRestore(m.id)}
                             style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(13,196,181,0.25)', background:'rgba(13,196,181,0.07)', color:'#0AA090', fontSize:11, fontWeight:600, cursor:'pointer' }}
                           >
                             Wiederherstellen
@@ -538,7 +554,7 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                     🗑️ Moment entfernen
                   </button>
                 ) : (
-                  <button onClick={() => handleAction(selected.id, 'restore')} style={{ padding:'8px 18px', borderRadius:8, border:'none', background:'var(--accent)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  <button onClick={() => handleRestore(selected.id)} style={{ padding:'8px 18px', borderRadius:8, border:'none', background:'var(--accent)', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                     ✅ Wiederherstellen
                   </button>
                 )}

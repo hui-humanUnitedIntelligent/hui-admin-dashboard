@@ -183,6 +183,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: true, deleted: true });
     }
 
+    // Restore: Moment aus momente_reports löschen (Soft-Restore — beitraege können nicht undeleted werden)
+    if (action === 'restore') {
+      await sb.from('momente_reports').delete().eq('moment_id', id);
+      return NextResponse.json({ ok: true, action: 'restore' });
+    }
+
     return NextResponse.json({ ok: false, error: `Unbekannte Aktion: ${action}` }, { status: 400 });
   } catch (e: any) {
     console.error('[momente PATCH]', e);
