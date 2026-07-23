@@ -132,30 +132,60 @@ export async function PATCH(req: NextRequest) {
   const guard = await guardEmployee(req);
   if (guard) return guard;
   try {
-    const { id, action } = await req.json();
+    const body = await req.json();
+    const { id, action, reason } = body;
     if (!id || !action) return NextResponse.json({ ok: false, error: 'id + action erforderlich' }, { status: 400 });
 
     const sb = getServiceClient();
 
     if (action === 'delete') {
-      // Soft-Remove via momente_removals
-      const { error } = await sb.from('momente_removals').upsert({ moment_id: id, removed_at: new Date().toISOString() }, { onConflict: 'moment_id' });
-      if (error) {
-        // Fallback: Tabelle existiert noch nicht → direktes Löschen
-        const { error: delErr } = await sb.from('beitraege').delete().eq('id', id);
-        if (delErr) return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
-      }
-      return NextResponse.json({ ok: true });
-    }
+      // 1. Moment aus beitraege laden (für Notification + Kontext)
+      const { data: moment, error: fetchErr } = await sb
+        .from('beitraege')
+        .select('id, user_id, caption, type')
+        .eq('id', id)
+        .single();
 
-    if (action === 'restore') {
-      await sb.from('momente_removals').delete().eq('moment_id', id);
-      await sb.from('momente_reports').delete().eq('moment_id', id);
-      return NextResponse.json({ ok: true });
+      if (fetchErr || !moment) {
+        return NextResponse.json({ ok: false, error: fetchErr?.message ?? 'Moment nicht gefunden' }, { status: 404 });
+      }
+
+      // 2. Moment aus beitraege löschen (hard delete — kein status-Feld vorhanden)
+      const { error: delErr } = await sb.from('beitraege').delete().eq('id', id);
+      if (delErr) {
+        console.error('[momente PATCH delete]', delErr);
+        return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
+      }
+
+      // 3. Notification an den Ersteller → erscheint im Resonanzzentrum mit Begründung
+      const deleteReason = reason?.trim() || 'Dein Moment wurde von der Community-Moderation entfernt.';
+      const preview = moment.caption
+        ? `„${moment.caption.substring(0, 60)}${moment.caption.length > 60 ? '…' : ''}"`
+        : 'Dein Moment';
+
+      try {
+        await sb.from('notifications').insert({
+          user_id:     moment.user_id,
+          type:        'moment_removed',
+          title:       '🗑️ Moment entfernt',
+          body:        `${preview} wurde entfernt. Begründung: ${deleteReason}`,
+          is_read:     false,
+          read:        false,
+          entity_id:   id,
+          entity_type: 'moment',
+          metadata:    { reason: deleteReason, moment_type: moment.type, moment_preview: moment.caption?.substring(0, 100) ?? null },
+        });
+      } catch (notifErr) {
+        // Notification-Fehler blockiert nicht das Löschen
+        console.error('[momente PATCH] Notification-Fehler:', notifErr);
+      }
+
+      return NextResponse.json({ ok: true, deleted: true });
     }
 
     return NextResponse.json({ ok: false, error: `Unbekannte Aktion: ${action}` }, { status: 400 });
   } catch (e: any) {
+    console.error('[momente PATCH]', e);
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }
 }

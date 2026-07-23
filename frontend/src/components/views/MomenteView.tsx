@@ -91,8 +91,11 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
   const [tab,      setTab]      = useState<TabKey>('all');
   const [search,   setSearch]   = useState('');
   const [toast,    setToast]    = useState('');
-  const [selected, setSelected] = useState<MomentEntry | null>(null);
-  const [counts,   setCounts]   = useState({ all:0, public:0, reported:0, deleted:0 });
+  const [selected,      setSelected]      = useState<MomentEntry | null>(null);
+  const [counts,        setCounts]        = useState({ all:0, public:0, reported:0, deleted:0 });
+  const [deleteTarget,  setDeleteTarget]  = useState<MomentEntry | null>(null);
+  const [deleteReason,  setDeleteReason]  = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg); setTimeout(() => setToast(''), 3000);
@@ -118,19 +121,35 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleAction(id: string, action: 'delete' | 'restore') {
+  function handleDeleteClick(m: MomentEntry) {
+    setDeleteTarget(m);
+    setDeleteReason('');
+    setSelected(null); // Detail-Modal schließen
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
       const res = await fetch('/api/momente', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id: deleteTarget.id, action: 'delete', reason: deleteReason || 'Verstoß gegen Community-Richtlinien' }),
       });
-      if (res.ok) {
-        showToast(action === 'delete' ? '🗑️ Moment entfernt' : '✅ Wiederhergestellt');
-        setSelected(null);
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        showToast('🗑️ Moment entfernt — Ersteller wurde benachrichtigt');
+        setDeleteTarget(null);
+        setDeleteReason('');
         load();
-      } else showToast('❌ Fehler');
-    } catch { showToast('Netzwerkfehler'); }
+      } else {
+        showToast(`❌ Fehler: ${json.error || res.status}`);
+      }
+    } catch (e: any) {
+      showToast(`❌ Netzwerkfehler: ${e.message}`);
+    } finally {
+      setDeleteLoading(false);
+    }
   }
 
   const TABS: { key: TabKey; label: string }[] = [
@@ -336,7 +355,7 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                       <div style={{ display:'flex', gap:6 }}>
                         {!m.is_removed ? (
                           <button
-                            onClick={() => handleAction(m.id, 'delete')}
+                            onClick={() => handleDeleteClick(m)}
                             style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(220,50,50,0.25)', background:'rgba(220,50,50,0.07)', color:'#C0451A', fontSize:11, fontWeight:600, cursor:'pointer' }}
                           >
                             Entfernen
@@ -363,6 +382,74 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
       {filtered.length > 0 && (
         <div style={{ marginTop:10, textAlign:'right', color:'var(--text-muted)', fontSize:11 }}>
           {filtered.length} Momente angezeigt
+        </div>
+      )}
+
+      {/* Lösch-Dialog mit Begründung */}
+      {deleteTarget && (
+        <div
+          style={{ position:'fixed', inset:0, zIndex:10600, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => !deleteLoading && setDeleteTarget(null)}
+        >
+          <div
+            style={{ background:'var(--bg-secondary)', borderRadius:16, padding:28, maxWidth:480, width:'100%', border:'1px solid rgba(239,68,68,0.3)', boxShadow:'0 24px 80px rgba(0,0,0,0.35)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+              <div style={{ width:40, height:40, borderRadius:99, background:'rgba(239,68,68,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🗑️</div>
+              <div>
+                <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:'var(--text-primary)' }}>Moment entfernen</h3>
+                <p style={{ margin:0, fontSize:12, color:'var(--text-muted)', marginTop:2 }}>
+                  Der Ersteller wird automatisch im Resonanzzentrum benachrichtigt.
+                </p>
+              </div>
+            </div>
+
+            {/* Moment-Vorschau */}
+            <div style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:13, color:'var(--text-secondary)', fontStyle: deleteTarget.caption ? 'normal' : 'italic' }}>
+              {deleteTarget.caption ? `„${deleteTarget.caption.substring(0, 120)}${deleteTarget.caption.length > 120 ? '…' : ''}"` : 'Kein Text (Medien-Moment)'}
+              <div style={{ marginTop:4, fontSize:11, color:'var(--text-muted)' }}>von {deleteTarget.initiator_name || '—'} · {deleteTarget.initiator_username ? `@${deleteTarget.initiator_username}` : ''}</div>
+            </div>
+
+            {/* Begründung */}
+            <label style={{ display:'block', fontSize:12, fontWeight:600, color:'var(--text-secondary)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.4px' }}>
+              Begründung (erscheint im Resonanzzentrum des Nutzers)
+            </label>
+            <textarea
+              value={deleteReason}
+              onChange={e => setDeleteReason(e.target.value)}
+              placeholder="z.B. Verstoß gegen Community-Richtlinien, unangemessener Inhalt, Spam…"
+              rows={3}
+              style={{
+                width:'100%', boxSizing:'border-box', padding:'10px 14px',
+                borderRadius:8, border:'1px solid var(--border)',
+                background:'var(--bg-tertiary)', color:'var(--text-primary)',
+                fontSize:13, resize:'vertical', outline:'none', fontFamily:'inherit',
+              }}
+            />
+            <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4, marginBottom:20 }}>
+              Leer lassen = Standard-Begründung: "Verstoß gegen Community-Richtlinien"
+            </div>
+
+            {/* Aktionen */}
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteLoading}
+                style={{ padding:'9px 18px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-secondary)', color:'var(--text-secondary)', fontSize:13, cursor:'pointer', opacity: deleteLoading ? 0.5 : 1 }}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteLoading}
+                style={{ padding:'9px 18px', borderRadius:8, border:'none', background: deleteLoading ? '#999' : '#ef4444', color:'#fff', fontSize:13, fontWeight:600, cursor: deleteLoading ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:6 }}
+              >
+                {deleteLoading ? '⏳ Wird entfernt…' : '🗑️ Jetzt entfernen'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -447,7 +534,7 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                   Schließen
                 </button>
                 {!selected.is_removed ? (
-                  <button onClick={() => handleAction(selected.id, 'delete')} style={{ padding:'8px 18px', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  <button onClick={() => handleDeleteClick(selected)} style={{ padding:'8px 18px', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                     🗑️ Moment entfernen
                   </button>
                 ) : (
