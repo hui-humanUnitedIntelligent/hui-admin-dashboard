@@ -347,7 +347,7 @@ function Spinner() {
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'published')      return <Badge variant="success" dot>Published</Badge>;
-  if (status === 'pending_review') return <Badge variant="warning" dot>⏳ Pending</Badge>;
+  if (status === 'pending_review') return <Badge variant="warning" dot>⏳ Warte auf Freigabe</Badge>;
   if (status === 'rejected')       return <Badge variant="danger"  dot>❌ Abgelehnt</Badge>;
   if (status === 'draft')          return <Badge variant="neutral" dot>Draft</Badge>;
   if (status === 'flagged')        return <Badge variant="danger"  dot>⚑ Gemeldet</Badge>;
@@ -1083,11 +1083,24 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                   <DiffFieldWork label="Kommentare"   newVal={Boolean(selected.allow_comments)?'✅ erlaubt':'🚫 gesperrt'} />
                   <DiffFieldWork label="Likes"        newVal={Boolean(selected.allow_likes)?'✅ erlaubt':'🚫 gesperrt'} />
                   <DiffFieldWork label="Standort"     newVal={String(selected.location_text||'—')} oldVal={wHasDiff?wSnap!.location_text:undefined} />
-                  <DiffFieldWork label="Views"        newVal={String(selected.views_count||0)} />
-                  <DiffFieldWork label="Likes #"      newVal={String(selected.likes_count||0)} />
-                  <DiffFieldWork label="Kommentare #" newVal={String(selected.comments_count||0)} />
+                  {selected.status === 'published' && (
+                    <>
+                      <DiffFieldWork label="Views"        newVal={String(selected.views_count||0)} />
+                      <DiffFieldWork label="Likes #"      newVal={String(selected.likes_count||0)} />
+                      <DiffFieldWork label="Kommentare #" newVal={String(selected.comments_count||0)} />
+                    </>
+                  )}
                   <DiffFieldWork label="Erstellt"     newVal={timeAgo(String(selected.created_at||''))} />
-                  <DiffFieldWork label="User-ID"      newVal={String(selected.user_id||'—').slice(0,18)+'…'} />
+                  <DiffFieldWork label="Erstellt von" newVal={
+                    selected.profiles
+                      ? `${(selected.profiles as any)?.full_name || '—'}`
+                      : String(selected.user_id || '—')
+                  } />
+                  <DiffFieldWork label="Nickname"     newVal={
+                    selected.profiles
+                      ? `@${(selected.profiles as any)?.username || '—'}`
+                      : '—'
+                  } />
                   {selected.description&&(
                     <div style={{ gridColumn:'1/-1' }}>
                       <DiffFieldWork label="Beschreibung" newVal={String(selected.description)} oldVal={wHasDiff?wSnap!.description:undefined}/>
@@ -1144,6 +1157,10 @@ export function WorksView({ role = 'superadmin' }: { role?: 'superadmin' | 'empl
                 <div>
                   <label style={{ fontSize:11, color:'var(--text-muted)', display:'block', marginBottom:4 }}>Preis (€)</label>
                   <input style={fieldStyle} type="number" min="0" value={form.price} onChange={e => setForm({...form, price:e.target.value})}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'var(--text-muted)', display:'block', marginBottom:4 }}>Lagerbestand</label>
+                  <input style={fieldStyle} type="number" min="0" placeholder="z.B. 5" value={(form as any).stock_quantity ?? ''} onChange={e => setForm({...form, stock_quantity: e.target.value === '' ? null : Number(e.target.value)} as any)}/>
                 </div>
                 <div>
                   <label style={{ fontSize:11, color:'var(--text-muted)', display:'block', marginBottom:4 }}>Standort</label>
