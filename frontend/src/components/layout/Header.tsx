@@ -71,7 +71,7 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
           position: 'sticky', top: 0, zIndex: 100,
         }}
       >
-        {/* Burger — mobile only */}
+        {/* Burger — mobile only (show-mobile CSS-Klasse macht display:flex bei ≤768px) */}
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
@@ -81,9 +81,11 @@ export default function Header({ title, actions, onMenuToggle }: HeaderProps) {
               border: '1px solid var(--border)',
               borderRadius: 8, cursor: 'pointer',
               color: 'var(--text-secondary)',
-              fontSize: 16, padding: '5px 9px', lineHeight: 1,
-              display: 'none',
+              fontSize: 18, padding: '6px 11px', lineHeight: 1,
+              minWidth: 40, minHeight: 40,
+              alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
+              /* display:none wird per show-mobile CSS-Klasse auf mobile überschrieben */
             }}
             aria-label="Navigation öffnen"
           >☰</button>

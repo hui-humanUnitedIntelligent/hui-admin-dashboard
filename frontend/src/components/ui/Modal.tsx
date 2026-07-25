@@ -66,6 +66,7 @@ export default function Modal({
       onClick={(e) => {
         if (!disableOutsideClick && e.target === e.currentTarget) onClose();
       }}
+      className="modal-overlay"
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(0,0,0,0.75)',
@@ -77,6 +78,7 @@ export default function Modal({
     >
       <div
         ref={dialogRef}
+        className="modal-box"
         style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-hover)',
@@ -106,11 +108,11 @@ export default function Modal({
             onClick={onClose}
             aria-label="Modal schließen"
             style={{
-              width: 26, height: 26, borderRadius: 6,
+              width: 36, height: 36, borderRadius: 8,
               border: 'none', background: 'none',
               cursor: 'pointer', color: 'var(--text-muted)',
-              fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.12s',
+              fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.12s', flexShrink: 0,
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none'; (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}

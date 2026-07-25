@@ -95,9 +95,9 @@ export const buttonVariantStyles: Record<ButtonVariant, React.CSSProperties> = {
 };
 
 export const buttonSizeStyles: Record<ButtonSize, React.CSSProperties> = {
-  sm: { padding: '4px 9px',  fontSize: 11, borderRadius: radii.sm },
-  md: { padding: '7px 13px', fontSize: 12, borderRadius: radii.md },
-  lg: { padding: '10px 18px', fontSize: 13, borderRadius: radii.md },
+  sm: { padding: '6px 10px',  fontSize: 11.5, borderRadius: radii.sm, minHeight: 32 },
+  md: { padding: '8px 14px',  fontSize: 12.5, borderRadius: radii.md, minHeight: 36 },
+  lg: { padding: '11px 20px', fontSize: 13.5, borderRadius: radii.md, minHeight: 42 },
 };
 
 // ── Badge ─────────────────────────────────────────────────────────────────────

@@ -320,3 +320,252 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
   table { font-size: 10px !important; }
   th, td { padding: 6px 8px !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE OPTIMIERUNGEN — HUI Admin v2 (2026-07-25)
+   Mobile-First: alle Elemente funktionieren ab 360px
+════════════════════════════════════════════════════════════════════════ */
+
+/* ── Mobile Card Table (DataTable mobile mode) ─────────────────────────── */
+.mobile-card-list { display: none; }
+
+@media (max-width: 768px) {
+  /* Tabellen → Mobile Cards */
+  .mobile-card-table  { display: none !important; }
+  .mobile-card-list   { display: flex !important; flex-direction: column; gap: 10px; }
+
+  /* Page padding — leave room for sticky header, no bottom nav needed */
+  .page-content { padding: 10px 12px 32px; }
+  main { padding: 14px 12px 32px !important; }
+
+  /* KPI grid: immer 2 Spalten auf mobile */
+  .grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Buttons: touch-friendly minimum */
+  button, a[role="button"] { min-height: 40px; }
+
+  /* Filter rows: immer gestapelt */
+  .filter-row, [class*="filter"] > div { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+  .filter-row input, .filter-row select,
+  .filter-row button { width: 100% !important; min-width: 0 !important; }
+
+  /* Tabellen-Wrapper: kein horizontaler Scroll → Cards stattdessen */
+  .table-wrap { overflow-x: hidden; }
+
+  /* Modals: Full-Screen Bottom-Sheet */
+  .modal-overlay { padding: 0 !important; align-items: flex-end !important; }
+  .modal-box {
+    border-radius: 16px 16px 0 0 !important;
+    width: 100% !important; max-width: 100% !important;
+    max-height: 92dvh !important;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  /* Tab-Bar: horizontal scrollbar versteckt */
+  .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tab-bar::-webkit-scrollbar { display: none; }
+
+  /* Kein overflow-x auf dem body */
+  body { overflow-x: hidden !important; max-width: 100vw; }
+
+  /* Section-Titles kleiner */
+  h2 { font-size: 16px !important; }
+  h3 { font-size: 14px !important; }
+
+  /* Flex-Rows die auf mobile umbrechen sollen */
+  .flex-row-mobile { flex-direction: column !important; align-items: stretch !important; }
+
+  /* Badges: nicht abschneiden */
+  .badge, [class*="badge"] { white-space: nowrap; flex-shrink: 0; }
+
+  /* Sticky page header auf mobile */
+  .page-header-sticky {
+    position: sticky; top: 48px; z-index: 90;
+    background: var(--bg-primary);
+    padding: 10px 0 8px;
+    margin: 0 -12px;
+    padding-left: 12px; padding-right: 12px;
+  }
+}
+
+/* ── Mobile Card — Design (shared by DataTable + alle Views) ───────────── */
+.m-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.m-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.m-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+.m-card-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+  min-width: 0;
+}
+.m-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.m-card-actions button,
+.m-card-actions a {
+  flex: 1;
+  min-width: 80px;
+  min-height: 40px;
+  font-size: 12px;
+  justify-content: center;
+}
+
+/* ── Smallest phones: ≤ 360px ──────────────────────────────────────────── */
+@media (max-width: 360px) {
+  main { padding: 10px 10px 24px !important; }
+  .m-card { padding: 12px 12px; }
+  .m-card-value { font-size: 12px; }
+  h2 { font-size: 15px !important; }
+}
+
+/* ── Tablet (769–1024px): 2-spaltig statt 4 ───────────────────────────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  main { padding: 20px 20px 32px !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   AUTO MOBILE TABLE → CARD TRANSFORM
+   Wandelt ALLE <table> im main-Bereich auf Mobile automatisch in Cards um.
+   Kein Umbau der einzelnen Views notwendig.
+════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  /* ── Tabellen-Wrapper: kein horizontaler Scroll ── */
+  main .table-wrap,
+  main [style*="overflow-x: auto"],
+  main [style*="overflowX: auto"] {
+    overflow-x: hidden !important;
+  }
+
+  /* ── Tabelle selbst: Block-Layout ── */
+  main table {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* ── thead ausblenden (Labels kommen aus data-label) ── */
+  main table thead {
+    display: none !important;
+  }
+
+  /* ── tbody: flex column ── */
+  main table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  /* ── Jede tr = Karte ── */
+  main table tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 14px !important;
+    gap: 8px !important;
+    cursor: pointer;
+  }
+
+  /* ── Jede td: Label + Wert nebeneinander ── */
+  main table tbody td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 4px 0 !important;
+    border: none !important;
+    font-size: 13px !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+  }
+
+  /* ── data-label als Label vor dem Wert ── */
+  main table tbody td[data-label]::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+
+  /* ── Aktions-Zellen: untereinander ── */
+  main table tbody td:last-child,
+  main table tbody td.td-actions {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--border) !important;
+    margin-top: 4px !important;
+  }
+
+  main table tbody td:last-child button,
+  main table tbody td.td-actions button {
+    flex: 1 !important;
+    min-width: 80px !important;
+    min-height: 40px !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+  }
+
+  /* ── Empty state (colspan) ── */
+  main table tbody tr:only-child td[colspan] {
+    justify-content: center !important;
+    padding: 32px 16px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  /* ── Sticky table header innerhalb Modals: normal ── */
+  .modal-box table thead {
+    display: table-header-group !important;
+  }
+  .modal-box table tbody {
+    display: table-row-group !important;
+  }
+  .modal-box table tbody tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+  .modal-box table tbody td {
+    display: table-cell !important;
+    padding: 8px 10px !important;
+  }
+}
