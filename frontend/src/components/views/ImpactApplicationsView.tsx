@@ -303,6 +303,11 @@ function VotingTab() {
   const [loading, setLoading]                     = useState(true);
   const [distLoading, setDistLoading]             = useState(false);
   const [selectedProject, setSelectedProject]     = useState<ImpactRanking | null>(null);
+  // Vormonat-Archiv
+  const [archiveData, setArchiveData]             = useState<{pool_month:string;project_id:string;project_name:string;vote_count:number;total_weight:number}[]>([]);
+  const [archiveMonths, setArchiveMonths]         = useState<string[]>([]);
+  const [archiveMonth, setArchiveMonth]           = useState<string>('');
+  const [archiveLoading, setArchiveLoading]       = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -375,6 +380,21 @@ function VotingTab() {
 
   // Aggregat für gewählten Monat
   const filteredTotal  = filteredDist.reduce((s, d) => s + Number(d.amount_eur ?? 0), 0);
+
+  // Archiv laden
+  useEffect(() => {
+    setArchiveLoading(true);
+    const url = archiveMonth ? `/api/impact-votes-archive?month=${archiveMonth}` : '/api/impact-votes-archive';
+    fetch(url, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        setArchiveData(Array.isArray(d.data) ? d.data : []);
+        if (archiveMonths.length === 0 && Array.isArray(d.months)) setArchiveMonths(d.months);
+        if (!archiveMonth && Array.isArray(d.months) && d.months.length > 0) setArchiveMonth(d.months[0]);
+      })
+      .catch(console.error)
+      .finally(() => setArchiveLoading(false));
+  }, [archiveMonth]); // eslint-disable-line
 
   // Per-project aggregation for selected month
   const perProjectDist: Record<string, number> = {};
@@ -700,6 +720,54 @@ function VotingTab() {
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Vormonat-Archiv */}
+      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>📦 Vormonat-Archiv</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Stimmen nach Monats-Reset archiviert</span>
+          {archiveMonths.length > 0 && (
+            <select
+              value={archiveMonth}
+              onChange={e => setArchiveMonth(e.target.value)}
+              style={{ marginLeft: 'auto', fontSize: 12, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+            >
+              {archiveMonths.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
+            </select>
+          )}
+        </div>
+        {archiveLoading ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>⏳ Lade Archiv…</div>
+        ) : archiveData.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            Noch keine archivierten Stimmen vorhanden.<br />
+            <span style={{ fontSize: 11 }}>Nach dem monatlichen Reset werden die Vormonat-Stimmen hier gespeichert.</span>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['Rang', 'Projekt', 'Stimmen', 'Gewicht', 'Monat'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {archiveData
+                .filter(r => !archiveMonth || r.pool_month === archiveMonth)
+                .map((r, i) => (
+                <tr key={`${r.pool_month}-${r.project_id}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '10px 14px', fontSize: 16 }}>{rankMedal(i + 1)}</td>
+                  <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>{r.project_name}</td>
+                  <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{r.vote_count}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{r.total_weight}</td>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 12 }}>{fmtMonth(r.pool_month)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
