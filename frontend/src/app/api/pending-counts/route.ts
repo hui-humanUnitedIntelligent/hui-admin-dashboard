@@ -1,6 +1,5 @@
 // frontend/src/app/api/pending-counts/route.ts
-// BADGE-SYNC-003: Korrekte Pending-Logik für experiences
-// Nur zählen wenn status NICHT bereits published/rejected/deleted (=wirklich zu prüfen)
+// BADGE-SYNC-003: Korrekte Pending-Logik für experiences + recommendation_reports
 import { NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
@@ -13,7 +12,7 @@ export async function GET(req: Request) {
 
   const sb = getServiceClient();
 
-  const [worksRes, talentsRes, expRes, momentesRes] = await Promise.all([
+  const [worksRes, talentsRes, expRes, momentesRes, recReportsRes] = await Promise.all([
     // Works: warten auf Freigabe
     sb.from('works')
       .select('id', { count: 'exact', head: true })
@@ -33,18 +32,27 @@ export async function GET(req: Request) {
     sb.from('beitraege')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'reported'),
+
+    // Recommendation Reports: neue Meldungen
+    sb.from('recommendation_reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'new'),
   ]);
 
   const works       = worksRes.count    ?? 0;
   const talents     = talentsRes.count  ?? 0;
   const experiences = expRes.count      ?? 0;
   const momente     = momentesRes.count ?? 0;
+  const recReports  = recReportsRes.count ?? 0;
+
+  const total = works + talents + experiences + momente + recReports;
 
   return NextResponse.json({
     works,
     talents,
     experiences,
     momente,
-    total: works + talents + experiences + momente,
+    recReports,
+    total,
   });
 }
