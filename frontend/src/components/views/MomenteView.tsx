@@ -21,6 +21,7 @@ interface MomentEntry {
   src:                 string | null;
   visibility_scope:    string;
   report_count:        number;
+  report_reasons:      { label: string; count: number }[];
   is_reported:         boolean;
   is_removed:          boolean;
   derived_status:      string;
@@ -528,6 +529,32 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                   </div>
                 ))}
               </div>
+
+              {/* MELDE-FLOW-002: Melde-Gründe-Breakdown — nur bei ≥1 Meldung */}
+              {selected.report_count > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:9, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:8 }}>
+                    Melde-Gründe
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {(selected.report_reasons ?? []).map((r) => (
+                      <span
+                        key={r.label}
+                        style={{
+                          display:'inline-flex', alignItems:'center', gap:5,
+                          background:'rgba(196,122,101,0.12)', color:'#C47A65',
+                          border:'1px solid rgba(196,122,101,0.25)',
+                          borderRadius:999, padding:'5px 11px',
+                          fontSize:12, fontWeight:600,
+                        }}
+                      >
+                        {r.label}
+                        <span style={{ fontWeight:800 }}>{r.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Ersteller-Profil-Info */}
               <div style={{ display:'flex', alignItems:'center', gap:10, background:'var(--bg-secondary)', borderRadius:10, padding:'10px 14px', marginBottom:20 }}>

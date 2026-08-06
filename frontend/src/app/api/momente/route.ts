@@ -9,6 +9,22 @@ export const dynamic = 'force-dynamic';
 
 const BEITRAG_SELECT = 'id, user_id, type, caption, src, visibility_scope, moment_source, created_at';
 
+// MELDE-FLOW-002: Kategorie-Labels — muss synchron bleiben mit
+// be-hui src/components/shared/ReportReasonModal.jsx (REPORT_REASONS)
+const REPORT_REASON_LABELS: Record<string, string> = {
+  sexueller_inhalt:  'Sexueller Inhalt',
+  rassismus:         'Rassismus / Diskriminierung',
+  politik:           'Politik / Extremismus',
+  gewalt:            'Gewalt oder Bedrohung',
+  belaestigung:      'Belästigung / Mobbing',
+  spam:              'Spam oder Werbung',
+  falschinformation: 'Falschinformation',
+  urheberrecht:      'Urheberrechtsverletzung',
+  unangemessen:      'Unangemessener Inhalt',
+  sonstiges:         'Sonstiges',
+  inappropriate:     'Unangemessen (Alt)', // Legacy-Wert vor MELDE-FLOW-002
+};
+
 export async function GET(req: Request) {
   const guard = await guardEmployee(req as any);
   if (guard) return guard;
@@ -60,16 +76,21 @@ export async function GET(req: Request) {
   let reportMap: Record<string, number> = {};
   let reportedIds = new Set<string>();
 
+  // MELDE-FLOW-002: reason mitladen für Kategorie-Breakdown pro Moment
+  let reasonMap: Record<string, Record<string, number>> = {};
   if (ids.length > 0) {
     // Versuche momente_reports — falls Tabelle noch nicht existiert, graceful fallback
     const { data: reports, error: repErr } = await sb
       .from('momente_reports')
-      .select('moment_id')
+      .select('moment_id, reason')
       .in('moment_id', ids);
 
     if (!repErr) {
       (reports ?? []).forEach((r: any) => {
         reportMap[r.moment_id] = (reportMap[r.moment_id] ?? 0) + 1;
+        const key = r.reason || 'sonstiges';
+        if (!reasonMap[r.moment_id]) reasonMap[r.moment_id] = {};
+        reasonMap[r.moment_id][key] = (reasonMap[r.moment_id][key] ?? 0) + 1;
       });
       // Als "gemeldet" gilt: ≥1 Meldung
       Object.entries(reportMap).forEach(([mid, cnt]) => {
@@ -101,6 +122,10 @@ export async function GET(req: Request) {
     src:                e.src               ?? null,
     visibility_scope:   e.visibility_scope  ?? 'public',
     report_count:       reportMap[e.id]     ?? 0,
+    report_reasons:     Object.entries(reasonMap[e.id] ?? {}).map(([key, count]) => ({
+                           label: REPORT_REASON_LABELS[key] ?? key,
+                           count,
+                         })).sort((a, b) => b.count - a.count),
     is_reported:        reportedIds.has(e.id),
     is_removed:         removedIds.has(e.id),
     // Virtueller Status für Tabs
