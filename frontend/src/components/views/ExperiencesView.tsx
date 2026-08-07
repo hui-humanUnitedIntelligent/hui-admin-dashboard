@@ -40,16 +40,29 @@ function isUpdated(entry: HuiEntry): boolean {
 }
 
 // Echte DB-Status: pending_review | published (keine approval_status-Spalte in experiences)
+// Kanonische (englische) Status-Tokens — SSOT für alle isPending/isApproved/... Vergleiche.
+// WICHTIG: Diese Funktion NIE für die Anzeige verwenden — dafür normStatusLabel() nutzen.
 function normStatus(e: HuiEntry): string {
   const s = (e as unknown as {status?:string}).status ?? '';
   const a = (e as unknown as {approval_status?:string}).approval_status ?? '';
   // Freigabe-Status-Feld bevorzugen
-  if (a === 'pending' || s === 'pending_review') return 'Warte auf Freigabe';
-  if (a === 'approved' || s === 'published')     return 'Freigegeben';
-  if (a === 'rejected' || s === 'rejected')      return 'Abgelehnt';
-  if (s === 'draft')                             return 'Entwurf';
-  if (s === 'deleted')                           return 'Gelöscht';
-  return s || 'Unbekannt';
+  if (a === 'pending' || s === 'pending_review') return 'pending';
+  if (a === 'approved' || s === 'published')     return 'approved';
+  if (a === 'rejected' || s === 'rejected')      return 'rejected';
+  if (s === 'draft')                             return 'draft';
+  if (s === 'deleted')                           return 'deleted';
+  return s || 'unknown';
+}
+
+// Deutsche Anzeige-Labels — NUR für UI-Text, niemals für Vergleiche verwenden.
+function normStatusLabel(e: HuiEntry): string {
+  const ns = normStatus(e);
+  if (ns === 'pending')  return 'Warte auf Freigabe';
+  if (ns === 'approved') return 'Freigegeben';
+  if (ns === 'rejected') return 'Abgelehnt';
+  if (ns === 'draft')    return 'Entwurf';
+  if (ns === 'deleted')  return 'Gelöscht';
+  return ns || 'Unbekannt';
 }
 
 const isPending   = (e: HuiEntry) => normStatus(e) === 'pending';
@@ -823,7 +836,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
                     {/* Grid: alle Felder */}
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       <DiffFieldExp label="Typ"             newVal={selected._source==='experiences'?'Erlebnis':'Projekt'} />
-                      <DiffFieldExp label="Freigabe-Status" newVal={normStatus(selected)} />
+                      <DiffFieldExp label="Freigabe-Status" newVal={normStatusLabel(selected)} />
                       <DiffFieldExp label="Kategorie"       newVal={str(selected.category)}         oldVal={hasDiff?snap!.category:undefined} />
                       <DiffFieldExp label="Erlebnis-Typ"    newVal={str(sel.experience_type||'—')}  oldVal={hasDiff?snap!.experience_type:undefined} />
                       <DiffFieldExp label="Preis"           newVal={selected.price?`€${Number(selected.price).toLocaleString('de-DE')}`:'—'} oldVal={hasDiff?(snap!.price!=null?`€${Number(snap!.price).toLocaleString('de-DE')}`:'—'):undefined} />
