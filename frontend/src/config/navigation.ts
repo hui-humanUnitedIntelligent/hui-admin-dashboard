@@ -54,7 +54,7 @@ export const ADMIN_NAV: NavGroup[] = [
   },
   {
     id: 'content',
-    label_de: 'Content',
+    label_de: 'Inhalte',
     label_en: 'Content',
     icon: '🎨',
     items: [
@@ -116,7 +116,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
   },
   {
     id: 'content',
-    label_de: 'Content',
+    label_de: 'Inhalte',
     label_en: 'Content',
     icon: '🎨',
     items: [
