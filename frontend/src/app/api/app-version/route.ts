@@ -7,10 +7,10 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   return NextResponse.json({
-    versionCode: 2,
-    versionName: '1.1',
-    downloadUrl: 'https://base44.app/api/apps/6a840e4b298bd7a7f6f8a640/files/mp/public/6a840e4b298bd7a7f6f8a640/8263dacbd_HUI-Admin-v11.zip',
-    message: 'v1.1 — Mobile-Optimierung: bessere Tabellen & Karten auf dem Handy, Auto-Reload nach 5 Min.',
+    versionCode: 3,
+    versionName: '1.2',
+    downloadUrl: 'https://github.com/hui-humanUnitedIntelligent/hui-admin-dashboard/releases/download/v1.2-apk/HUI-Admin-v1.2.apk',
+    message: 'v1.2 — Fix: Header/Burger-Menü war hinter der Statusleiste versteckt. Jetzt sichtbar (Werke, Talente, Erlebnisse, Momente, Impact-Projekte etc. anklickbar).',
   }, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
