@@ -731,7 +731,27 @@ export default function UsersPage() {
 
   const handleAction = useCallback(async (action: string, user: MergedUser) => {
     if (action === 'view') { setViewUser(user); return; }
-    if (action === 'block' || action === 'unblock') { setViewUser(user); return; }
+    if (action === 'block') {
+      // Schnellaktion (⊘-Icon in der Tabelle): sofort blockieren, keine Modal-Umleitung.
+      // Der Nutzer bekommt sofort die Standard-Mail ("Dein Konto wird von einem Admin
+      // geprüft..."). Individuelle Blockierungsgründe bleiben über das Detail-Modal
+      // (◉-Icon -> Tab "Blockieren") möglich.
+      const name = user.full_name || user.display_name || user.email || 'Nutzer';
+      if (!window.confirm(`"${name}" sofort blockieren?\n\nDer Nutzer erhält per E-Mail sofort die Standard-Nachricht:\n"Dein Konto wird von einem Admin geprüft. Bei Fragen: support@be-hui.com"`)) return;
+      try {
+        await apiAction('block', user.id, {});
+        showToast(`🔒 ${name} wurde blockiert — Standard-Mail wurde versendet.`, 'warning', 3000);
+        setViewUser(null);
+        setActiveTab('blocked' as TabKey);
+        refetch();
+      } catch { showToast('Fehler beim Blockieren.', 'error'); }
+      return;
+    }
+    if (action === 'unblock') {
+      // Direkt entsperren, kein Modal nötig (analog zur Blockieren-Schnellaktion).
+      await handleUnblock(user);
+      return;
+    }
     if (action === 'delete') {
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
       if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
