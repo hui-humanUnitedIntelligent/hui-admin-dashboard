@@ -49,7 +49,10 @@ export const ADMIN_NAV: NavGroup[] = [
       // aus der Navigation entfernt, Route/Daten bewusst NICHT geloescht. Nur bei einer spaeteren
       // Bereinigungsrunde nach Rueckfrage entfernen, nicht jetzt.
       // { href: '/reviews', label_de: 'App Review', label_en: 'App Review', icon: '💬', roles: ['superadmin'] },
-      { href: '/website-reviews', label_de: 'Webseite Review',   label_en: 'Website Review',    icon: '🌐', roles: ['superadmin'] },
+      // ARCHIVIERT (2026-08-18, Michael): 'Webseite Review' (/website-reviews) wird vorlaeufig
+      // nicht benoetigt -- aus der Navigation entfernt, Route/Daten bewusst NICHT geloescht.
+      // Nur bei einer spaeteren Bereinigungsrunde nach Rueckfrage entfernen, nicht jetzt.
+      // { href: '/website-reviews', label_de: 'Webseite Review', label_en: 'Website Review', icon: '🌐', roles: ['superadmin'] },
     ],
   },
   {
