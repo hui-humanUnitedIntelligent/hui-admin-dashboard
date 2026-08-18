@@ -65,6 +65,32 @@ function parseImageArray(raw: unknown): string[] {
     return '';
   }).filter(Boolean);
 }
+// Deutsche Status-Labels — dieselbe Bedeutung wie in WorksView/TalentOffersView/
+// ImpactApplicationsView, nur einheitlich fuer den Aktivitaets-Tab zusammengefasst.
+// Deckt alle in der DB vorkommenden Status-Werte ab (works/experiences: 'published'/
+// 'pending_review'/'rejected'/'draft'/'flagged'/'deleted'; talents/impact_applications:
+// 'approved'/'pending'/'submitted'/'rejected'; moments: synthetisch 'published').
+function statusLabel(s: string): string {
+  const map: Record<string,string> = {
+    published:'✅ Live', approved:'✅ Live', live:'✅ Live',
+    pending_review:'⏳ Ausstehend', pending:'⏳ Ausstehend', submitted:'⏳ Ausstehend',
+    rejected:'❌ Abgelehnt',
+    draft:'📝 Entwurf',
+    flagged:'⚑ Gemeldet', sensitive:'⚑ Geprüft',
+    deleted:'🗑 Gelöscht',
+  };
+  return map[s] ?? s;
+}
+function statusColorFor(s: string): string {
+  const map: Record<string,string> = {
+    published:'#4ECDC4', approved:'#4ECDC4', live:'#4ECDC4',
+    pending_review:'#F59E0B', pending:'#F59E0B', submitted:'#F59E0B',
+    rejected:'#F87171', flagged:'#F59E0B', sensitive:'#F59E0B',
+    draft:'#9CA3AF', deleted:'#F87171',
+  };
+  return map[s] ?? '#9CA3AF';
+}
+
 function resolveThumb(item: Record<string,unknown>): string | null {
   const direct = (item.cover_url || item.thumbnail_url || item.media_url) as string | undefined;
   if (direct) return direct;
@@ -151,8 +177,10 @@ function ActivityTab({ userId }: { userId: string }) {
     works: Array<Record<string,unknown>>;
     experiences: Array<Record<string,unknown>>;
     projects: Array<Record<string,unknown>>;
-    counts: { works: number; experiences: number; projects_exp: number; impact: number; total: number } | null;
-  }>({ bio: null, location: null, tags: [], counts: null, works: [], experiences: [], projects: [] });
+    talents: Array<Record<string,unknown>>;
+    moments: Array<Record<string,unknown>>;
+    counts: { works: number; experiences: number; projects_exp: number; impact: number; talents: number; moments: number; total: number } | null;
+  }>({ bio: null, location: null, tags: [], counts: null, works: [], experiences: [], projects: [], talents: [], moments: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -196,11 +224,7 @@ function ActivityTab({ userId }: { userId: string }) {
 
   function ItemRow({ item, typeField }: { item: Record<string,unknown>; typeField?: string }) {
     const s = String(item.status ?? '—');
-    const statusColor: Record<string,string> = {
-      published:'#4ECDC4', pending_review:'#F59E0B', submitted:'#F59E0B',
-      draft:'#9CA3AF', deleted:'#F87171', rejected:'#F87171', sensitive:'#F59E0B',
-    };
-    const color = statusColor[s] ?? '#9CA3AF';
+    const color = statusColorFor(s);
     const typeVal = typeField ? String(item[typeField] ?? '') : '';
     const thumb = resolveThumb(item);
     return (
@@ -235,47 +259,24 @@ function ActivityTab({ userId }: { userId: string }) {
           </span>
         )}
         <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, fontWeight:600,
-          background:`${color}18`, color, flexShrink:0 }}>{s}</span>
+          background:`${color}18`, color, flexShrink:0, whiteSpace:'nowrap' }}>{statusLabel(s)}</span>
       </div>
     );
   }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-      {/* Bio */}
-      <div style={{ marginBottom:16, padding:'12px 14px', borderRadius:8,
-        background:'var(--bg-secondary)', border:'1px solid var(--border)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-          <span>💬</span>
-          <span style={{ fontSize:11, fontWeight:700, textTransform:'uppercase' as const,
-            letterSpacing:'0.06em', color:'var(--text-muted)' }}>Bio</span>
-          {data.location && (
-            <span style={{ fontSize:11, color:'var(--text-muted)', marginLeft:'auto' }}>
-              📍 {data.location}
-            </span>
-          )}
-        </div>
-        {data.bio
-          ? <p style={{ fontSize:13, color:'var(--text-primary)', margin:0,
-              lineHeight:1.5, whiteSpace:'pre-wrap' }}>{data.bio}</p>
-          : <p style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', margin:0 }}>Keine Bio eingetragen.</p>
-        }
-        {data.tags && data.tags.length > 0 && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:8 }}>
-            {(data.tags as string[]).map((t,i) => (
-              <span key={i} style={{ fontSize:10, padding:'2px 7px', borderRadius:10,
-                background:'var(--bg-tertiary)', color:'var(--text-muted)',
-                border:'1px solid var(--border)' }}>{t}</span>
-            ))}
-          </div>
-        )}
-      </div>
-
       <Section title="Werke" icon="🎨" items={data.works} emptyMsg="Keine Werke vorhanden."
+        renderRow={(item, i) => <ItemRow key={i} item={item} typeField="category" />}
+      />
+      <Section title="Talente" icon="⭐" items={data.talents} emptyMsg="Keine Talent-Angebote vorhanden."
         renderRow={(item, i) => <ItemRow key={i} item={item} typeField="category" />}
       />
       <Section title="Erlebnisse & Projekte" icon="🌿" items={data.experiences} emptyMsg="Keine Erlebnisse vorhanden."
         renderRow={(item, i) => <ItemRow key={i} item={item} typeField="experience_type" />}
+      />
+      <Section title="Momente" icon="📸" items={data.moments} emptyMsg="Keine Momente vorhanden."
+        renderRow={(item, i) => <ItemRow key={i} item={item} typeField="mood" />}
       />
       <Section title="Impact-Projekte" icon="📌" items={data.projects} emptyMsg="Keine Impact-Projekte."
         renderRow={(item, i) => <ItemRow key={i} item={item} />}
