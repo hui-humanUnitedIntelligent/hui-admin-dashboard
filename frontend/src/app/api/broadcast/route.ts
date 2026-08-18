@@ -84,10 +84,30 @@ export async function POST(req: NextRequest) {
 
     const notifications = userIds.map(uid => ({ user_id: uid, type: 'broadcast', title, body, is_read: false, read: false, data: {} }));
     const CHUNK = 500;
+    // BUGFIX (2026-08-18): Insert-Fehler wurden bisher NICHT geprueft -- z.B. wenn
+    // der DB-Trigger trg_broadcast_to_beitrag() beim Anlegen des myHUI-Feed-Posts
+    // fehlschlaegt (z.B. FK-Verletzung, weil das myHUI-System-Profil fehlt), wird
+    // die GESAMTE notifications-INSERT-Transaktion zurueckgerollt -- der Broadcast
+    // kommt dann bei NIEMANDEM an, obwohl die Route bisher trotzdem "ok:true"
+    // zurückgab. Jetzt: Fehler pro Chunk sammeln und als echten Fehler melden.
+    let sentCount = 0;
+    const errors: string[] = [];
     for (let i = 0; i < notifications.length; i += CHUNK) {
-      await sb.from('notifications').insert(notifications.slice(i, i + CHUNK));
+      const chunk = notifications.slice(i, i + CHUNK);
+      const { error } = await sb.from('notifications').insert(chunk);
+      if (error) {
+        errors.push(error.message);
+      } else {
+        sentCount += chunk.length;
+      }
     }
-    return NextResponse.json({ ok: true, sent_count: userIds.length });
+    if (sentCount === 0) {
+      return NextResponse.json({ ok: false, error: `Broadcast fehlgeschlagen: ${errors.join('; ') || 'unbekannter Fehler'}` }, { status: 500 });
+    }
+    if (errors.length > 0) {
+      return NextResponse.json({ ok: true, sent_count: sentCount, warning: `Teilweise fehlgeschlagen: ${errors.join('; ')}` });
+    }
+    return NextResponse.json({ ok: true, sent_count: sentCount });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
