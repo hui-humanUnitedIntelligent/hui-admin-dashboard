@@ -114,17 +114,17 @@ export default function EscrowPage() {
   return (
     <div style={{ padding: '24px', fontFamily: 'var(--font-sans, system-ui)', maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary, #1A1A2E)', marginBottom: 6 }}>
-        🔒 Escrow-Verwaltung
+        🔒 Treuhand-Verwaltung
       </h1>
       <p style={{ fontSize: 14, color: 'var(--text-muted, rgba(26,26,46,0.55))', marginBottom: 24 }}>
-        Software-Escrow: Geld bei HUI blockiert, Transfer nach Käuferbestätigung
+        Software-Treuhand: Geld bei HUI blockiert, Transfer nach Käuferbestätigung
       </p>
 
       {/* KPI-Kacheln */}
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
           {[
-            { label: 'Im Escrow (holding)', value: fmtEur(stats.holding.eur), sub: `${stats.holding.count} Orders`, color: '#FF8A6B', bg: 'rgba(255,138,107,0.08)' },
+            { label: 'In Treuhand (holding)', value: fmtEur(stats.holding.eur), sub: `${stats.holding.count} Orders`, color: '#FF8A6B', bg: 'rgba(255,138,107,0.08)' },
             { label: 'Freigegeben', value: fmtEur(stats.released.eur), sub: `${stats.released.count} Orders`, color: '#16D7C5', bg: 'rgba(22,215,197,0.08)' },
             { label: 'Offene Disputes', value: String(stats.open_disputes), sub: 'Warten auf Entscheidung', color: '#F59E0B', bg: 'rgba(245,158,11,0.08)' },
           ].map(k => (
@@ -147,7 +147,7 @@ export default function EscrowPage() {
             borderBottom: tab === t ? '2px solid #16D7C5' : '2px solid transparent',
             cursor: 'pointer', marginBottom: -2,
           }}>
-            {t === 'disputes' ? `Disputes (${openDisputes.length} offen)` : `Im Escrow (${holdingOrders.length})`}
+            {t === 'disputes' ? `Disputes (${openDisputes.length} offen)` : `In Treuhand (${holdingOrders.length})`}
           </button>
         ))}
       </div>
@@ -248,14 +248,14 @@ export default function EscrowPage() {
         <div>
           {holdingOrders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'rgba(26,26,46,0.4)', fontSize: 14 }}>
-              Keine Orders im Escrow ✓
+              Keine Orders in Treuhand ✓
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid rgba(26,26,46,0.08)' }}>
-                    {['Order-ID', 'Betrag', 'Escrow', 'Lieferung', 'Erstellt', 'Auto-Confirm', 'Antrag?'].map(h => (
+                    {['Order-ID', 'Betrag', 'Treuhand', 'Lieferung', 'Erstellt', 'Auto-Confirm', 'Antrag?'].map(h => (
                       <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700,
                         color: 'rgba(26,26,46,0.55)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                     ))}

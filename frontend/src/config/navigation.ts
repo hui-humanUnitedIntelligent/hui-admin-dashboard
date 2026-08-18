@@ -39,7 +39,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/talents',      label_de: 'Talent-Pool',      label_en: 'Talent Pool',      icon: '⭐', roles: ['superadmin'] },
       { href: '/transactions', label_de: 'Transaktionen',    label_en: 'Transactions',     icon: '⇄',  roles: ['superadmin'] },
       { href: '/bookings',     label_de: 'Buchungen',        label_en: 'Bookings',         icon: '📅', roles: ['superadmin'] },
-      { href: '/escrow',       label_de: 'Escrow',           label_en: 'Escrow',           icon: '🔒', roles: ['superadmin'] },
+      { href: '/escrow',       label_de: 'Treuhand',         label_en: 'Escrow',           icon: '🔒', roles: ['superadmin'] },
       { href: '/impact',       label_de: 'Impact Pool',      label_en: 'Impact Pool',      icon: '🌱', roles: ['superadmin'], superadminOnly: true },
       { href: '/finance',      label_de: 'Finanzen',         label_en: 'Finance',          icon: '💶', roles: ['superadmin'], superadminOnly: true },
       { href: '/stripe', label_de: 'Stripe', label_en: 'Stripe', icon: '💳', roles: ['superadmin'], superadminOnly: true },

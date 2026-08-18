@@ -150,7 +150,7 @@ export default function DashboardPage() {
           info="Nutzer mit aktiver Mitgliedschaft (is_member oder membership_active = true). 'Buchungen aktiv' zeigt Erlebnis-Buchungen der letzten 90 Tage." />
         <KPICard label="Ambassadors aktiv" value={db.loading ? '—' : fmtNum(kpis.activeAmbassadors)}  delta={kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen'} deltaPositive={kpis.pendingAmbassadors === 0} icon="🤝" variant="teal"
           info="Nutzer mit Ambassador-Status (is_ambassador = true). Provisionsstufen je nach Anzahl geworbener Nutzer: Starter 5%, Bronze 10%, Silber 15%, Gold 20% — berechnet vom Firmenanteil." />
-        <KPICard label="Im Escrow (blockiert)" value={db.loading ? '—' : fmtEur(kpis.escrow?.holding_eur ?? 0)} delta={`${kpis.escrow?.count ?? 0} Orders warten`} deltaPositive={false} icon="🔒" variant="gold"
+        <KPICard label="Treuhand (blockiert)" value={db.loading ? '—' : fmtEur(kpis.escrow?.holding_eur ?? 0)} delta={`${kpis.escrow?.count ?? 0} Orders warten`} deltaPositive={false} icon="🔒" variant="gold"
           info="Geld bei HUI blockiert — wartet auf Käuferbestätigung. Transfer an Verkäufer erst nach Bestätigung." />
       </div>
 
