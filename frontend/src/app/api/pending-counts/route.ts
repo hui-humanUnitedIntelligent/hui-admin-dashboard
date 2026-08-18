@@ -31,10 +31,13 @@ export async function GET(req: Request) {
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending_review'),
 
-    // Momente: gemeldete (status=reported) → brauchen Admin-Aufmerksamkeit
-    sb.from('beitraege')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'reported'),
+    // Momente: beitraege hat KEIN status-Feld — gemeldete Momente
+    // werden über momente_reports getrackt. Zähle distinct moment_id
+    // (ein Moment kann mehrfach gemeldet sein → Badge soll 1 sein, nicht 3).
+    // postgREST head+count gibt die Anzahl der Rows, nicht distinct.
+    // Daher: normale Query + Distinct im Code → siehe unten.
+    sb.from('momente_reports')
+      .select('moment_id'),
 
     // Recommendation Reports: neue Meldungen
     sb.from('recommendation_reports')
@@ -42,9 +45,10 @@ export async function GET(req: Request) {
       .eq('status', 'new'),
 
     // Impact Projekte: eingereichte Herzensprojekt-Bewerbungen, noch nicht beschieden
+    // (Status-Werte synchron mit impact-applications/route.ts SUBMITTED-Array)
     sb.from('impact_applications')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'submitted'),
+      .in('status', ['submitted','pending','pending_review','review','waiting_for_approval']),
 
     // Ablehnungsgründe: KI-abgelehnte Projekt-Einreichungen, noch nicht vom Admin gesichtet/geloescht
     sb.from('impact_score_failures')
@@ -54,7 +58,8 @@ export async function GET(req: Request) {
   const works              = worksRes.count         ?? 0;
   const talents            = talentsRes.count       ?? 0;
   const experiences        = expRes.count           ?? 0;
-  const momente             = momentesRes.count      ?? 0;
+  // momente_reports gibt uns rows mit moment_id — zähle distinct
+  const momente = new Set((momentesRes.data ?? []).map((r: any) => r.moment_id)).size;
   const recReports          = recReportsRes.count    ?? 0;
   const impactApplications  = impactAppsRes.count    ?? 0;
   const scoreFailures       = scoreFailuresRes.count ?? 0;
