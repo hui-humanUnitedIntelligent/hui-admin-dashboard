@@ -296,7 +296,7 @@ function UserDetailModal({
   onBlock:      (u: MergedUser, reason: string) => void;
   onUnblock:    (u: MergedUser) => void;
   onDelete:     (u: MergedUser) => void;
-  onSoftDelete: (u: MergedUser) => void;
+  onSoftDelete: (u: MergedUser, reason: string) => void;
   refetch: () => void;
 }) {
   const [view,        setView]        = useState<'info' | 'activity' | 'block' | 'note' | 'edit'>('info');
@@ -538,12 +538,14 @@ function UserDetailModal({
               <div>
                 <p style={{ fontSize:13, color:'var(--text-secondary)', marginBottom:12 }}>
                   Der Nutzer kann danach keine Werke, Talente oder Kommentare mehr abgeben.
-                  Beim nächsten Login erhält er die Meldung: <em>"Dein Konto wird von einem Admin geprüft.
+                  Er erhält außerdem sofort eine E-Mail. Schreibst du unten einen eigenen
+                  Blockierungsgrund, wird genau dieser Text versendet — lässt du das Feld leer,
+                  erhält der Nutzer die Standard-Meldung: <em>"Dein Konto wird von einem Admin geprüft.
                   Bei Fragen: support@be-hui.com"</em>
                 </p>
                 <label style={{ fontSize:12, color:'var(--text-muted)', textTransform:'uppercase',
                   letterSpacing:'0.05em', display:'block', marginBottom:6 }}>
-                  Blockierungsgrund *
+                  Blockierungsgrund (optional)
                 </label>
                 <textarea
                   value={blockReason}
@@ -555,14 +557,16 @@ function UserDetailModal({
                     minHeight:90, boxSizing:'border-box', marginBottom:14 }}
                 />
                 <button onClick={()=>onBlock(user, blockReason)}
-                  disabled={!blockReason.trim()}
                   style={{ width:'100%', padding:'11px', borderRadius:8, border:'1px solid #f6ad55',
-                    background: blockReason.trim() ? 'rgba(246,173,85,0.12)' : 'transparent',
-                    color: blockReason.trim() ? '#f6ad55' : 'var(--text-muted)',
-                    fontSize:14, cursor: blockReason.trim() ? 'pointer' : 'not-allowed',
-                    fontWeight:600, marginBottom:10 }}>
+                    background:'rgba(246,173,85,0.12)', color:'#f6ad55',
+                    fontSize:14, cursor:'pointer', fontWeight:600, marginBottom:10 }}>
                   🔒 Nutzer blockieren
                 </button>
+                <p style={{ fontSize:11, color:'var(--text-muted)', margin:'0 0 10px', lineHeight:1.5 }}>
+                  {blockReason.trim()
+                    ? 'Der Nutzer erhält deinen individuellen Text oben per E-Mail.'
+                    : 'Kein Text eingegeben — der Nutzer erhält die Standard-Meldung oben per E-Mail.'}
+                </p>
                 <div style={{ borderTop:'1px solid var(--border)', paddingTop:12 }}>
                   {user.is_deleted ? (
                     <button onClick={()=>onDelete(user)}
@@ -572,7 +576,7 @@ function UserDetailModal({
                       ⚠️ Endgültig löschen
                     </button>
                   ) : (
-                    <button onClick={()=>onSoftDelete(user)}
+                    <button onClick={()=>onSoftDelete(user, blockReason)}
                       style={{ width:'100%', padding:'10px', borderRadius:8, border:'1px solid var(--red)',
                         background:'rgba(255,107,107,0.06)', color:'var(--red)',
                         fontSize:13, cursor:'pointer', fontWeight:500 }}>
@@ -732,7 +736,8 @@ export default function UsersPage() {
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
       if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
       try {
-        await apiAction('delete', user.id, { reason: 'Vom Admin gelöscht' });
+        // Kein eigener Text von diesem Schnellaktions-Icon -> Standard-Mail wird versendet.
+        await apiAction('delete', user.id, {});
         showToast(`🗑 ${name} wurde gelöscht.`, 'info', 3000);
         setViewUser(null);
         setActiveTab('deleted' as TabKey);
@@ -802,12 +807,15 @@ export default function UsersPage() {
     } catch { showToast('Fehler beim endgültigen Löschen.', 'error'); }
   }, [refetch]);
 
-  const handleSoftDelete = useCallback(async (user: MergedUser) => {
+  const handleSoftDelete = useCallback(async (user: MergedUser, reason: string) => {
     const name = user.full_name || user.display_name || user.email || 'Nutzer';
     if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
     try {
-      await apiAction('delete', user.id, { reason: 'Vom Admin gelöscht' });
-      showToast(`🗑 ${name} wurde gelöscht.`, 'info', 3000);
+      // Gleiche Grund-Logik wie beim Blockieren: eigener Text des Admins wird per
+      // E-Mail versendet, sonst der Standardtext (siehe PATCH /api/users/[id]).
+      await apiAction('delete', user.id, { reason });
+      const shortReason = reason?.trim() ? ` — „${reason.length > 50 ? reason.slice(0, 50) + '…' : reason}"` : '';
+      showToast(`🗑 ${name} wurde gelöscht${shortReason}`, 'info', 3000);
       setViewUser(null);
       setActiveTab('deleted' as TabKey);
       refetch();
