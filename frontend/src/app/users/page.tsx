@@ -42,6 +42,39 @@ function findDuplicates(users: MergedUser[]): MergedUser[] {
   return [...new Map(dupes.map(u=>[u.id,u])).values()];
 }
 
+// ── Bild-Auflösung für Werke/Erlebnisse/Impact-Bewerbungen (Aktivitäts-Tab) ──
+// Diese Datensätze speichern ihr Titelbild uneinheitlich (cover_url, thumbnail_url,
+// images[]/media_urls[] als JSON-Array von Strings oder {url,...}-Objekten, media_url).
+// resolveThumb() prüft alle bekannten Felder der Reihe nach und liefert die erste
+// echte Bild-URL — damit geposteten Bilder im Admin wirklich sichtbar werden.
+function parseImageArray(raw: unknown): string[] {
+  if (!raw) return [];
+  let arr: unknown = raw;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch { return arr ? [arr as unknown as string] : []; }
+  }
+  if (!Array.isArray(arr)) return [];
+  return (arr as unknown[]).map((i) => {
+    if (typeof i === 'string') {
+      try {
+        if (i.startsWith('{')) return JSON.parse(i).url || '';
+      } catch { /* not json */ }
+      return i;
+    }
+    if (typeof i === 'object' && i !== null) return (i as Record<string,string>).url || '';
+    return '';
+  }).filter(Boolean);
+}
+function resolveThumb(item: Record<string,unknown>): string | null {
+  const direct = (item.cover_url || item.thumbnail_url || item.media_url) as string | undefined;
+  if (direct) return direct;
+  const fromImages = parseImageArray(item.images)[0];
+  if (fromImages) return fromImages;
+  const fromMedia = parseImageArray(item.media_urls)[0];
+  if (fromMedia) return fromMedia;
+  return null;
+}
+
 async function apiAction(action: string, userId: string, extra: Record<string,unknown>={}) {
   const res = await fetch(`/api/users/${userId}`, {
     method:'PATCH', credentials:'include',
@@ -169,9 +202,24 @@ function ActivityTab({ userId }: { userId: string }) {
     };
     const color = statusColor[s] ?? '#9CA3AF';
     const typeVal = typeField ? String(item[typeField] ?? '') : '';
+    const thumb = resolveThumb(item);
     return (
       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px',
         background:'var(--bg-secondary)', borderRadius:7, border:'1px solid var(--border)' }}>
+        {/* Gepostetes Bild — echte Supabase-Storage-URL (cover_url/images/media_urls),
+            per Klick in voller Größe im neuen Tab öffnen. Kein Bild -> Platzhalter-Icon. */}
+        {thumb ? (
+          <a href={thumb} target="_blank" rel="noopener noreferrer" style={{ flexShrink:0 }}>
+            <img src={thumb} alt="" loading="lazy"
+              style={{ width:32, height:32, borderRadius:6, objectFit:'cover',
+                border:'1px solid var(--border)', display:'block' }}
+              onError={e => { e.currentTarget.style.display = 'none'; }} />
+          </a>
+        ) : (
+          <div style={{ width:32, height:32, borderRadius:6, background:'var(--bg-tertiary)',
+            border:'1px solid var(--border)', display:'flex', alignItems:'center',
+            justifyContent:'center', fontSize:13, color:'var(--text-muted)', flexShrink:0 }}>🖼️</div>
+        )}
         {typeVal && (
           <span style={{ fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3,
             textTransform:'uppercase' as const, background:'var(--bg-tertiary)',
@@ -409,7 +457,11 @@ function UserDetailModal({
             <Row label="Website"      val={(user as unknown as Record<string,string|null>).website} />
             <Row label="Name"         val={user.full_name || user.display_name} />
             <Row label="Username"     val={user.username} />
-            <Row label="Rolle"        val={user.role} />
+            <Row label="Rolle"        val={
+              ({ superadmin:'Super Admin', admin:'Admin', wirker:'Wirker', member:'Member',
+                 talent:'Talent', user:'User' } as Record<string,string>)[user.role?.toLowerCase()]
+              ?? user.role
+            } />
             <Row label="Membership"   val={user.membership_type} />
             <Row label="Wirker"       val={user.is_wirker ? 'Ja ★' : 'Nein'} />
             <Row label="Status"       val={isBlocked ? 'Blockiert' : 'Aktiv'} />
@@ -418,7 +470,12 @@ function UserDetailModal({
             <Row label="Standort"     val={(user as unknown as Record<string,string>).location_label || (user as unknown as Record<string,string>).location} />
             <Row label="Registriert"  val={new Date(user.created_at).toLocaleDateString('de-DE')} />
             <Row label="Letzter Login" val={user.last_seen_at ? new Date(user.last_seen_at).toLocaleDateString('de-DE') : null} />
-            <Row label="Quelle"       val={user.source} />
+            <Row label="Quelle"       val={
+              user.source === 'both' ? 'Login & Profil'
+              : user.source === 'auth_only' ? 'Nur Login (kein Profil)'
+              : user.source === 'profile_only' ? 'Nur Profil (kein Login)'
+              : user.source
+            } />
             {/* Inhalts-Zähler */}
             <ActivityCountsRow userId={user.id} />
             {/* Bio & Tagline */}

@@ -14,26 +14,33 @@ export async function GET(
     const { id } = params;
     const sb = getServiceClient();
 
-    const [profileRes, worksRes, experiencesRes, projectsRes] = await Promise.all([
+    // WICHTIG: Es gibt in Supabase KEINE Tabelle "projects" — die echte Tabelle für
+    // eingereichte Impact-Projekt-Bewerbungen eines Nutzers heißt "impact_applications"
+    // (user_id, project_name, status, cover_url, media_urls). Die alte Abfrage auf
+    // "projects" schlug immer fehl und lieferte stillschweigend ein leeres Array zurück
+    // — dadurch war die "Impact-Projekte"-Sektion nie echt mit der App verbunden.
+    const [profileRes, worksRes, experiencesRes, impactRes] = await Promise.all([
       sb.from('profiles')
         .select('bio, tagline, location, location_label, dna_tags')
         .eq('id', id)
         .single(),
 
+      // Bild-Felder (cover_url, thumbnail_url, images, media_urls) werden mitgeladen,
+      // damit die geposteten Bilder im Admin-Detail wirklich angezeigt werden koennen.
       sb.from('works')
-        .select('id, title, status, price, category, visibility, created_at, cover_url')
+        .select('id, title, status, price, category, visibility, created_at, cover_url, thumbnail_url, images, media_urls, media_url')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(50),
 
       sb.from('experiences')
-        .select('id, title, status, price, experience_type, category, date, created_at, cover_url')
+        .select('id, title, status, price, experience_type, category, date, created_at, cover_url, images, media_url')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(50),
 
-      sb.from('projects')
-        .select('id, title, status, category, created_at')
+      sb.from('impact_applications')
+        .select('id, project_name, status, cover_url, media_urls, funding_goal, current_amount_eur, created_at')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(50),
@@ -42,7 +49,12 @@ export async function GET(
     const p = profileRes.data;
     const works       = worksRes.data       ?? [];
     const experiences = experiencesRes.data ?? [];
-    const projects    = projectsRes.data    ?? [];
+    // "title" mappen, damit die Impact-Bewerbungen genauso wie Werke/Erlebnisse gerendert
+    // werden koennen (ItemRow im Frontend erwartet ein "title"-Feld).
+    const projects = (impactRes.data ?? []).map((row: Record<string, unknown>) => ({
+      ...row,
+      title: row.project_name,
+    }));
 
     return NextResponse.json({
       bio:         p?.bio          ?? null,
