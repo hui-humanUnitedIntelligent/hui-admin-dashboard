@@ -1,21 +1,27 @@
 // frontend/src/lib/hooks/usePendingCounts.ts
 // BADGE-SYNC-001: Zähler für alle Content-Bereiche
 // Strategie: 30s Polling als Basis + Supabase Realtime für sofortige Updates
-// Tabellen: works, talents, experiences → reagieren jeweils auf INSERT/UPDATE/DELETE
+// Tabellen: works, talents, experiences, beitraege, recommendation_reports,
+//           impact_applications, impact_score_failures → reagieren jeweils auf INSERT/UPDATE/DELETE
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 export type PendingCounts = {
-  works:       number;
-  talents:     number;
-  experiences: number;
-  momente:     number;
-  recReports:  number;
-  total:       number;
+  works:              number;
+  talents:            number;
+  experiences:        number;
+  momente:            number;
+  recReports:         number;
+  impactApplications: number;
+  scoreFailures:      number;
+  total:              number;
 };
 
-const EMPTY: PendingCounts = { works: 0, talents: 0, experiences: 0, momente: 0, recReports: 0, total: 0 };
+const EMPTY: PendingCounts = {
+  works: 0, talents: 0, experiences: 0, momente: 0, recReports: 0,
+  impactApplications: 0, scoreFailures: 0, total: 0,
+};
 
 // Supabase Client für Realtime (anon key reicht — wir hören nur auf Schema-Events)
 function getRealtimeClient() {
@@ -48,7 +54,7 @@ export function usePendingCounts(intervalMs = 30_000) {
     const sb = getRealtimeClient();
     if (!sb) return;
 
-    // Channel auf alle drei Tabellen hören
+    // Channel auf alle Tabellen hören, die Badges beeinflussen
     const channel = sb
       .channel('pending-counts-realtime')
       .on(
@@ -79,6 +85,16 @@ export function usePendingCounts(intervalMs = 30_000) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'recommendation_reports' },
+        () => refresh()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'impact_applications' },
+        () => refresh()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'impact_score_failures' },
         () => refresh()
       )
       .subscribe();

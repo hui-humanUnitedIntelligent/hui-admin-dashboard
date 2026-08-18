@@ -1,5 +1,5 @@
 // frontend/src/app/api/pending-counts/route.ts
-// BADGE-SYNC-003: Korrekte Pending-Logik für experiences + recommendation_reports
+// BADGE-SYNC-004: + Impact Projekte (impact_applications) + Ablehnungsgründe (impact_score_failures)
 import { NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
@@ -12,7 +12,10 @@ export async function GET(req: Request) {
 
   const sb = getServiceClient();
 
-  const [worksRes, talentsRes, expRes, momentesRes, recReportsRes] = await Promise.all([
+  const [
+    worksRes, talentsRes, expRes, momentesRes, recReportsRes,
+    impactAppsRes, scoreFailuresRes,
+  ] = await Promise.all([
     // Works: warten auf Freigabe
     sb.from('works')
       .select('id', { count: 'exact', head: true })
@@ -37,15 +40,26 @@ export async function GET(req: Request) {
     sb.from('recommendation_reports')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'new'),
+
+    // Impact Projekte: eingereichte Herzensprojekt-Bewerbungen, noch nicht beschieden
+    sb.from('impact_applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'submitted'),
+
+    // Ablehnungsgründe: KI-abgelehnte Projekt-Einreichungen, noch nicht vom Admin gesichtet/geloescht
+    sb.from('impact_score_failures')
+      .select('id', { count: 'exact', head: true }),
   ]);
 
-  const works       = worksRes.count    ?? 0;
-  const talents     = talentsRes.count  ?? 0;
-  const experiences = expRes.count      ?? 0;
-  const momente     = momentesRes.count ?? 0;
-  const recReports  = recReportsRes.count ?? 0;
+  const works              = worksRes.count         ?? 0;
+  const talents            = talentsRes.count       ?? 0;
+  const experiences        = expRes.count           ?? 0;
+  const momente             = momentesRes.count      ?? 0;
+  const recReports          = recReportsRes.count    ?? 0;
+  const impactApplications  = impactAppsRes.count    ?? 0;
+  const scoreFailures       = scoreFailuresRes.count ?? 0;
 
-  const total = works + talents + experiences + momente + recReports;
+  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures;
 
   return NextResponse.json({
     works,
@@ -53,6 +67,8 @@ export async function GET(req: Request) {
     experiences,
     momente,
     recReports,
+    impactApplications,
+    scoreFailures,
     total,
   });
 }

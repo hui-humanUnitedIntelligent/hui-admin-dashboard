@@ -41,16 +41,20 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
   // Mapping: href → pending count
   const pendingForHref: Record<string, number> = {
     // Superadmin-Pfade (aus navigation.ts)
-    '/works':           pending.works,
-    '/talent-offers':   pending.talents,
-    '/experiences':     pending.experiences,
-    '/momente':         pending.momente ?? 0,
+    '/works':                  pending.works,
+    '/talent-offers':          pending.talents,
+    '/experiences':            pending.experiences,
+    '/momente':                pending.momente ?? 0,
     '/recommendation-reports': pending.recReports ?? 0,
+    '/impact-projekte':        pending.impactApplications ?? 0,
+    '/score-failures':         pending.scoreFailures ?? 0,
     // Employee-Pfade
-    '/employee/works':           pending.works,
-    '/employee/talent-offers':   pending.talents,
-    '/employee/experiences':     pending.experiences,
+    '/employee/works':                  pending.works,
+    '/employee/talent-offers':          pending.talents,
+    '/employee/experiences':            pending.experiences,
     '/employee/recommendation-reports': pending.recReports ?? 0,
+    '/employee/impact':                 pending.impactApplications ?? 0,
+    '/employee/reasons':                pending.scoreFailures ?? 0,
   };
 
   const isActive = matchesHref;

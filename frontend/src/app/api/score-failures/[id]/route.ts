@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const supabase = getServiceClient();
     const { data, error } = await supabase
-      .from('score_failures')
+      .from('impact_score_failures')
       .update(fields)
       .eq('id', id)
       .select()
@@ -43,7 +43,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   try {
     const supabase = getServiceClient();
-    const { error } = await supabase.from('score_failures').delete().eq('id', id);
+    const { error } = await supabase.from('impact_score_failures').delete().eq('id', id);
     if (error) throw error;
     return ok({ deleted: true, id });
   } catch (err) {
