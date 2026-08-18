@@ -36,7 +36,9 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/employees', label_de: 'Mitarbeiter', label_en: 'Employees', icon: '👤', roles: ['superadmin'] },
   { href: '/admins',       label_de: 'Admin-Verwaltung', label_en: 'Admin Management', icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
       { href: '/ambassadors',  label_de: 'Ambassadors',      label_en: 'Ambassadors',      icon: '🤝', roles: ['superadmin'], superadminOnly: true },
-      { href: '/talents',      label_de: 'Talent-Pool',      label_en: 'Talent Pool',      icon: '⭐', roles: ['superadmin'] },
+      // ARCHIVIERT (2026-08-18, HUI): 'Talent-Pool' (/talents) aus der Navigation entfernt --
+      // Route/Daten bewusst NICHT geloescht, nur bei Rueckfrage spaeter wieder einblenden.
+      // { href: '/talents', label_de: 'Talent-Pool', label_en: 'Talent Pool', icon: '⭐', roles: ['superadmin'] },
       { href: '/transactions', label_de: 'Transaktionen',    label_en: 'Transactions',     icon: '⇄',  roles: ['superadmin'] },
       { href: '/bookings',     label_de: 'Buchungen',        label_en: 'Bookings',         icon: '📅', roles: ['superadmin'] },
       { href: '/escrow',       label_de: 'Treuhand',         label_en: 'Escrow',           icon: '🔒', roles: ['superadmin'] },
