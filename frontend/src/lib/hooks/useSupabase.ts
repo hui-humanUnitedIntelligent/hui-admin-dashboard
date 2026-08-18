@@ -196,6 +196,7 @@ export interface HuiImpactProject {
 export interface HuiBooking {
   booking_id: string;
   id: string; // Alias fuer booking_id (Rueckwaertskompatibilitaet mit Tabellen-Code)
+  source?: 'talent' | 'experience' | 'work';
   status: string;
   payment_status: string;
   created_at: string;
@@ -206,6 +207,14 @@ export interface HuiBooking {
   date?: string | null;
   location?: string | null;
   customer_note?: string | null;
+
+  // Event-/Termin-Infos (Erlebnisse + Talent-Sessions) — ARCH-007
+  event_date?: string | null;
+  time_start?: string | null;
+  time_end?: string | null;
+  participants?: number | null;
+  spots_available?: number | null;
+  max_participants?: number | null;
 
   user_id: string;
   user_name?: string | null;
