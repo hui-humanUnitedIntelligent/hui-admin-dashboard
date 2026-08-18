@@ -685,6 +685,12 @@ export default function UsersPage() {
   const [search,       setSearch]       = useState(() => urlSearchParams.get('search') || '');
   const [viewUser,     setViewUser]     = useState<MergedUser | null>(null);
 
+  // Custom confirm dialog (replaces window.confirm — works in all browsers)
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null);
+  const askConfirm = (title: string, message: string, confirmLabel: string, onConfirm: () => void) => {
+    setConfirmState({ title, message, confirmLabel, onConfirm });
+  };
+
   // Deep-Link-Unterstuetzung: z.B. Klick auf User/Wirker in der Buchungs-Detailansicht
   // navigiert hierher mit ?search=<user_id> und filtert automatisch (additiv, ARCH-006.1).
   useEffect(() => {
@@ -737,14 +743,21 @@ export default function UsersPage() {
       // geprüft..."). Individuelle Blockierungsgründe bleiben über das Detail-Modal
       // (◉-Icon -> Tab "Blockieren") möglich.
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
-      if (!window.confirm(`"${name}" sofort blockieren?\n\nDer Nutzer erhält per E-Mail sofort die Standard-Nachricht:\n"Dein Konto wird von einem Admin geprüft. Bei Fragen: support@be-hui.com"`)) return;
-      try {
-        await apiAction('block', user.id, {});
+      askConfirm(
+        `"${name}" sofort blockieren?`,
+        'Der Nutzer erhält per E-Mail sofort die Standard-Nachricht:\n"Dein Konto wird von einem Admin geprüft. Bei Fragen: support@be-hui.com"',
+        '🔒 Blockieren',
+        async () => {
+          try {
+            await apiAction('block', user.id, {});
         showToast(`🔒 ${name} wurde blockiert — Standard-Mail wurde versendet.`, 'warning', 3000);
         setViewUser(null);
         setActiveTab('blocked' as TabKey);
         refetch();
       } catch { showToast('Fehler beim Blockieren.', 'error'); }
+      setConfirmState(null);
+    }
+      );
       return;
     }
     if (action === 'unblock') {
@@ -754,38 +767,58 @@ export default function UsersPage() {
     }
     if (action === 'delete') {
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
-      if (!window.confirm(`"${name}" in den Gelöscht-Bereich verschieben?\n\nDer Nutzer erhält per E-Mail sofort die Standard-Nachricht:\n"Dein HUI-Konto wurde deaktiviert und in den Gelöscht-Bereich verschoben. Bei Fragen: support@be-hui.com"`)) return;
-      try {
-        // Kein eigener Text von diesem Schnellaktions-Icon -> Standard-Löschungs-Mail wird versendet.
-        await apiAction('delete', user.id, {});
+      askConfirm(
+        `"${name}" in den Gelöscht-Bereich verschieben?`,
+        'Der Nutzer erhält per E-Mail sofort die Standard-Nachricht:\n"Dein HUI-Konto wurde deaktiviert und in den Gelöscht-Bereich verschoben. Bei Fragen: support@be-hui.com"',
+        '🗑 Löschen',
+        async () => {
+          try {
+            await apiAction('delete', user.id, {});
         showToast(`🗑 ${name} wurde gelöscht.`, 'info', 3000);
         setViewUser(null);
         setActiveTab('deleted' as TabKey);
         refetch();
       } catch { showToast('Fehler beim Löschen.', 'error'); }
+      setConfirmState(null);
+    }
+      );
       return;
     }
     if (action === 'restore') {
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
-      if (!window.confirm(`"${name}" wiederherstellen?`)) return;
-      try {
-        await apiAction('restore', user.id, {});
+      askConfirm(
+        `"${name}" wiederherstellen?`,
+        '',
+        '✅ Wiederherstellen',
+        async () => {
+          try {
+            await apiAction('restore', user.id, {});
         showToast(`✅ ${name} wiederhergestellt.`, 'success', 3000);
         setViewUser(null);
         setActiveTab('active' as TabKey);
         refetch();
       } catch { showToast('Fehler beim Wiederherstellen.', 'error'); }
+      setConfirmState(null);
+    }
+      );
       return;
     }
     if (action === 'permanent_delete') {
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
-      if (!window.confirm(`⚠️ "${name}" ENDGÜLTIG löschen?\n\nAlle Daten (Profil, Werke, Buchungen, Nachrichten) werden unwiderruflich entfernt!`)) return;
-      try {
-        await apiDelete(user.id);
+      askConfirm(
+        `⚠️ "${name}" ENDGÜLTIG löschen?`,
+        'Alle Daten (Profil, Werke, Buchungen, Nachrichten) werden unwiderruflich entfernt!',
+        '🗑 Endgültig löschen',
+        async () => {
+          try {
+            await apiDelete(user.id);
         showToast(`🗑 ${name} wurde endgültig gelöscht.`, 'info', 4000);
         setViewUser(null);
         refetch();
       } catch { showToast('Fehler beim endgültigen Löschen.', 'error'); }
+      setConfirmState(null);
+    }
+      );
       return;
     }
   }, [refetch]);
@@ -818,28 +851,42 @@ export default function UsersPage() {
 
   const handleDelete = useCallback(async (user: MergedUser) => {
     const name = user.full_name || user.display_name || user.email || 'Nutzer';
-    if (!window.confirm(`"${name}" ENDGÜLTIG und unwiderruflich löschen?\n\nDies kann nicht rückgängig gemacht werden!`)) return;
-    try {
-      await apiDelete(user.id);
-      showToast(`🗑 ${name} endgültig gelöscht.`, 'info', 4000);
-      setViewUser(null);
-      refetch();
-    } catch { showToast('Fehler beim endgültigen Löschen.', 'error'); }
+    askConfirm(
+      `"${name}" ENDGÜLTIG und unwiderruflich löschen?`,
+      'Dies kann nicht rückgängig gemacht werden!',
+      '🗑 Endgültig löschen',
+      async () => {
+        try {
+          await apiDelete(user.id);
+          showToast(`🗑 ${name} endgültig gelöscht.`, 'info', 4000);
+          setViewUser(null);
+          refetch();
+        } catch { showToast('Fehler beim endgültigen Löschen.', 'error'); }
+        setConfirmState(null);
+      }
+    );
   }, [refetch]);
 
   const handleSoftDelete = useCallback(async (user: MergedUser, reason: string) => {
     const name = user.full_name || user.display_name || user.email || 'Nutzer';
-    if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
-    try {
+    askConfirm(
+      `"${name}" in den Gelöscht-Ordner verschieben?`,
+      '',
+      '🗑 Verschieben',
+      async () => {
+        try {
       // Gleiche Grund-Logik wie beim Blockieren: eigener Text des Admins wird per
       // E-Mail versendet, sonst der Standardtext (siehe PATCH /api/users/[id]).
       await apiAction('delete', user.id, { reason });
       const shortReason = reason?.trim() ? ` — „${reason.length > 50 ? reason.slice(0, 50) + '…' : reason}"` : '';
-      showToast(`🗑 ${name} wurde gelöscht${shortReason}`, 'info', 3000);
-      setViewUser(null);
-      setActiveTab('deleted' as TabKey);
-      refetch();
-    } catch { showToast('Fehler beim Löschen.', 'error'); }
+          showToast(`🗑 ${name} wurde gelöscht${shortReason}`, 'info', 3000);
+          setViewUser(null);
+          setActiveTab('deleted' as TabKey);
+          refetch();
+        } catch { showToast('Fehler beim Löschen.', 'error'); }
+        setConfirmState(null);
+      }
+    );
   }, [refetch]);
 
   const handleRestore = useCallback(async (user: MergedUser) => {
@@ -968,6 +1015,75 @@ export default function UsersPage() {
           onSoftDelete={handleSoftDelete}
           refetch={refetch}
         />
+      )}
+
+      {/* Custom Confirm Dialog */}
+      {confirmState && (
+        <div
+          onClick={() => setConfirmState(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white', borderRadius: 16, padding: 0,
+              maxWidth: 440, width: '90%', maxHeight: '90vh', overflow: 'auto',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              animation: 'fadeIn 0.15s ease',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '20px 24px 12px',
+              borderBottom: confirmState.message ? '1px solid #f0f0f0' : 'none',
+            }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
+                {confirmState.title}
+              </p>
+            </div>
+            {/* Message */}
+            {confirmState.message && (
+              <div style={{ padding: '12px 24px' }}>
+                <p style={{ margin: 0, fontSize: 14, color: '#555', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {confirmState.message}
+                </p>
+              </div>
+            )}
+            {/* Buttons */}
+            <div style={{
+              padding: '12px 24px 20px', display: 'flex', gap: 12, justifyContent: 'flex-end',
+            }}>
+              <button
+                onClick={() => setConfirmState(null)}
+                style={{
+                  padding: '10px 20px', borderRadius: 8, border: '1px solid #ddd',
+                  background: 'white', fontSize: 14, fontWeight: 600, color: '#555',
+                  cursor: 'pointer', transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={confirmState.onConfirm}
+                style={{
+                  padding: '10px 20px', borderRadius: 8, border: 'none',
+                  background: '#e53e3e', fontSize: 14, fontWeight: 600, color: 'white',
+                  cursor: 'pointer', transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#c53030'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#e53e3e'}
+              >
+                {confirmState.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );
