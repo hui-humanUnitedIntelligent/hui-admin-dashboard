@@ -91,6 +91,7 @@ export default function KPICard({
           {info && (
             <button
               type="button"
+              className="kpi-info-btn"
               onClick={() => setShowInfo(v => !v)}
               aria-label={`Erklärung zu ${label}`}
               style={{
@@ -99,6 +100,7 @@ export default function KPICard({
                 color: 'var(--text-muted)', fontSize: 9, lineHeight: '12px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', padding: 0, flexShrink: 0,
+                boxSizing: 'border-box',
               }}
             >
               i
