@@ -32,7 +32,7 @@ export const ADMIN_NAV: NavGroup[] = [
     label_en: 'Management',
     icon: '◎',
     items: [
-      { href: '/users',        label_de: 'User-Management',  label_en: 'User Management',  icon: '👥', roles: ['superadmin'] },
+      { href: '/users',        label_de: 'Nutzerliste',      label_en: 'User List',        icon: '👥', roles: ['superadmin'] },
       { href: '/employees', label_de: 'Employees', label_en: 'Employees', icon: '👤', roles: ['superadmin'] },
   { href: '/admins',       label_de: 'Admin-Verwaltung', label_en: 'Admin Management', icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
       { href: '/ambassadors',  label_de: 'Ambassadors',      label_en: 'Ambassadors',      icon: '🤝', roles: ['superadmin'], superadminOnly: true },
@@ -102,7 +102,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
     label_en: 'Management',
     icon: '◎',
     items: [
-      { href: '/employee/users',        label_de: 'User-Management',       label_en: 'User Management',       icon: '👥', roles: ['superadmin', 'employee'] },
+      { href: '/employee/users',        label_de: 'Nutzerliste',           label_en: 'User List',             icon: '👥', roles: ['superadmin', 'employee'] },
       { href: '/employee/tickets',      label_de: 'Support-Tickets',       label_en: 'Support Tickets',       icon: '🎫', roles: ['superadmin', 'employee'] },
       { href: '/employee/recommendation-reports', label_de: 'Meldungen', label_en: 'Recommendation Reports', icon: '⚠️', roles: ['superadmin', 'employee'] },
       { href: '/employee/payouts',    label_de: 'Auszahlungen',   label_en: 'Payouts',      icon: '💸', roles: ['superadmin','employee'] },

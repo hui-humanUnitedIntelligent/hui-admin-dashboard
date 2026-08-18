@@ -9,7 +9,7 @@ export const translations: Record<Lang, Record<string, string>> = {
   de: {
     // ── Navigation ──────────────────────────────────────────────────────────
     'nav.dashboard':     'Dashboard',
-    'nav.users':         'User-Management',
+    'nav.users':         'Nutzerliste',
     'nav.transactions':  'Transaktionen',
     'nav.impact':        'Impact-Pool',
     'nav.talents':       'Talents',
@@ -106,7 +106,7 @@ export const translations: Record<Lang, Record<string, string>> = {
   en: {
     // ── Navigation ──────────────────────────────────────────────────────────
     'nav.dashboard':     'Dashboard',
-    'nav.users':         'User Management',
+    'nav.users':         'User List',
     'nav.transactions':  'Transactions',
     'nav.impact':        'Impact Pool',
     'nav.talents':       'Talents',

@@ -635,7 +635,16 @@ export default function UsersPage() {
     filter: 'all', search, limit: 1000, refreshInterval: 30_000,
   });
 
+  // GLOBALE SUCHE (Punkt 5): Ist ein Suchbegriff aktiv, muessen Treffer IMMER angezeigt
+  // werden — unabhaengig vom aktiven Tab (Aktive/Blockiert/Geloescht/Wirker/Duplikate) und
+  // Rollenfilter. `allUsers` kommt bereits serverseitig ueber /api/users?search=... global
+  // vorgefiltert (alle Felder, siehe dort) und ist NICHT auf einen Tab beschraenkt (filter:'all').
+  // Deshalb: bei aktiver Suche komplett ungefiltert durchreichen, sonst normale Tab-/Rollenlogik.
+  const isSearching = search.trim().length > 0;
+
   const displayUsers = useMemo<MergedUser[]>(() => {
+    if (isSearching) return allUsers;
+
     let base: MergedUser[] = [];
     if (activeTab === 'active')     base = allUsers.filter(u => !u.blocked && !u.is_deleted);
     if (activeTab === 'blocked')    base = allUsers.filter(u => u.blocked && !u.is_deleted);
@@ -649,7 +658,7 @@ export default function UsersPage() {
       if (roleFilter === 'admin')     base = base.filter(u => ['admin','superadmin'].includes(u.role?.toLowerCase()));
     }
     return base;
-  }, [allUsers, activeTab, roleFilter]);
+  }, [allUsers, activeTab, roleFilter, isSearching]);
 
   // Pagination fuer den Blockiert-Tab (eigene Karten-Ansicht, umgeht UserTable) --
   // fix 20 pro Seite, echte Seiten-Navigation (kein "Mehr laden").
@@ -759,16 +768,16 @@ export default function UsersPage() {
   }, [refetch]);
 
   const TABS = [
-    { key:'active'     as TabKey, label:'Aktive User',  count:counts.active,  color:'#68d391' },
-    { key:'blocked'    as TabKey, label:'Blockiert',     count:counts.blocked, color:'#f6ad55' },
-    { key:'deleted'    as TabKey, label:'Gelöscht',      count:counts.deleted, color:'#fc8181' },
-    { key:'wirker'     as TabKey, label:'Wirker',        count:counts.wirker,  color:'#d69e2e' },
-    { key:'duplicates' as TabKey, label:'Duplikate',     count:findDuplicates(allUsers).length, color:'#f6ad55' },
+    { key:'active'     as TabKey, label:'Aktive Nutzer',     count:counts.active,  color:'#68d391' },
+    { key:'blocked'    as TabKey, label:'Blockierte Nutzer', count:counts.blocked, color:'#f6ad55' },
+    { key:'deleted'    as TabKey, label:'Gelöschte Nutzer',  count:counts.deleted, color:'#fc8181' },
+    { key:'wirker'     as TabKey, label:'Wirker',            count:counts.wirker,  color:'#d69e2e' },
+    { key:'duplicates' as TabKey, label:'Duplikate',         count:findDuplicates(allUsers).length, color:'#f6ad55' },
   ];
 
   return (
-    <DashboardLayout title="User Management">
-      <PageHeader title="User Management" subtitle="Alle registrierten Nutzer verwalten" />
+    <DashboardLayout title="Nutzerliste">
+      <PageHeader title="Nutzerliste" subtitle="Alle registrierten Nutzer verwalten" />
 
       {error && (
         <div style={{ background:'#fc818122', border:'1px solid #fc8181', borderRadius:8,
@@ -779,10 +788,10 @@ export default function UsersPage() {
 
       {/* KPIs */}
       <div style={{ display:'flex', gap:16, marginBottom:28, flexWrap:'wrap' }}>
-        <KPICard label="Aktive User"  value={counts.active}  color="#68d391" />
-        <KPICard label="Blockiert"    value={counts.blocked} color="#f6ad55" />
-        <KPICard label="Gelöscht"     value={counts.deleted} color="#fc8181" />
-        <KPICard label="Wirker"       value={counts.wirker}  color="#d69e2e" />
+        <KPICard label="Aktive Nutzer"    value={counts.active}  color="#68d391" />
+        <KPICard label="Blockierte Nutzer" value={counts.blocked} color="#f6ad55" />
+        <KPICard label="Gelöschte Nutzer"  value={counts.deleted} color="#fc8181" />
+        <KPICard label="Wirker"           value={counts.wirker}  color="#d69e2e" />
       </div>
 
       {/* Tabs */}
@@ -803,7 +812,7 @@ export default function UsersPage() {
       {/* Suche + Rollen */}
       <div style={{ display:'flex', gap:12, marginBottom:20, alignItems:'center', flexWrap:'wrap' }}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
-          placeholder={`In ${TABS.find(t=>t.key===activeTab)?.label??'Usern'} suchen…`}
+          placeholder="Global suchen: Name, Username, E-Mail, Telefon, Rolle, Membership, Status…"
           style={{ flex:1, minWidth:200, padding:'9px 14px', borderRadius:8,
             background:'var(--bg-card)', border:'1px solid var(--border)',
             color:'var(--text-primary)', fontSize:13, outline:'none' }} />
@@ -824,8 +833,15 @@ export default function UsersPage() {
         </span>
       </div>
 
-      {/* Blockiert-Tab: eigene Karten-Ansicht */}
-      {activeTab === 'blocked' ? (
+      {isSearching && (
+        <div style={{ fontSize:12, color:'var(--accent)', marginBottom:12 }}>
+          🔎 Globale Suche aktiv — Treffer werden unabhängig vom Tab-Filter angezeigt ({displayUsers.length} Treffer über alle Status/Rollen).
+        </div>
+      )}
+
+      {/* Blockiert-Tab: eigene Karten-Ansicht (nur wenn KEINE aktive Suche — bei Suche
+          immer die Standard-Tabelle zeigen, damit die Spaltenstruktur konsistent bleibt) */}
+      {activeTab === 'blocked' && !isSearching ? (
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           {loading && <div style={{ textAlign:'center', padding:40, color:'var(--text-muted)' }}>Lädt...</div>}
           {!loading && displayUsers.length === 0 && (

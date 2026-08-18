@@ -198,14 +198,26 @@ export async function GET(req: NextRequest) {
     merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // 5) Filter
+    // GLOBALE SUCHE (User-Management-Umbau Punkt 5): durchsucht ALLE relevanten Felder —
+    // Name (full_name deckt Vor-/Nachname ab, da profiles keine getrennten Spalten hat),
+    // Username, E-Mail, Telefon, Rolle, Membership und einen berechneten Status-Text
+    // (aktiv/blockiert/gelöscht) — unabhaengig vom `filter`-Query-Param, das weiterhin
+    // separat als Tab-Filter angewendet wird.
     let filtered = merged;
-    if (search) filtered = filtered.filter(u =>
-      u.email?.toLowerCase().includes(search) ||
-      u.display_name?.toLowerCase().includes(search) ||
-      u.username?.toLowerCase().includes(search) ||
-      u.full_name?.toLowerCase().includes(search) ||
-      u.id.toLowerCase().includes(search)
-    );
+    if (search) filtered = filtered.filter(u => {
+      const statusText = u.is_deleted ? 'gelöscht' : u.blocked ? 'blockiert' : 'aktiv';
+      return (
+        u.email?.toLowerCase().includes(search) ||
+        u.display_name?.toLowerCase().includes(search) ||
+        u.username?.toLowerCase().includes(search) ||
+        u.full_name?.toLowerCase().includes(search) ||
+        u.phone?.toLowerCase().includes(search) ||
+        u.role?.toLowerCase().includes(search) ||
+        u.membership_type?.toLowerCase().includes(search) ||
+        statusText.includes(search) ||
+        u.id.toLowerCase().includes(search)
+      );
+    });
     if (filter === 'active')  filtered = filtered.filter(u => !u.blocked && !u.is_deleted);
     if (filter === 'blocked') filtered = filtered.filter(u =>  u.blocked && !u.is_deleted);
     if (filter === 'deleted') filtered = filtered.filter(u =>  u.is_deleted);
