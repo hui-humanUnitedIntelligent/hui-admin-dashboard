@@ -22,7 +22,7 @@ const MAPPING = [
     table:   'stripe_payments',
     actions: [
       'Zahlung status = "succeeded"',
-      'Impact Pool +15% (stripe_impact_pool)',
+      'Impact Pool +6% (stripe_impact_pool)',
       'Ambassador-Provision +5% (stripe_ambassador_commissions)',
       'profiles.first_transaction_at gesetzt',
       'SADB: stripe_payments live',

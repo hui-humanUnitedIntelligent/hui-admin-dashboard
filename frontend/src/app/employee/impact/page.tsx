@@ -19,6 +19,7 @@ interface PoolData {
   totalEur: number; distributedEur: number; awardedEur: number;
   openEur: number; totalVotes: number;
   bruttoPool: number; nettoImpact: number; firmenanteil: number;
+  innovationFund: number; flexPool: number;
 }
 
 /* ── Voting Types ── */
@@ -469,7 +470,9 @@ export default function ImpactPage() {
       setProjects(Array.isArray(projData.projects) ? projData.projects : []);
       setPool({
         latest: ov.poolMonth ? { state: ov.poolState, voting_ends_at: null, month: ov.poolMonth } : null,
-        totalEur:       ov.bruttoPool ?? 0,
+        // FIX: totalEur war faelschlich = bruttoPool (6%-Wert), dann im UI durch 0.15 geteilt -> doppelt falsch.
+        // Jetzt direkt der echte Gesamtumsatz aus der Overview-API (ov.totalRevenue).
+        totalEur:       ov.totalRevenue ?? 0,
         distributedEur: ov.distributed ?? 0,
         awardedEur:     projData.awardedEur ?? 0,
         openEur:        ov.openImpact ?? 0,
@@ -477,6 +480,8 @@ export default function ImpactPage() {
         bruttoPool:     ov.bruttoPool ?? 0,
         nettoImpact:    ov.nettoImpact ?? 0,
         firmenanteil:   ov.firmenanteil ?? 0,
+        innovationFund: ov.innovationFund ?? 0,
+        flexPool:       ov.flexPool ?? 0,
       });
     } catch (e) {
       console.error('[impact]', e);
@@ -526,7 +531,7 @@ export default function ImpactPage() {
 
   return (
     <EmployeeLayout title="Impact Pool">
-      <PageHeader title="Impact Pool" subtitle="15\u00a0% jedes Umsatzes gehen in den gemeinsamen Impact-Pool"
+      <PageHeader title="Impact Pool" subtitle="20\u00a0% jedes Umsatzes gehen an HUI (Balanced Growth v1) \u2014 10\u00a0% Unternehmen, 6\u00a0% Impact-Pool, 4\u00a0% Innovationsfonds"
         actionsRole={userRole as 'superadmin' | 'employee'} userRole={userRole}
         actions={<button onClick={load} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>\u21ba Refresh</button>}
       />
@@ -553,17 +558,30 @@ export default function ImpactPage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
             {pool ? (
               <>
-                {kpiCard('Gesamtumsatz',    fmtEur(pool.totalEur / 0.15), '\uD83D\uDCB0', 'var(--text-primary)')}
-                {kpiCard('Impact-Pool (6%)',fmtEur(pool.bruttoPool),      '\uD83C\uDF31', '#74C0FC')}
-                {kpiCard('Projekte-Anteil (70% v. Pool)',fmtEur(pool.nettoImpact),    '\uD83C\uDF1F', '#51CF66')}
-                {kpiCard('Unternehmensanteil (10%)',fmtEur(pool.firmenanteil),   '\uD83C\uDFE2', '#ffd43b')}
+                {kpiCard('Gesamtumsatz',              fmtEur(pool.totalEur),        '\uD83D\uDCB0', 'var(--text-primary)')}
+                {kpiCard('Unternehmensanteil (10%)',   fmtEur(pool.firmenanteil),    '\uD83C\uDFE2', '#ffd43b')}
+                {kpiCard('Impact-Pool (6%)',           fmtEur(pool.bruttoPool),      '\uD83C\uDF31', '#74C0FC')}
+                {kpiCard('Innovationsfonds (4%)',      fmtEur(pool.innovationFund), '\uD83D\uDCA1', '#B197FC')}
               </>
             ) : (
               <>
-                {kpiCard('Gesamtumsatz',    '\u20ac0,00', '\uD83D\uDCB0', 'var(--text-primary)')}
-                {kpiCard('Brutto-Pool (15%)','\u20ac0,00', '\uD83C\uDF31', '#74C0FC')}
-                {kpiCard('Projekte-Anteil (70%)','\u20ac0,00','\uD83C\uDF1F', '#51CF66')}
-                {kpiCard('Firmenanteil (15%)','\u20ac0,00', '\uD83C\uDFE2', '#ffd43b')}
+                {kpiCard('Gesamtumsatz',              '\u20ac0,00', '\uD83D\uDCB0', 'var(--text-primary)')}
+                {kpiCard('Unternehmensanteil (10%)',  '\u20ac0,00', '\uD83C\uDFE2', '#ffd43b')}
+                {kpiCard('Impact-Pool (6%)',          '\u20ac0,00', '\uD83C\uDF31', '#74C0FC')}
+                {kpiCard('Innovationsfonds (4%)',     '\u20ac0,00', '\uD83D\uDCA1', '#B197FC')}
+              </>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+            {pool ? (
+              <>
+                {kpiCard('Projekte-Anteil (4,2% \u2014 70% v. Pool)', fmtEur(pool.nettoImpact), '\uD83C\uDF1F', '#51CF66')}
+                {kpiCard('Flex-R\u00fccklage (1,8% \u2014 30% v. Pool)', fmtEur(pool.flexPool), '\uD83D\uDD04', '#06B6D4')}
+              </>
+            ) : (
+              <>
+                {kpiCard('Projekte-Anteil (4,2%)', '\u20ac0,00', '\uD83C\uDF1F', '#51CF66')}
+                {kpiCard('Flex-R\u00fccklage (1,8%)', '\u20ac0,00', '\uD83D\uDD04', '#06B6D4')}
               </>
             )}
           </div>

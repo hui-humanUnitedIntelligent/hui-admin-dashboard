@@ -45,7 +45,7 @@ function TileInfoPopup({ onClose }: { onClose: () => void }) {
     { icon:'⚡', label:'Aktiv',        text:'Von den Geworbenen: wie viele haben mindestens einen bezahlten Kauf getätigt (profiles.first_transaction_at gesetzt).' },
     { icon:'😴', label:'Schlafend',    text:'Von den Geworbenen: wie viele haben sich zwar registriert, aber noch nie etwas gekauft.' },
     { icon:'💰', label:'Umsatz',       text:'Gesamtsumme aller bezahlten Bestellungen, die diesem Ambassador zugeordnet sind (stripe_payments.ambassador_id) — nicht nur von Geworbenen mit gültigem 365-Tage-Fenster.' },
-    { icon:'🌿', label:'Impact',       text:'Der Impact-Pool-Anteil (15% der Plattformgebühr) aus genau diesen dem Ambassador zugeordneten Transaktionen.' },
+    { icon:'🌿', label:'Impact',       text:'Der Impact-Pool-Anteil (6% vom Umsatz / 30% des HUI-Anteils) aus genau diesen dem Ambassador zugeordneten Transaktionen.' },
     { icon:'🔗', label:'Link-Status',  text:'Ob der persönliche Einladungslink aktuell freigegeben (Aktiv) oder gesperrt (Inaktiv) ist.' },
   ];
   return (

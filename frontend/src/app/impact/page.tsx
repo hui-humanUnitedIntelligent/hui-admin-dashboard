@@ -9,9 +9,11 @@ import { showToast } from '@/components/ui/Toast';
 /* ── Typen ──────────────────────────────────────────────────────────────── */
 interface PoolOverview {
   totalRevenue: number;
-  bruttoPool: number;
-  nettoImpact: number;
-  firmenanteil: number;
+  bruttoPool: number;      // Impact-Pool: 6% vom Umsatz (30% des HUI-Anteils)
+  nettoImpact: number;     // Projekt-Anteil: 4,2% vom Umsatz (70% des Impact-Pools) -> Top-3 Herzensprojekte
+  firmenanteil: number;    // Unternehmensanteil: 10% vom Umsatz (50% des HUI-Anteils)
+  innovationFund: number;  // Innovationsfonds: 4% vom Umsatz (20% des HUI-Anteils)
+  flexPool: number;        // Flex-Ruecklage: 1,8% vom Umsatz (30% des Impact-Pools)
   distributed: number;
   openImpact: number;
   revenueByType: { work: number; talent: number; donation: number; subscription: number; impact_subscription: number };
@@ -188,7 +190,16 @@ export default function ImpactPage() {
   });
 
   const o = overview;
-  const IMPACT_RATE = 0.15;
+  // Balanced Growth v1 (Regel aus dem Archiv / rpc_process_order_fees):
+  // Umsatz 100% -> Talent/Verkaeufer 80% + HUI-Anteil 20%.
+  // HUI-Anteil 20% splittet in: Unternehmen 10% + Impact-Pool 6% + Innovationsfonds 4%.
+  // Impact-Pool 6% splittet weiter in: Projekte 4,2% (70%) + Flex-Ruecklage 1,8% (30%).
+  const HUI_RATE        = 0.20;
+  const COMPANY_RATE    = 0.10;
+  const IMPACT_RATE     = 0.06;
+  const PROJECT_RATE    = 0.042;
+  const FLEX_RATE       = 0.018;
+  const INNOVATION_RATE = 0.04;
 
   return (
     <DashboardLayout title="Impact Pool">
@@ -199,7 +210,7 @@ export default function ImpactPage() {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Impact Pool</h1>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-              {(IMPACT_RATE * 100).toFixed(0)}% jedes Umsatzes fliessen in den gemeinsamen Impact-Pool
+              {(HUI_RATE * 100).toFixed(0)}% jedes Umsatzes gehen an HUI (Balanced Growth v1) — davon {(COMPANY_RATE*100).toFixed(0)}% Unternehmen, {(IMPACT_RATE*100).toFixed(0)}% Impact-Pool und {(INNOVATION_RATE*100).toFixed(0)}% Innovationsfonds
               {o?.stripeReady && (
                 <span style={{ marginLeft: 10, padding: '2px 8px', borderRadius: 4, fontSize: 11,
                   background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}>
@@ -220,24 +231,40 @@ export default function ImpactPage() {
           <>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
               <Kachel label="Gesamtumsatz" value={eur(o.totalRevenue)} sub={`${o.paymentCount} Zahlungen`} stripe
-                info="Summe aller bezahlten Bestellungen (Commerce 2.0), aus denen sich der Impact-Pool speist." />
-              <Kachel label="Brutto-Pool (15%)" value={eur(o.bruttoPool)} color="var(--accent)" stripe
-                info="HUI-Anteil: 20% vom Umsatz (Balanced Growth v1). Split: 30% Impact-Pool / 50% Unternehmen / 20% Innovation." />
-              <Kachel label="Projekt-Anteil (15%)" value={eur(o.nettoImpact)} color="#22C55E" stripe
-                info="70% des Impact-Pools (= 4,2% vom Umsatz) fließen als Projektmittel in die Top-3 Herzensprojekte (50/30/20)." />
-              <Kachel label="Unternehmensanteil (10%)" value={eur(o.firmenanteil)} color="#F59E0B" stripe
+                info="Summe aller bezahlten Bestellungen (Commerce 2.0), aus denen sich der HUI-Anteil und der Impact-Pool speisen." />
+              <Kachel label={`Unternehmensanteil (${(COMPANY_RATE*100).toFixed(0)}%)`} value={eur(o.firmenanteil)} color="#F59E0B" stripe
                 info="50% des HUI-Anteils (= 10% vom Umsatz). Davon werden zuerst Ambassador-Provisionen bezahlt, der Rest verteilt sich nach Unternehmensphase (Betrieb/Gewinn/Rücklagen)." />
+              <Kachel label={`Impact-Pool (${(IMPACT_RATE*100).toFixed(0)}%)`} value={eur(o.bruttoPool)} color="var(--accent)" stripe
+                info="30% des HUI-Anteils (= 6% vom Umsatz). Splittet weiter in Projekt-Anteil (70%) + Flex-Rücklage (30%)." />
+              <Kachel label={`Innovationsfonds (${(INNOVATION_RATE*100).toFixed(0)}%)`} value={eur(o.innovationFund)} color="#8B5CF6" stripe
+                info="20% des HUI-Anteils (= 4% vom Umsatz). Fließt in die Weiterentwicklung von HUI (Produkt, Tech, neue Features)." />
             </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+              <Kachel label={`Projekt-Anteil (${(PROJECT_RATE*100).toFixed(1)}%)`} value={eur(o.nettoImpact)} color="#22C55E" stripe
+                info="70% des Impact-Pools (= 4,2% vom Umsatz) fließen als Projektmittel in die Top-3 Herzensprojekte (Voting-basiert)." />
+              <Kachel label={`Flex-Rücklage (${(FLEX_RATE*100).toFixed(1)}%)`} value={eur(o.flexPool)} color="#06B6D4" stripe
+                info="30% des Impact-Pools (= 1,8% vom Umsatz). Reserve für Schwankungen — wird nicht direkt an Projekte ausgezahlt." />
               <Kachel label="Vergeben" value={eur(o.distributed)}
                 info="Wie viel vom Projekt-Anteil bereits an genehmigte Projekte ausgezahlt wurde." />
               <Kachel label="Offen (verfuegbar)" value={eur(o.openImpact)} color="#818CF8"
                 info="Projekt-Anteil abzüglich bereits Vergebenem — steht aktuell zur Verteilung an Projekte bereit." />
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
               <Kachel label="Bewerbungen" value={String(o.applications.total)} sub={`${o.applications.approved} genehmigt`}
                 info="Anzahl eingereichter Projekt-Bewerbungen für Impact-Förderung, davon wie viele bereits genehmigt wurden." />
               <Kachel label="Pool-Status" value={o.poolState} valueSize={16}
-                info="accumulating = Pool sammelt gerade (15% der Zahlungen), noch nichts ausgezahlt. distributed = Pool wurde bereits an genehmigte Projekte ausgezahlt."
+                info="accumulating = Pool sammelt gerade (6% der Zahlungen), noch nichts ausgezahlt. distributed = Pool wurde bereits an genehmigte Projekte ausgezahlt."
                 color={o.poolState === 'accumulating' ? '#22C55E' : o.poolState === 'voting' ? '#F59E0B' : 'var(--text-muted)'} />
+            </div>
+
+            {/* Verteilungs-Erklärung: Balanced Growth v1 — nichts vergessen */}
+            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 10,
+              padding: '14px 20px', marginBottom: 24, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              <strong style={{ color: 'var(--text-primary)' }}>Verteilungsregel (Balanced Growth v1):</strong>{' '}
+              Umsatz 100% → Talent/Verkäufer 80% + HUI-Anteil 20%. HUI-Anteil 20% splittet in{' '}
+              <strong>Unternehmen 10%</strong> + <strong>Impact-Pool 6%</strong> + <strong>Innovationsfonds 4%</strong>{' '}
+              (= 10% Unternehmen + 10% "Impact-Seite"). Impact-Pool 6% splittet weiter in{' '}
+              <strong>Projekte 4,2%</strong> (70%) + <strong>Flex-Rücklage 1,8%</strong> (30%).
             </div>
 
             {/* Umsatz nach Kategorie */}
@@ -278,7 +305,7 @@ export default function ImpactPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      {['Monat','Umsatz','Impact-Pool (15%)','Zahlungen'].map(h => (
+                      {['Monat','Umsatz','Impact-Pool (6%)','Zahlungen'].map(h => (
                         <th key={h} style={{ textAlign: 'left', padding: '6px 12px', color: 'var(--text-muted)',
                           fontSize: 11, fontWeight: 600, borderBottom: '1px solid var(--border)' }}>{h}</th>
                       ))}

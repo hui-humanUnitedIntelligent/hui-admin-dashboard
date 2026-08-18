@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       // Impact-Pool-Zahlen: alle Monate aus stripe_impact_pool aufsummieren
       const { data: poolRows } = await sb
         .from('stripe_impact_pool')
-        .select('month,total_inflow,project_share,company_share,distributed,projekte_foerdern_eur,hui_weiterentwickeln_eur,neue_ideen_eur,qualitaet_sichern_eur')
+        .select('month,total_inflow,project_share,company_share,distributed,projekte_foerdern_eur,hui_weiterentwickeln_eur,neue_ideen_eur,qualitaet_sichern_eur,impact_pool_eur,impact_projects_eur,impact_flex_pool_eur,hui_company_eur,innovation_fund_eur')
         .order('month', { ascending: false });
 
       const rows = poolRows ?? [];
@@ -51,6 +51,10 @@ export async function GET(req: NextRequest) {
       const firmenanteil = rows.reduce((s, r) => s + (Number((r as Record<string,unknown>)['hui_company_eur']) || (r.company_share ?? 0) / 100), 0);
       const distributed  = rows.filter(r => r.distributed)
         .reduce((s, r) => s + (Number((r as Record<string,unknown>)['impact_projects_eur']) || Number(r.projekte_foerdern_eur) || 0), 0);
+      // flexPool = 30% des Impact-Pools (= 1,8% vom Umsatz) → Rücklage/Reserve, NICHT an Projekte verteilt
+      const flexPool     = rows.reduce((s, r) => s + (Number((r as Record<string,unknown>)['impact_flex_pool_eur']) || 0), 0);
+      // innovationFund = 20% des HUI-Anteils (= 4% vom Umsatz) → Innovationsfonds für Weiterentwicklung
+      const innovationFund = rows.reduce((s, r) => s + (Number((r as Record<string,unknown>)['innovation_fund_eur']) || 0), 0);
       const latestPool   = rows[0] ?? null;
 
       // Bewerbungen zählen
@@ -78,10 +82,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         // Finanzen (Single Source of Truth: stripe_payments / stripe_impact_pool)
+        // Balanced Growth v1: Umsatz 100% -> Talent/Verkaeufer 80% + HUI 20%.
+        // HUI-20%-Anteil splittet in Unternehmen 10% (firmenanteil) + Impact-Pool 6% (bruttoPool) + Innovationsfonds 4% (innovationFund).
+        // Impact-Pool 6% splittet weiter in Projekte 4,2% (nettoImpact) + Flex-Ruecklage 1,8% (flexPool).
         totalRevenue,
         bruttoPool,
         nettoImpact,
         firmenanteil,
+        innovationFund,
+        flexPool,
         distributed,
         openImpact:    nettoImpact - distributed,
         // Quellen

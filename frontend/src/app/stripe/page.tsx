@@ -236,7 +236,7 @@ export default function StripeDashboardPage() {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))', gap:12 }}>
               {[
                 { label:'Pool gesamt (Monat)', val:eurDec(overview.impact_pool_eur),    icon:'🌱', color:'#3ECF8E' },
-                { label:'Projektanteil (15%)', val:eurDec(overview.project_share_eur),  icon:'📊', color:'#6C63FF' },
+                { label:'Projektanteil (4,2%)', val:eurDec(overview.project_share_eur),  icon:'📊', color:'#6C63FF' },
                 { label:'Unternehmensanteil',  val:eurDec(overview.impact_pool_eur-(overview.project_share_eur||0)), icon:'🏢', color:'#F59E0B' },
                 { label:'Amb. Provision (offn)',val:eurDec(overview.amb_pending_eur),   icon:'🤝', color:'#EF4444' },
               ].map(k => (
@@ -264,7 +264,7 @@ export default function StripeDashboardPage() {
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:10 }}>
                     {[
                       { label:'Gesamt-Einfluss',      val: eur(p.total_inflow),    col:'#3ECF8E' },
-                      { label:'Projekt-Anteil (15%)', val: eur(p.project_share),   col:'#6C63FF' },
+                      { label:'Projekt-Anteil (4,2%)', val: eur(p.project_share),   col:'#6C63FF' },
                       { label:'Unternehmen (10%)',    val: eur(p.company_share),   col:'#F59E0B' },
                     ].map(s => (
                       <div key={s.label} style={{ background:'var(--bg-tertiary)', borderRadius:8, padding:'8px 12px' }}>
