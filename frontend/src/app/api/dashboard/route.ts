@@ -174,7 +174,11 @@ export async function GET(req: NextRequest) {
     const activeUsers   = profiles.filter(p => !p.blocked).length;
     const blockedUsers  = profiles.filter(p =>  p.blocked).length;
     const activeWirker  = profiles.filter(p => p.is_wirker).length;
-    const activeMembers = profiles.filter(p => p.is_member || p.membership_active).length;
+    // HUI-FEATURE (2026-08-18): 'Mitglieder' ist fuer zukuenftige Vereine reserviert,
+    // die als Organisation Mitglied werden. Bewusst NICHT an profiles.is_member /
+    // membership_active gekoppelt (das sind individuelle User-Flags, keine Vereine) --
+    // deshalb hart auf 0, bis das Vereins-Feature existiert.
+    const activeMembers = 0;
 
     // Hinweis: stripe_payments.amount ist in EUR (NICHT Cent). stripe_impact_pool.total_inflow ist in Cent.
     const monthlyRevenue = (paymentsMonthRes.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0);
