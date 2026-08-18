@@ -1,5 +1,5 @@
 // frontend/src/app/employees/page.tsx
-// SADB — Employee-Verwaltung: Accounts anlegen, Passwort ändern, löschen
+// SADB — Mitarbeiter-Verwaltung: Accounts anlegen, Passwort ändern, löschen
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -42,7 +42,7 @@ function roleColor(role: string) {
 function roleLabel(role: string) {
   if (role === 'superadmin' || role === 'super_admin') return 'Superadmin';
   if (role === 'admin')    return 'Admin';
-  if (role === 'employee') return 'Employee';
+  if (role === 'employee') return 'Mitarbeiter';
   return role;
 }
 
@@ -139,7 +139,7 @@ export default function EmployeesPage() {
       });
       const j = await res.json();
       if (j.ok) {
-        showToast(`✅ Employee ${form.email} erstellt`, 'success');
+        showToast(`✅ Mitarbeiter ${form.email} erstellt`, 'success');
         setForm({ email: '', password: '', display_name: '', username: '' });
         setShowCreate(false);
         load();
@@ -214,9 +214,9 @@ export default function EmployeesPage() {
   }
 
   return (
-    <DashboardLayout title="Employee-Verwaltung">
+    <DashboardLayout title="Mitarbeiter-Verwaltung">
       <PageHeader
-        title="Employee-Verwaltung"
+        title="Mitarbeiter-Verwaltung"
         subtitle={`${employees.length} Accounts · Portal-Zugänge verwalten`}
         actionsRole="superadmin"
         userRole={currentUser?.role}
@@ -230,7 +230,7 @@ export default function EmployeesPage() {
           style={{ ...input, maxWidth: 320 }}
         />
         <button style={btnPrimary} onClick={() => setShowCreate(v => !v)}>
-          {showCreate ? '✕ Abbrechen' : '+ Neuer Employee'}
+          {showCreate ? '✕ Abbrechen' : '+ Neuer Mitarbeiter'}
         </button>
       </div>
 
@@ -238,7 +238,7 @@ export default function EmployeesPage() {
       {showCreate && (
         <div style={{ ...card, marginBottom: 16, border: '1px solid rgba(78,205,196,0.3)' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 14 }}>
-            Neuen Employee-Account erstellen
+            Neuen Mitarbeiter-Account erstellen
           </div>
           <form onSubmit={handleCreate}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -303,13 +303,13 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* ── Employee-Liste ───────────────────────────────────────────── */}
+      {/* ── Mitarbeiter-Liste ─────────────────────────────────────────── */}
       <div style={card}>
         {loading ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Lade…</p>
         ) : filtered.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-            {search ? 'Keine Treffer' : 'Noch keine Employee-Accounts. Erstelle den ersten mit dem Button oben.'}
+            {search ? 'Keine Treffer' : 'Noch keine Mitarbeiter-Accounts. Erstelle den ersten mit dem Button oben.'}
           </p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
