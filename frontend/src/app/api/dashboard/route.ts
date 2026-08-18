@@ -55,6 +55,11 @@ export async function GET(req: NextRequest) {
       bookingTypesRes,
       allPaymentsRes,
       ambassadorCommissionsRes,
+      talentOffersRes,
+      experienceOffersRes,
+      momentsRes,
+      momentReportsRes,
+      momentRemovalsRes,
     ] = await Promise.all([
       // Escrow holding query
       sb.from('orders').select('total_eur').eq('escrow_status', 'holding'),
@@ -138,6 +143,20 @@ export async function GET(req: NextRequest) {
         .select('ambassador_id, tier, created_at')
         .order('created_at', { ascending: false })
         .limit(2000),
+
+      // 20) Talent-Angebote (Tabelle 'talents' — NICHT zu verwechseln mit Talent-Pool/profiles.is_talent)
+      sb.from('talents').select('id, status'),
+
+      // 21) Erlebnis-Angebote — Single Source of Truth: experiences.approval_status
+      // ('pending_review' ist der einzige echte "wartet auf Freigabe"-Status, siehe employee/experiences)
+      sb.from('experiences').select('id, status, approval_status'),
+
+      // 22) Momente — Tabelle 'beitraege' hat KEIN eigenes Status-Feld (kein Freigabe-Workflow,
+      // Beitraege sind sofort live). "Live/Ausstehend/Abgelehnt" gibt es hier nicht — echte
+      // Kategorien sind Gesamt / Gemeldet (momente_reports) / Geloescht (momente_removals).
+      sb.from('beitraege').select('id'),
+      sb.from('momente_reports').select('moment_id'),
+      sb.from('momente_removals').select('moment_id'),
     ]);
 
     // ── Auth-User für genaue Gesamtzahl (alle Seiten) ───────────────────────
@@ -200,6 +219,40 @@ export async function GET(req: NextRequest) {
     const talentStats = {
       total: talentProfilesRes.count ?? 0,
       percentOfUsers: profiles.length > 0 ? Math.round((talentProfilesRes.count ?? 0) / profiles.length * 100) : 0,
+    };
+
+    // ── Talent-Angebote — Tabelle 'talents' (Service-Listings, Freigabe-Workflow) ──
+    const talentOfferRows = talentOffersRes.data ?? [];
+    const talentOfferStats = {
+      live:      talentOfferRows.filter((t: any) => t.status === 'approved').length,
+      pending:   talentOfferRows.filter((t: any) => t.status === 'pending').length,
+      rejected:  talentOfferRows.filter((t: any) => t.status === 'rejected').length,
+      total:     talentOfferRows.length,
+    };
+
+    // ── Erlebnis-Angebote — Tabelle 'experiences' (approval_status: pending_review/approved/rejected) ──
+    const experienceOfferRows = experienceOffersRes.data ?? [];
+    const experienceOfferStats = {
+      live:     experienceOfferRows.filter((e: any) => e.approval_status === 'approved' || e.status === 'published').length,
+      pending:  experienceOfferRows.filter((e: any) => e.approval_status === 'pending_review' || e.status === 'pending_review').length,
+      rejected: experienceOfferRows.filter((e: any) => e.approval_status === 'rejected' || e.status === 'rejected').length,
+      total:    experienceOfferRows.length,
+    };
+
+    // ── Momente — Tabelle 'beitraege' hat keinen Freigabe-Status (sofort live nach Post).
+    // Echte Kategorien: Gesamt / Gemeldet (>=1 Meldung, noch nicht entfernt) / Geloescht (Soft-Delete).
+    const momentRows          = momentsRes.data ?? [];
+    const removedMomentIds    = new Set((momentRemovalsRes.data ?? []).map((r: any) => r.moment_id));
+    const reportedMomentIds   = new Set(
+      (momentReportsRes.data ?? [])
+        .map((r: any) => r.moment_id)
+        .filter((id: string) => !removedMomentIds.has(id))
+    );
+    const momentStats = {
+      live:     momentRows.filter((m: any) => !removedMomentIds.has(m.id) && !reportedMomentIds.has(m.id)).length,
+      reported: momentRows.filter((m: any) => reportedMomentIds.has(m.id)).length,
+      deleted:  momentRows.filter((m: any) => removedMomentIds.has(m.id)).length,
+      total:    momentRows.length,
     };
 
     // ── Werk-Statistik nach Status ──────────────────────────────────────────
@@ -381,6 +434,9 @@ export async function GET(req: NextRequest) {
       talentStats,
       workStats,
       projectStats,
+      talentOfferStats,
+      experienceOfferStats,
+      momentStats,
       pieData: {
         userComposition,
         membershipTypes,

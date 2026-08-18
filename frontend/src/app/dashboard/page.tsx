@@ -324,6 +324,42 @@ export default function DashboardPage() {
             <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtEur(db.projectStats.totalAwardedEur)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Ausgeschüttet</div></div>
           </div>
         </div>
+
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Talent-Angebote</span>
+            <a href="/talent-offers" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.talentOfferStats.live)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Live</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.talentOfferStats.pending)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Ausstehend</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.talentOfferStats.rejected)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Abgelehnt</div></div>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Erlebnis-Angebote</span>
+            <a href="/experiences" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.experienceOfferStats.live)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Live</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.experienceOfferStats.pending)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Ausstehend</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.experienceOfferStats.rejected)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Abgelehnt</div></div>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Momente</span>
+            <a href="/momente" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>Alle →</a>
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.momentStats.live)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Live</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.momentStats.reported)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gemeldet</div></div>
+            <div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>{db.loading ? '…' : fmtNum(db.momentStats.deleted)}</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gelöscht</div></div>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

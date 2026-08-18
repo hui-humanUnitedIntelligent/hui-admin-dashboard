@@ -23,6 +23,9 @@ export interface DashboardData {
     applicationsPending: number; applicationsApproved: number; applicationsRejected: number;
     liveCount: number; totalVotes: number; totalAwardedEur: number;
   };
+  talentOfferStats:     { live: number; pending: number; rejected: number; total: number };
+  experienceOfferStats: { live: number; pending: number; rejected: number; total: number };
+  momentStats:          { live: number; reported: number; deleted: number; total: number };
   pieData: {
     userComposition: { wirker: number; member: number; admin: number; basisuser: number };
     membershipTypes: { basisuser: number; talent: number; member: number };
@@ -62,6 +65,9 @@ const EMPTY: Omit<DashboardData, 'refetch'> = {
     applicationsPending: 0, applicationsApproved: 0, applicationsRejected: 0,
     liveCount: 0, totalVotes: 0, totalAwardedEur: 0,
   },
+  talentOfferStats:     { live: 0, pending: 0, rejected: 0, total: 0 },
+  experienceOfferStats: { live: 0, pending: 0, rejected: 0, total: 0 },
+  momentStats:          { live: 0, reported: 0, deleted: 0, total: 0 },
   pieData: {
     userComposition: { wirker: 0, member: 0, admin: 0, basisuser: 0 },
     membershipTypes: { basisuser: 0, talent: 0, member: 0 },
@@ -98,6 +104,9 @@ export function useDashboard(refreshInterval = 30000): DashboardData {
         talentStats:    j.talentStats    ?? EMPTY.talentStats,
         workStats:      j.workStats      ?? EMPTY.workStats,
         projectStats:   j.projectStats   ?? EMPTY.projectStats,
+        talentOfferStats:     j.talentOfferStats     ?? EMPTY.talentOfferStats,
+        experienceOfferStats: j.experienceOfferStats ?? EMPTY.experienceOfferStats,
+        momentStats:          j.momentStats          ?? EMPTY.momentStats,
         pieData:        j.pieData        ?? EMPTY.pieData,
         loading:     false,
         error:       null,
