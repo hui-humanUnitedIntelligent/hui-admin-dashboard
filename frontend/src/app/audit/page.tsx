@@ -244,9 +244,9 @@ export default function AuditPage() {
         )}
 
         {/* Tabelle */}
-        <div style={{ borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+        <div className="grid-table-scroll" style={{ borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
           {/* Header */}
-          <div style={{ display:'grid',
+          <div className="grid-table-row" style={{ display:'grid',
             gridTemplateColumns: tab.cols.map(c => c.width ? `${c.width}px` : '1fr').join(' '),
             background:'var(--bg-tertiary)', borderBottom:'1px solid var(--border)',
             padding:'10px 16px', gap:8 }}>
@@ -271,6 +271,7 @@ export default function AuditPage() {
           ) : (
             rows.map((row, i) => (
               <div key={String(row.id ?? i)}
+                className="grid-table-row"
                 style={{ display:'grid',
                   gridTemplateColumns: tab.cols.map(c => c.width ? `${c.width}px` : '1fr').join(' '),
                   padding:'9px 16px', gap:8, alignItems:'center',

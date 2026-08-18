@@ -393,8 +393,8 @@ export default function TicketsPage() {
         </div>
 
         {/* Tabelle */}
-        <div style={{ borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
-          <div style={{ display:'grid',
+        <div className="grid-table-scroll" style={{ borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+          <div className="grid-table-row" style={{ display:'grid',
             gridTemplateColumns:'140px 1fr 140px 90px 90px 80px 44px',
             background:'var(--bg-tertiary)', borderBottom:'1px solid var(--border)',
             padding:'10px 16px', gap:8 }}>
@@ -418,6 +418,7 @@ export default function TicketsPage() {
             return (
               <div key={t.ticket_number}
                 onClick={()=>setSelected(t)}
+                className="grid-table-row"
                 style={{ display:'grid', gridTemplateColumns:'140px 1fr 140px 90px 90px 80px 44px',
                   padding:'10px 16px', gap:8, alignItems:'center',
                   borderBottom: i<filtered.length-1 ? '1px solid var(--border)' : 'none',

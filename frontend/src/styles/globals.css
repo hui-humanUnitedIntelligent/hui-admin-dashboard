@@ -569,3 +569,60 @@ input, textarea, select, button { font-family: inherit; font-size: inherit; }
     padding: 8px 10px !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   SADB MOBILE HARDENING (2026-08-18)
+   Sicherheitsnetz für Seiten mit inline gridTemplateColumns, die keine
+   .grid-N Klasse nutzen (Stat-Cards, KPI-Reihen, Detail-Splits).
+   Greift nur bei Elementen, deren Inline-Style explizit 3+ gleiche
+   Spalten oder einen festen Sidebar-Split anfordert — Karten mit
+   auto-fill/auto-fit/minmax bleiben unberührt (die sind schon responsiv).
+════════════════════════════════════════════════════════════════════════ */
+
+/* Fehlende Klasse für 6-spaltige Grids (z.B. WorksView Filialleiste) */
+@media (max-width: 1024px) {
+  .grid-6 { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  /* Jede feste 3/4/5/6-Spalten-Grid (repeat(3,…) … repeat(6,…)) → 2 Spalten */
+  main [style*="repeat(3"],
+  main [style*="repeat(4"],
+  main [style*="repeat(5"],
+  main [style*="repeat(6"],
+  main [style*="1fr 1fr 1fr"],
+  .grid-6 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Master-Detail-Split (Liste + feste Sidebar) → gestapelt statt gequetscht */
+  main [style*="1fr 320px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Auf sehr kleinen Screens: alles einspaltig */
+  main [style*="repeat(3"],
+  main [style*="repeat(4"],
+  main [style*="repeat(5"],
+  main [style*="repeat(6"],
+  main [style*="1fr 1fr 1fr"],
+  .grid-6 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Eigene "Grid-Tabellen" (Tickets, Audit-Log, Webhook-Mapping) ──────────
+   Das sind KEINE <table>-Elemente, sondern div-Grids mit festen px-Spalten
+   → statt zu quetschen: horizontal scrollbar machen (Wisch-Geste). ────── */
+.grid-table-scroll {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+.grid-table-scroll::-webkit-scrollbar { height: 4px; }
+@media (max-width: 768px) {
+  .grid-table-row {
+    min-width: 700px;
+  }
+}
