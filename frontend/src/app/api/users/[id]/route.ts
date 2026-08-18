@@ -8,6 +8,7 @@ import { getServiceClient } from '@/app/lib/supabase-server';
 // Standardtext, der versendet wird, wenn der Admin KEINEN eigenen Blockierungsgrund
 // einträgt. Schreibt der Admin einen Text, wird genau dieser an den Nutzer gesendet.
 const DEFAULT_BLOCK_MESSAGE = 'Dein Konto wird von einem Admin geprüft. Bei Fragen: support@be-hui.com';
+const DEFAULT_DELETE_MESSAGE = 'Dein HUI-Konto wurde deaktiviert und in den Gelöscht-Bereich verschoben. Bei Fragen: support@be-hui.com';
 
 // Sendet die Blockierungs-/Löschungs-Benachrichtigung per E-Mail via Resend.
 // Nicht-blockierend fuer den eigentlichen Request: Fehler werden nur geloggt,
@@ -125,6 +126,9 @@ export async function PATCH(
     // Standardtext verwendet — für Speicherung und E-Mail identisch.
     let profileUpdate: Record<string, unknown> = {};
     const effectiveMessage = (reason && reason.trim()) ? reason.trim() : DEFAULT_BLOCK_MESSAGE;
+    // Für Soft Delete: eigener Text des Admins, sonst Standard-Löschungs-Nachricht.
+    // WICHTIG: Muss 'gelöscht' enthalten, damit die GET-API is_deleted=true ableitet.
+    const deleteMessage = (reason && reason.trim()) ? reason.trim() : DEFAULT_DELETE_MESSAGE;
 
     if (action === 'block') {
       profileUpdate = {
@@ -133,16 +137,22 @@ export async function PATCH(
         blocked_by: effectiveMessage,
       };
     } else if (action === 'unblock' || action === 'restore') {
+      // Unblock ODER Restore: beide Felder zurücksetzen, damit der Nutzer
+      // wieder aktiv ist (egal ob er aus 'Blockiert' oder 'Gelöscht' kommt).
       profileUpdate = {
         blocked:    false,
         blocked_at: null,
         blocked_by: null,
       };
     } else if (action === 'delete') {
+      // Soft Delete: Nutzer wird blockiert (Login verhindert) UND das blocked_by-
+      // Feld enthält 'gelöscht', damit die GET-API is_deleted=true ableitet
+      // (siehe /api/users Zeile: blocked_by?.toLowerCase().includes('gelöscht')).
+      // Die E-Mail bekommt einen löschspezifischen Standardtext.
       profileUpdate = {
         blocked:    true,
         blocked_at: now,
-        blocked_by: effectiveMessage,
+        blocked_by: deleteMessage,
       };
     } else if (action === 'update_block_reason') {
       if (!reason) return ok({ ok: false, error: 'Kein Grund angegeben' });
@@ -204,7 +214,7 @@ export async function PATCH(
       await sendAccountStatusEmail({
         to: updatedProfile.email,
         name: displayName,
-        message: effectiveMessage,
+        message: action === 'delete' ? deleteMessage : effectiveMessage,
         action: action as 'block' | 'delete',
       });
     }

@@ -754,9 +754,9 @@ export default function UsersPage() {
     }
     if (action === 'delete') {
       const name = user.full_name || user.display_name || user.email || 'Nutzer';
-      if (!window.confirm(`"${name}" in den Gelöscht-Ordner verschieben?`)) return;
+      if (!window.confirm(`"${name}" in den Gelöscht-Bereich verschieben?\n\nDer Nutzer erhält per E-Mail sofort die Standard-Nachricht:\n"Dein HUI-Konto wurde deaktiviert und in den Gelöscht-Bereich verschoben. Bei Fragen: support@be-hui.com"`)) return;
       try {
-        // Kein eigener Text von diesem Schnellaktions-Icon -> Standard-Mail wird versendet.
+        // Kein eigener Text von diesem Schnellaktions-Icon -> Standard-Löschungs-Mail wird versendet.
         await apiAction('delete', user.id, {});
         showToast(`🗑 ${name} wurde gelöscht.`, 'info', 3000);
         setViewUser(null);
