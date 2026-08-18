@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
           const body = await res.json() as { users?: AuthUser[] } | AuthUser[];
           const users: AuthUser[] = Array.isArray(body) ? body
             : ((body as { users?: AuthUser[] }).users ?? []);
-          authUsers.push(...users);
+          authUsers.push(...users.filter(u => !u.email || !u.email.includes("hui-commerce.test")));
           if (users.length < 1000) break;
           page++;
         }
@@ -98,7 +98,8 @@ export async function GET(req: NextRequest) {
     // 2) Profiles — nur existierende Spalten
     const { data: rawProfiles, error: profErr } = await supabase
       .from('profiles')
-      .select(PROFILE_COLS);
+      .select(PROFILE_COLS)
+      .not('email', 'like', '%hui-commerce.test%');
 
     if (profErr) {
       console.error('[users GET] profiles error:', profErr.message);

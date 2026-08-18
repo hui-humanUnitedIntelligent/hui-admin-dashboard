@@ -18,13 +18,14 @@ export async function GET(req: NextRequest) {
       headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
     });
     const body = await res.json() as { users?: Array<{id:string; email?:string; created_at:string; last_sign_in_at?:string; app_metadata?:Record<string,unknown>}> };
-    const allUsers = body.users ?? [];
+    const allUsers = (body.users ?? []).filter(u => !(u.email ?? "").includes("hui-commerce.test"));
 
     const sb = getServiceClient();
     const { data: profiles } = await sb
       .from('profiles')
       .select('id, display_name, username, email, role, avatar_url, created_at, last_seen_at, is_wirker')
-      .in('role', ['employee', 'admin', 'superadmin', 'super_admin']);
+      .in('role', ['employee', 'admin', 'superadmin', 'super_admin'])
+      .not('email', 'like', '%hui-commerce.test%');
 
     const profMap = new Map((profiles ?? []).map(p => [p.id, p]));
 

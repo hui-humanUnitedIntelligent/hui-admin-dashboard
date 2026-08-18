@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       { data: bookings     = [] },
       { data: experiences  = [] },
     ] = await Promise.all([
-      sb.from('profiles').select('created_at,is_wirker,is_member').limit(10000),
+      sb.from('profiles').select('created_at,is_wirker,is_member').not('email', 'like', '%hui-commerce.test%').limit(10000),
       // SSOT für Umsatz: stripe_payments (siehe REPORTS-LIVE-FIX oben)
       sb.from('stripe_payments').select('created_at,amount,status').limit(10000),
       // SSOT für Impact-Pool-Zahlen: echte, pro Bestellung von rpc_process_order_fees

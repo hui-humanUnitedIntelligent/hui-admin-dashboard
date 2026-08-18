@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     // Wirker-Profile laden
     let q = sb.from('profiles')
       .select('id,display_name,username,avatar_url,tagline,talent,skills,is_available,availability,location_label,trust_score,impact_eur,follower_count,has_talent_profile,is_wirker,email,role,created_at,is_ambassador', { count: 'exact' })
+      .not('email', 'like', '%hui-commerce.test%')
       .eq('is_wirker', true)
       .order('is_available', { ascending: false })
       .limit(limit);

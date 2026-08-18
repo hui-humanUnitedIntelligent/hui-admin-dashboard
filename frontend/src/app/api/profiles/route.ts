@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
 
     let q = sb.from('profiles')
       .select('id,display_name,username,avatar_url,bio,tagline,role,membership_type,is_wirker,is_member,membership_active,has_talent_profile,talent,location,location_label,is_available,availability,impact_eur,follower_count,followers_count,trust_score,is_guardian,last_seen,last_seen_at,created_at,updated_at,skills,focus_type,email,phone,full_name,is_talent,talent_since,talent_activated_at,member_since,blocked,blocked_at,blocked_by,is_ambassador', { count: 'exact' })
+      .not('email', 'like', '%hui-commerce.test%')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 

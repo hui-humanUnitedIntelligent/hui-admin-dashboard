@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     } else if (targetUserId) {
       userIds = [targetUserId];
     } else {
-      let q = sb.from('profiles').select('id');
+      let q = sb.from('profiles').select('id').not('email', 'like', '%hui-commerce.test%');
       if (targetGroup === 'wirker')    q = q.eq('is_wirker', true);
       if (targetGroup === 'member')    q = q.eq('is_member', true);
       if (targetGroup === 'members')   q = q.eq('is_member', true);

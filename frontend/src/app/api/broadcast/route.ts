@@ -12,10 +12,10 @@ export async function GET(req: NextRequest) {
 
     if (action === 'stats') {
       const [total, wirker, members, admins] = await Promise.all([
-        sb.from('profiles').select('id', { count: 'exact', head: true }),
-        sb.from('profiles').select('id', { count: 'exact', head: true }).eq('is_wirker', true),
-        sb.from('profiles').select('id', { count: 'exact', head: true }).eq('is_member', true),
-        sb.from('profiles').select('id', { count: 'exact', head: true }).in('role', ['admin', 'superadmin']),
+        sb.from('profiles').select('id', { count: 'exact', head: true }).not('email', 'like', '%hui-commerce.test%'),
+        sb.from('profiles').select('id', { count: 'exact', head: true }).not('email', 'like', '%hui-commerce.test%').eq('is_wirker', true),
+        sb.from('profiles').select('id', { count: 'exact', head: true }).not('email', 'like', '%hui-commerce.test%').eq('is_member', true),
+        sb.from('profiles').select('id', { count: 'exact', head: true }).not('email', 'like', '%hui-commerce.test%').in('role', ['admin', 'superadmin']),
       ]);
       const { data: bData } = await sb.from('notifications').select('title,created_at').eq('type', 'broadcast');
       const seen = new Set<string>();
@@ -64,19 +64,19 @@ export async function POST(req: NextRequest) {
 
     let userIds: string[] = [];
     if (target_group === 'wirker') {
-      const { data } = await sb.from('profiles').select('id').eq('is_wirker', true);
+      const { data } = await sb.from('profiles').select('id').not('email', 'like', '%hui-commerce.test%').eq('is_wirker', true);
       userIds = (data ?? []).map((p: { id: string }) => p.id);
     } else if (target_group === 'members') {
-      const { data } = await sb.from('profiles').select('id').eq('is_member', true);
+      const { data } = await sb.from('profiles').select('id').not('email', 'like', '%hui-commerce.test%').eq('is_member', true);
       userIds = (data ?? []).map((p: { id: string }) => p.id);
     } else if (target_group === 'admins') {
-      const { data } = await sb.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+      const { data } = await sb.from('profiles').select('id').not('email', 'like', '%hui-commerce.test%').in('role', ['admin', 'superadmin']);
       userIds = (data ?? []).map((p: { id: string }) => p.id);
     } else if (target_group === 'basisuser') {
-      const { data } = await sb.from('profiles').select('id,is_wirker,is_member,role');
+      const { data } = await sb.from('profiles').select('id,is_wirker,is_member,role').not('email', 'like', '%hui-commerce.test%');
       userIds = (data ?? []).filter((p: { is_wirker: boolean; is_member: boolean; role: string }) => !p.is_wirker && !p.is_member && p.role !== 'admin' && p.role !== 'superadmin').map((p: { id: string }) => p.id);
     } else {
-      const { data } = await sb.from('profiles').select('id');
+      const { data } = await sb.from('profiles').select('id').not('email', 'like', '%hui-commerce.test%');
       userIds = (data ?? []).map((p: { id: string }) => p.id);
     }
 

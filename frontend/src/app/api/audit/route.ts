@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     if (tab === 'registrations') {
       let q = sb.from('profiles')
         .select('id,display_name,username,full_name,email,role,created_at', { count: 'exact' })
+        .not('email', 'like', '%hui-commerce.test%')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
       if (search) q = q.or(`display_name.ilike.%${search}%,email.ilike.%${search}%,username.ilike.%${search}%`);

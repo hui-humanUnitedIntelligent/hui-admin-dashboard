@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
 
       const allIds = [...new Set((chats ?? []).flatMap((c: any) => c.participant_ids ?? []))];
       const { data: profiles } = allIds.length
-        ? await sb.from('profiles').select('id,display_name,avatar_url,email').in('id', allIds)
+        ? await sb.from('profiles').select('id,display_name,avatar_url,email').in('id', allIds).not('email', 'like', '%hui-commerce.test%')
         : { data: [] };
       const profMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
       const rows = commissions ?? [];
       const referredIds = [...new Set(rows.map((r: any) => r.referred_user_id).filter(Boolean))];
       const { data: referredProfiles } = referredIds.length
-        ? await sb.from('profiles').select('id,display_name,username').in('id', referredIds)
+        ? await sb.from('profiles').select('id,display_name,username').in('id', referredIds).not('email', 'like', '%hui-commerce.test%')
         : { data: [] };
       const profMap = new Map((referredProfiles ?? []).map((p: any) => [p.id, p]));
 

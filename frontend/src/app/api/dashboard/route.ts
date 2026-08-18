@@ -59,9 +59,10 @@ export async function GET(req: NextRequest) {
       // Escrow holding query
       sb.from('orders').select('total_eur').eq('escrow_status', 'holding'),
 
-      // 1) Alle Profile (keine Filterung — geblockte zählen MIT)
+      // 1) Alle Profile (geblockte zählen MIT, exclude bot test users)
       sb.from('profiles')
         .select('id, is_wirker, role, is_member, membership_active, is_ambassador, created_at, blocked, referred_by, is_talent, location_label, membership_type', { count: 'exact' })
+        .not('email', 'like', '%hui-commerce.test%')
         .limit(5000),
 
       // 2) Werke (published)
@@ -86,17 +87,20 @@ export async function GET(req: NextRequest) {
       // 6) Ambassadors
       sb.from('profiles')
         .select('id, is_ambassador', { count: 'exact' })
+        .not('email', 'like', '%hui-commerce.test%')
         .eq('is_ambassador', true),
 
       // 7) Neueste 8 User
       sb.from('profiles')
         .select('id, display_name, full_name, username, email, role, is_wirker, created_at, avatar_url')
+        .not('email', 'like', '%hui-commerce.test%')
         .order('created_at', { ascending: false })
         .limit(8),
 
       // 8) Growth: alle Profile der letzten 12 Monate
       sb.from('profiles')
         .select('created_at')
+        .not('email', 'like', '%hui-commerce.test%')
         .gte('created_at', startOf12Months)
         .limit(5000),
 
@@ -118,7 +122,7 @@ export async function GET(req: NextRequest) {
       sb.from('works').select('status'),
 
       // 15) Talent-Statistik
-      sb.from('profiles').select('id', { count: 'exact' }).eq('is_talent', true),
+      sb.from('profiles').select('id', { count: 'exact' }).not('email', 'like', '%hui-commerce.test%').eq('is_talent', true),
 
       // 16) Projekt-Anträge nach Status — Single Source of Truth: impact_applications
       sb.from('impact_applications').select('status'),
@@ -148,9 +152,10 @@ export async function GET(req: NextRequest) {
         const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
           headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
         });
-        const authData = await authRes.json() as { users?: unknown[] };
+        const authData = await authRes.json() as { users?: Array<{ email?: string }> };
         const batch = authData.users ?? [];
-        authTotal += batch.length;
+        const validBatch = batch.filter(u => !u.email || !u.email.includes('hui-commerce.test'));
+        authTotal += validBatch.length;
         if (batch.length < perPage) break;
         page++;
       }
