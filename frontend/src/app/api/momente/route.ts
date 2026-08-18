@@ -7,7 +7,12 @@ import { getServiceClient } from '@/app/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-const BEITRAG_SELECT = 'id, user_id, type, caption, src, visibility_scope, moment_source, created_at';
+// CONTENT-FIX (2026-08-18): 'content' ergaenzt -- beitraege hat neben der
+// kurzen 'caption' (Anzeigetext im Feed) noch ein eigenes 'content'-Feld
+// (laengerer Beitragstext, z.B. bei myHUI-Systemnachrichten). Fehlte bisher
+// komplett im Select -> Admin-Modal zeigte nur die Caption, nicht den
+// eigentlichen Inhalt.
+const BEITRAG_SELECT = 'id, user_id, type, caption, content, src, visibility_scope, moment_source, created_at';
 
 // MELDE-FLOW-002: Kategorie-Labels — muss synchron bleiben mit
 // be-hui src/components/shared/ReportReasonModal.jsx (REPORT_REASONS)
@@ -48,7 +53,8 @@ export async function GET(req: Request) {
   // 'reported' / 'deleted' kommen aus momente_reports / momente_removals.
   // Für Tab-Filterung: nach Report-Count filtern (post-fetch).
 
-  if (search) q = (q as any).ilike('caption', `%${search}%`);
+  // CONTENT-FIX (2026-08-18): Suche jetzt auch im content-Feld, nicht nur caption
+  if (search) q = (q as any).or(`caption.ilike.%${search}%,content.ilike.%${search}%`);
 
   const { data, count, error } = await q;
   if (error) {
@@ -117,6 +123,7 @@ export async function GET(req: Request) {
     initiator_username: profileMap[e.user_id]?.username   ?? null,
     initiator_avatar:   profileMap[e.user_id]?.avatar_url ?? null,
     caption:            e.caption           ?? null,
+    content:            e.content           ?? null,
     moment_type:        e.type              ?? null,
     moment_source:      e.moment_source     ?? null,
     src:                e.src               ?? null,

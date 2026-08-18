@@ -16,6 +16,7 @@ interface MomentEntry {
   initiator_username:  string | null;
   initiator_avatar:    string | null;
   caption:             string | null;
+  content:             string | null;
   moment_type:         string | null;
   moment_source:       string | null;
   src:                 string | null;
@@ -333,8 +334,8 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
                         {m.src && isVideo(m.src) && (
                           <div style={{ width:40, height:40, borderRadius:6, background:'rgba(0,0,0,0.08)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>🎥</div>
                         )}
-                        <span style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: m.caption ? 'var(--text-secondary)' : 'var(--text-muted)', fontStyle: m.caption ? 'normal' : 'italic', fontSize:13 }}>
-                          {m.caption || 'Kein Text'}
+                        <span style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: (m.caption || m.content) ? 'var(--text-secondary)' : 'var(--text-muted)', fontStyle: (m.caption || m.content) ? 'normal' : 'italic', fontSize:13 }}>
+                          {m.caption || m.content || 'Kein Text'}
                         </span>
                       </div>
                     </td>
@@ -508,6 +509,16 @@ export function MomenteView({ role }: { role: 'superadmin' | 'employee' }) {
               {selected.caption && (
                 <div style={{ background:'var(--bg-secondary)', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:14, color:'var(--text-primary)', lineHeight:1.6 }}>
                   {selected.caption}
+                </div>
+              )}
+
+              {/* CONTENT-FIX (2026-08-18): eigentlicher Beitragstext -- getrennt
+                  von caption (kurzer Anzeigetext), z.B. der lange Body-Text bei
+                  myHUI-Systemnachrichten. Vorher fehlte dieser Block komplett,
+                  Modal zeigte nur die Caption. */}
+              {selected.content && (
+                <div style={{ background:'var(--bg-tertiary)', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:14, color:'var(--text-primary)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>
+                  {selected.content}
                 </div>
               )}
 
