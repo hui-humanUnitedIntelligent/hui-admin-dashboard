@@ -83,6 +83,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/recommendation-reports', label_de: 'Meldungen', label_en: 'Recommendation Reports', icon: '⚠️', roles: ['superadmin'] },
       { href: '/flags',     label_de: 'Funktionsschalter',   label_en: 'Feature Flags',   icon: '🚩', roles: ['superadmin'], superadminOnly: true },
       { href: '/churns',    label_de: 'Kündigungen',label_en: 'Churns',          icon: '📉', roles: ['superadmin'] },
+      { href: '/bug-reports', label_de: 'Fehlermeldungen', label_en: 'Bug Reports', icon: '🐛', roles: ['superadmin'] },
     ],
   },
   {
