@@ -53,18 +53,7 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
     '/employee/talent-offers':          pending.talents,
     '/employee/experiences':            pending.experiences,
     '/employee/recommendation-reports': pending.recReports ?? 0,
-    // BUGFIX (2026-08-19): '/employee/impact' zeigte faelschlich den Badge
-    // fuer offene 'impact_applications' (Herzensprojekt-Bewerbungen). Diese
-    // Seite (page.tsx) laedt aber ausschliesslich aus 'impact_projects'
-    // (bewilligte/Voting-Projekte) -- komplett andere Tabelle, kein Bezug zu
-    // Bewerbungen. Ergebnis: rote "1" im Menu, obwohl die Seite selbst
-    // "Keine Projekte gefunden" zeigt (impact_projects war leer). Die
-    // Bewerbungs-Review findet ausschliesslich unter '/impact-projekte'
-    // (superadmin-only, ImpactApplicationsView) statt -- dort bleibt der
-    // Badge korrekt gesetzt. '/employee/impact' bekommt keinen Badge, da es
-    // fuer diese Seite kein "ungesehen"-Konzept gibt (impact_projects hat
-    // kein neu/pending-Flag fuer Employees).
-    '/employee/impact':                 0,
+    '/employee/impact':                 pending.impactApplications ?? 0,
     '/employee/reasons':                pending.scoreFailures ?? 0,
   };
 
