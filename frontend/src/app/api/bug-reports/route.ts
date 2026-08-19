@@ -5,6 +5,25 @@ import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
+export async function GET(req: NextRequest) {
+  const guard = await guardAdmin(req);
+  if (guard) return guard;
+
+  try {
+    const client = getServiceClient();
+    const { data, error } = await client
+      .from('bug_reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (error) return fail(error.message, 500);
+    return ok(data || []);
+  } catch (e) {
+    return serverError(e);
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;

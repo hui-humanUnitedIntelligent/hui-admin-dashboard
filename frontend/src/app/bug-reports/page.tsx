@@ -43,12 +43,12 @@ export default function BugReportsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from('bug_reports')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (err) throw err;
-      setReports((data || []) as BugReport[]);
+      // Admin-Route mit Service-Role liest ALLE Reports (RLS erlaubt Nutzern nur
+      // ihre eigenen Reports zu sehen — der anon-Client hier hat kein auth.uid()).
+      const res = await fetch('/api/bug-reports', { credentials: 'include' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Laden fehlgeschlagen');
+      setReports((json.data || []) as BugReport[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler');
     } finally {
