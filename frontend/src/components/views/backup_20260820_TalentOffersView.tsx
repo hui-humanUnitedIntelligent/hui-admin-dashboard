@@ -231,12 +231,8 @@ export function TalentOffersView({ role }: { role: 'superadmin' | 'employee' }) 
   const thS: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', fontWeight: 600 };
   const tdS: React.CSSProperties = { padding: '10px 14px', verticalAlign: 'middle', fontSize: 13 };
 
-  // DELETE-VISIBILITY-FIX (2026-08-20): 'deleted' explizit gemappt statt auf
-  // den "Pruefung"-Fallback zu fallen -- geloeschte Angebote sollten die API
-  // eigentlich nie mehr liefern (siehe /api/talent-offers .neq('status','deleted')),
-  // dieser Fall ist nur eine zusaetzliche Absicherung (Defense-in-Depth).
-  const statusColor = (s: string) => s === 'approved' ? '#51CF66' : s === 'rejected' ? '#FF6B6B' : s === 'deleted' ? '#868E96' : '#F7B731';
-  const statusLabel = (s: string) => s === 'approved' ? '✅ Live' : s === 'rejected' ? '❌ Abgelehnt' : s === 'deleted' ? '🗑️ Gelöscht' : '⏳ Prüfung';
+  const statusColor = (s: string) => s === 'approved' ? '#51CF66' : s === 'rejected' ? '#FF6B6B' : '#F7B731';
+  const statusLabel = (s: string) => s === 'approved' ? '✅ Live' : s === 'rejected' ? '❌ Abgelehnt' : '⏳ Prüfung';
 
   const deleteDialog = deleteTarget ? (
     <div style={{ position:'fixed', inset:0, zIndex:10600, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}

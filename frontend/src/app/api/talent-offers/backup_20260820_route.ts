@@ -19,14 +19,7 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const sb = getServiceClient();
 
-    // DELETE-VISIBILITY-FIX (2026-08-20, Michael-Screenshot): Admin-geloeschte
-    // Talent-Angebote (status='deleted', Soft-Delete via PATCH delete_talent)
-    // sollen im SADB komplett verschwinden -- nicht nur im App-Feed. Ohne den
-    // .neq()-Filter tauchten sie weiterhin im 'Alle'-Tab auf (status!=='all'
-    // ueberspringt den eq()-Filter komplett) und wurden dort durch die
-    // statusLabel()-Fallback-Logik im Frontend faelschlich als "Pruefung"
-    // angezeigt (jeder Status ausser approved/rejected fiel auf "Pruefung").
-    let q = sb.from('talents').select('*', { count: 'exact' }).neq('status', 'deleted');
+    let q = sb.from('talents').select('*', { count: 'exact' });
     if (status !== 'all') q = q.eq('status', status);
     if (category) q = q.eq('category', category);
     q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
@@ -52,11 +45,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 'allCount' zaehlt bewusst NUR nicht-geloeschte Angebote (siehe Kommentar
-    // oben) -- sonst wich die 'Alle'-Zahl von der tatsaechlich sichtbaren
-    // Listenlaenge ab (Bug: Alle (1) trotz 0 sichtbarer aktiver Angebote).
     const [allCount, pendingCount, approvedCount, rejectedCount] = await Promise.all([
-      sb.from('talents').select('id', { count: 'exact', head: true }).neq('status', 'deleted'),
+      sb.from('talents').select('id', { count: 'exact', head: true }),
       sb.from('talents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       sb.from('talents').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
       sb.from('talents').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
