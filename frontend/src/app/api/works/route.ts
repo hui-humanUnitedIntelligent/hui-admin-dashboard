@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
     else if (filter === 'rejected')  q = q.eq('status', 'rejected');
     else if (filter === 'deleted')   q = q.eq('status', 'deleted');
     else if (filter === 'sensitive') q = q.eq('status', 'sensitive');
-    // 'all' → keine Filter außer nicht-deleted
-    else q = q.neq('status', 'deleted');
+    // 'all' → alle außer deleted UND draft (Entwürfe sind privat,
+    // nur im Mein-Bereich des Nutzers sichtbar — nicht im SADB)
+    else q = q.neq('status', 'deleted').neq('status', 'draft');
 
     q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
     const { data, count, error } = await q;
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
 
     // Counts für alle Status
     const [allCount, submittedCount, rejectedCount, deletedCount, activeCount] = await Promise.all([
-      sb.from('works').select('id', { count: 'exact', head: true }).neq('status', 'deleted'),
+      sb.from('works').select('id', { count: 'exact', head: true }).neq('status', 'deleted').neq('status', 'draft'),
       sb.from('works').select('id', { count: 'exact', head: true }).in('status', SUBMITTED_STATES),
       sb.from('works').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
       sb.from('works').select('id', { count: 'exact', head: true }).eq('status', 'deleted'),
