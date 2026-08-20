@@ -2,30 +2,29 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
-function decodeJwtMeta(token: string | undefined) {
-  if (!token) return null;
-  try {
-    const parts = token.split('.');
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-    return { ref: payload.ref, role: payload.role, iat: payload.iat, exp: payload.exp };
-  } catch (e) {
-    return { error: String(e) };
-  }
-}
-
 export async function GET() {
-  const meta = decodeJwtMeta(process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-
   const sb = getServiceClient();
-  const { count, error } = await sb.from('impact_applications').select('id', { count: 'exact', head: true });
-  const { data: allRows } = await sb.from('impact_applications').select('id,status,created_at');
+
+  // EXAKT die gleiche Query wie in pending-counts/route.ts
+  const filtered = await sb.from('impact_applications')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['submitted','pending','pending_review','review','waiting_for_approval']);
+
+  const unfiltered = await sb.from('impact_applications')
+    .select('id', { count: 'exact', head: true });
+
+  const allData = await sb.from('impact_applications').select('*');
+
+  const statusCounts = await sb.from('impact_applications').select('status');
 
   return NextResponse.json({
-    keyMeta: meta,
-    url,
-    countExact: count,
-    error: error?.message,
-    allRows,
+    filteredCount: filtered.count,
+    filteredError: filtered.error?.message,
+    unfilteredCount: unfiltered.count,
+    unfilteredError: unfiltered.error?.message,
+    allDataLength: allData.data?.length,
+    allDataError: allData.error?.message,
+    allData: allData.data,
+    statusCountsRaw: statusCounts.data,
   });
 }

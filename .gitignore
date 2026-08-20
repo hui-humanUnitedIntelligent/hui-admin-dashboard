@@ -10,3 +10,4 @@ build/
 .vercel
 .backups/
 android-app/
+.env*

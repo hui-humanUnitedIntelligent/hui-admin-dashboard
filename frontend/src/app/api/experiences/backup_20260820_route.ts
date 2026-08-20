@@ -17,14 +17,8 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || '';
     const sb = getServiceClient();
 
-    // ERLEBNIS-DRAFT-FIX (2026-08-20): Gleiche Filterung wie works API —
-    // Entwürfe (status='draft') sind privat, nicht im SADB relevant.
-    // Gelöschte (status='deleted') ebenfalls ausgeblendet.
-    // Nur aktive/pending/rejected Einträge erreichen den Admin.
     let q = sb.from('experiences')
       .select(EXP_SELECT, { count: 'exact' })
-      .neq('status', 'deleted')
-      .neq('status', 'draft')
       .order('created_at', { ascending: false });
     if (status) q = q.eq('approval_status', status);
     const { data, count, error: fetchErr } = await q.range(offset, offset + limit - 1);

@@ -479,13 +479,13 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
   const refetchAll = useCallback(() => refetch(), [refetch]);
 
   const counts = useMemo<Record<TabKey,number>>(() => ({
-    all:       all.filter(e=>!isDeleted(e)).length,
+    all:       all.filter(e=>!isDeleted(e) && !isDraft(e)).length,
     published: all.filter(e=>isApproved(e)).length,
     pending:   all.filter(e=>isPending(e)).length,
     rejected:  all.filter(e=>isRejected(e)).length,
     draft:     all.filter(e=>isDraft(e)).length,
     deleted:   all.filter(e=>isDeleted(e)).length,
-    sensitive: all.filter(e=>!isDeleted(e) && detectSensitiveExp(e).flagged).length,
+    sensitive: all.filter(e=>!isDeleted(e) && !isDraft(e) && detectSensitiveExp(e).flagged).length,
   }), [all]);
 
   const rows = useMemo(() => {
@@ -497,7 +497,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
     else if (tab==='draft')     base = visible.filter(e=>isDraft(e));
     else if (tab==='deleted')   base = visible.filter(e=>isDeleted(e));
     else if (tab==='sensitive') base = visible.filter(e=>!isDeleted(e) && detectSensitiveExp(e).flagged);
-    else                        base = visible.filter(e=>!isDeleted(e)); // 'all' → alles außer gelöscht
+    else                        base = visible.filter(e=>!isDeleted(e) && !isDraft(e)); // 'all' → alles außer gelöscht + Entwürfe (privat)
     if (!search.trim()) return base;
     const q = search.toLowerCase();
     return base.filter(e => [e.title,e.category,e.description].some(v=>(v||'').toLowerCase().includes(q)));
@@ -607,7 +607,7 @@ export function ErlebnisseProjekteView({ role = 'superadmin' }: { role?: 'supera
 
 
         <div style={{ display:'flex', gap:10, marginBottom:22, flexWrap:'wrap' }}>
-          <Kachel label="Erlebnisse"  value={all.filter(e=>!isDeleted(e)).length} color="var(--accent)" />
+          <Kachel label="Erlebnisse"  value={all.filter(e=>!isDeleted(e) && !isDraft(e)).length} color="var(--accent)" />
           <Kachel label="Published"   value={counts.published}  color="var(--green)"      />
           <Kachel label="Eingereicht" value={counts.pending}    color="#F59E0B"           />
           <Kachel label="Abgelehnt"   value={counts.rejected}   color="var(--red)"        />
