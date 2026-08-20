@@ -65,6 +65,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/talent-offers',    label_de: 'Talente',                   label_en: 'Talents',                icon: '💼', roles: ['superadmin'] },
       { href: '/experiences',     label_de: 'Erlebnisse & Projekte',     label_en: 'Experiences & Projects', icon: '🌿', roles: ['superadmin'] },
       { href: '/momente',         label_de: 'Momente',                   label_en: 'Moments',                icon: '💬', roles: ['superadmin'] },
+      { href: '/moderation',      label_de: 'Inhaltsprüfung',              label_en: 'Content Moderation',     icon: '🛡️', roles: ['superadmin'] },
       { href: '/impact-projekte', label_de: 'Impact Projekte',           label_en: 'Impact Projects',        icon: '💚', roles: ['superadmin'], superadminOnly: true },
       { href: '/score-failures',  label_de: 'Ablehnungsgründe',          label_en: 'Rejection Reasons',      icon: '🔍', roles: ['superadmin'], superadminOnly: true },
       { href: '/memberships',     label_de: 'Mitgliedschaften',          label_en: 'Memberships',            icon: '🏅', roles: ['superadmin'] },
