@@ -291,7 +291,7 @@ export function ModerationView({ role }: { role: string }) {
                       border: '1px solid var(--border)',
                     }}>
                       <img
-                        src={entry.beitrag_src}
+                        src={entry.beitrag_src || ""}
                         alt=""
                         style={{
                           width: '100%',

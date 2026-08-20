@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       .in('id', contentIds);
 
     if (!beitErr && beitraege) {
-      beitraege = beitraege.reduce((acc: Record<string, any>, b: any) => {
+      beitraegeMap = beitraege.reduce((acc: Record<string, any>, b: any) => {
         acc[b.id] = b;
         return acc;
       }, {} as Record<string, any>);
