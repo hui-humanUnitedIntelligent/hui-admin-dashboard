@@ -38,34 +38,22 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaults);
   const pending = usePendingCounts(30_000);
 
-  // Mapping: href → pending count
-  const pendingForHref: Record<string, number> = {
-    // Superadmin-Pfade (aus navigation.ts)
-    '/works':                  pending.works,
-    '/talent-offers':          pending.talents,
-    '/experiences':            pending.experiences,
-    '/momente':                pending.momente ?? 0,
-    '/recommendation-reports': pending.recReports ?? 0,
-    '/impact-projekte':        pending.impactApplications ?? 0,
-    '/score-failures':         pending.scoreFailures ?? 0,
-    // Employee-Pfade
-    '/employee/works':                  pending.works,
-    '/employee/talent-offers':          pending.talents,
-    '/employee/experiences':            pending.experiences,
-    '/employee/recommendation-reports': pending.recReports ?? 0,
-    // BUGFIX (2026-08-19): '/employee/impact' zeigte faelschlich den Badge
-    // fuer offene 'impact_applications' (Herzensprojekt-Bewerbungen). Diese
-    // Seite (page.tsx) laedt aber ausschliesslich aus 'impact_projects'
-    // (bewilligte/Voting-Projekte) -- komplett andere Tabelle, kein Bezug zu
-    // Bewerbungen. Ergebnis: rote "1" im Menu, obwohl die Seite selbst
-    // "Keine Projekte gefunden" zeigt (impact_projects war leer). Die
-    // Bewerbungs-Review findet ausschliesslich unter '/impact-projekte'
-    // (superadmin-only, ImpactApplicationsView) statt -- dort bleibt der
-    // Badge korrekt gesetzt. '/employee/impact' bekommt keinen Badge, da es
-    // fuer diese Seite kein "ungesehen"-Konzept gibt (impact_projects hat
-    // kein neu/pending-Flag fuer Employees).
-    '/employee/impact':                 0,
-    '/employee/reasons':                pending.scoreFailures ?? 0,
+  // FIX (2026-08-21, GHOST-BADGE-002): Click-to-Clear + effective Counts
+  // Statt rohe pending-Werte zu zeigen, verwenden wir getEffectiveCount(href),
+  // was den "gesehen"-Status aus localStorage beruecksichtigt.
+  // Beim Klick auf ein Nav-Item wird markSeen(href) aufgerufen -> Badge verschwindet.
+  // Badge kommt nur zurueck wenn der echte Count ueber den zuletzt gesehenen steigt.
+  const getBadgeForHref = (href: string): number => {
+    // '/employee/impact' hat bewusst keinen Badge (siehe Bugfix 2026-08-19)
+    if (href === '/employee/impact') return 0;
+    return pending.getEffectiveCount(href);
+  };
+
+  const handleNavClick = (href: string) => {
+    // Badge fuer diesen href als "gesehen" markieren
+    pending.markSeen(href);
+    // Optional: Panel schliessen (mobile)
+    if (onClose) onClose();
   };
 
   const isActive = matchesHref;
@@ -107,11 +95,12 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
               <div>
                 {group.items.map(item => {
                   const active = isActive(item.href);
+                  const badge = getBadgeForHref(item.href);
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={onClose}
+                      onClick={() => handleNavClick(item.href)}
                       style={{
                         display:       'flex',
                         alignItems:    'center',
@@ -142,7 +131,7 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
                     >
                       <span style={{ fontSize: 14, lineHeight: 1, width: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.icon}</span>
                       <span style={{ flex: 1 }}>{navLabel(item, lang)}</span>
-                      {(pendingForHref[item.href] ?? 0) > 0 && (
+                      {badge > 0 && (
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -158,7 +147,7 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
                           lineHeight: 1,
                           flexShrink: 0,
                         }}>
-                          {pendingForHref[item.href]! > 99 ? '99+' : pendingForHref[item.href]}
+                          {badge > 99 ? '99+' : badge}
                         </span>
                       )}
                     </Link>

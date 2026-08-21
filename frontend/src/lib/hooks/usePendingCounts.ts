@@ -3,6 +3,14 @@
 // Strategie: 30s Polling als Basis + Supabase Realtime für sofortige Updates
 // Tabellen: works, talents, experiences, beitraege, recommendation_reports,
 //           impact_applications, impact_score_failures → reagieren jeweils auf INSERT/UPDATE/DELETE
+//
+// FIX (2026-08-21, GHOST-BADGE-002):
+//   1. Bei API-Fehlern (non-ok, network error) → counts auf EMPTY zurücksetzen,
+//      nicht stillschweigend alte Werte behalten (ursache für "Geister-1").
+//   2. Click-to-Clear: markSeen(href) speichert den zuletzt gesehenen Count
+//      in localStorage. Der Hook liefert "effective" Counts, die nur >0 sind
+//      wenn der echte Count HÖHER ist als der zuletzt gesehene.
+//   3. Bei echten neuen Items (Count steigt über seen-Wert) → Badge kommt zurück.
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -23,6 +31,46 @@ const EMPTY: PendingCounts = {
   impactApplications: 0, scoreFailures: 0, total: 0,
 };
 
+const STORAGE_KEY = 'sadb_seen_counts';
+
+// localStorage: { [href]: number } — letzter Count-Wert den der User gesehen hat
+function getSeenCounts(): Record<string, number> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function setSeenCounts(data: Record<string, number>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* ignore quota errors */ }
+}
+
+// Map: href → PendingCounts key
+const HREF_TO_KEY: Record<string, keyof PendingCounts> = {
+  '/works':                  'works',
+  '/talent-offers':          'talents',
+  '/experiences':            'experiences',
+  '/momente':                'momente',
+  '/recommendation-reports':  'recReports',
+  '/impact-projekte':        'impactApplications',
+  '/score-failures':         'scoreFailures',
+  '/employee/works':                  'works',
+  '/employee/talent-offers':          'talents',
+  '/employee/experiences':            'experiences',
+  '/employee/recommendation-reports': 'recReports',
+  '/employee/reasons':                'scoreFailures',
+};
+
+/** Markiert einen Bereich als "gesehen" — Badge verschwindet bis neue Items kommen. */
+export function markSeen(href: string, currentCount: number) {
+  const seen = getSeenCounts();
+  seen[href] = currentCount;
+  setSeenCounts(seen);
+}
+
 // Supabase Client für Realtime (anon key reicht — wir hören nur auf Schema-Events)
 function getRealtimeClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,8 +86,17 @@ export function usePendingCounts(intervalMs = 30_000) {
   const refresh = useCallback(async () => {
     try {
       const r = await fetch('/api/pending-counts', { cache: 'no-store' });
-      if (r.ok) setCounts(await r.json());
-    } catch { /* silently ignore network errors */ }
+      if (r.ok) {
+        setCounts(await r.json());
+      } else {
+        // FIX: Bei non-ok Response (401, 500, etc.) -> auf 0 zuruecksetzen,
+        // nicht alte Werte behalten. Alte Werte sind die Ursache fuer Geister-Badges.
+        setCounts(EMPTY);
+      }
+    } catch {
+      // FIX: Bei Network-Error -> auch auf 0 zuruecksetzen.
+      setCounts(EMPTY);
+    }
   }, []);
 
   // ── Polling (Fallback + erster Load) ──────────────────────────────────
@@ -105,5 +162,15 @@ export function usePendingCounts(intervalMs = 30_000) {
     };
   }, [refresh]);
 
-  return counts;
+  // ── Click-to-Clear: effective Counts nach "gesehen"-Status ──────────
+  // Fuer jeden href: zeige Badge nur wenn echter Count > zuletzt gesehener Count
+  const getEffectiveCount = useCallback((href: string): number => {
+    const key = HREF_TO_KEY[href];
+    if (!key) return 0;
+    const actual = counts[key] ?? 0;
+    const seen = getSeenCounts()[href] ?? 0;
+    return Math.max(0, actual - seen);
+  }, [counts]);
+
+  return { ...counts, getEffectiveCount, markSeen: (href: string) => markSeen(href, counts[HREF_TO_KEY[href]] ?? 0) };
 }
