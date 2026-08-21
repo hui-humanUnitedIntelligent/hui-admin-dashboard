@@ -30,6 +30,10 @@ export function middleware(req: NextRequest) {
     pathname === '/login' ||
     pathname === '/login/mfa-enroll' ||
     pathname === '/login/mfa-challenge' ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw-push.js' ||
+    pathname === '/icon-192.png' ||
+    pathname === '/icon-512.png' ||
     pathname.startsWith('/api/')
   ) {
     return NextResponse.next();

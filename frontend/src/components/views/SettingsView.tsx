@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
+import PushNotificationManager from '@/components/PushNotificationManager';
 import { useSettings, Theme, Lang } from '@/components/providers/ThemeProvider';
 
 const STORAGE_KEY_REFRESH  = 'hui_admin_refresh';
@@ -102,6 +103,18 @@ export function SettingsView({ role }: { role: 'superadmin' | 'employee' }) {
       />
 
 <div style={{ maxWidth: 680 }}>
+
+        {/* ── Push Notifications ── */}
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, fontWeight: 600 }}>
+          Push-Benachrichtigungen
+        </div>
+        <div style={{ ...section, marginBottom: 20 }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+            Erhalte Push-Nachrichten bei neuen Werken, Talenten, Momenten, sensiblen Inhalten,
+            Impact-Projekten, Fehlermeldungen und Support-Tickets. Klick auf eine Nachricht öffnet das SADB.
+          </p>
+          <PushNotificationManager />
+        </div>
 
         {/* ── Appearance ── */}
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 10, fontWeight: 600 }}>
