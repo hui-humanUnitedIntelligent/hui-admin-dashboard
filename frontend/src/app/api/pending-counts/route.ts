@@ -68,6 +68,17 @@ export async function GET(req: Request) {
 
   // CACHE-BUST-001 (2026-08-21): Vercel liefert veraltete Badge-Zähler.
   // Force no-store + immutable response um Edge-Caching zu verhindern.
+  // DEBUG-BADGE-001 (2026-08-21): Temporärer Debug-Marker um zu sehen
+  // welcher Code-Stand auf Vercel läuft. Entfernen nach Fix-Verifikation.
+  const _debug = {
+    codeVersion: 'badge-fix-20260821c',
+    worksRawCount: worksRes.count,
+    talentsRawCount: talentsRes.count,
+    worksError: worksRes.error?.message?.slice(0,100) || null,
+    talentsError: talentsRes.error?.message?.slice(0,100) || null,
+  };
+  console.log('[pending-counts DEBUG]', _debug);
+
   const res = NextResponse.json({
     works,
     talents,
@@ -77,6 +88,7 @@ export async function GET(req: Request) {
     impactApplications,
     scoreFailures,
     total,
+    _debug,
   }, {
     headers: {
       'Cache-Control': 'no-store, max-age=0, must-revalidate',
