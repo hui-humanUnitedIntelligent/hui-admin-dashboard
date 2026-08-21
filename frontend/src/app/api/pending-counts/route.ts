@@ -16,14 +16,14 @@ export async function GET(req: Request) {
     worksRes, talentsRes, expRes, momentesRes, recReportsRes,
     impactAppsRes, scoreFailuresRes,
   ] = await Promise.all([
-    // Works: warten auf Freigabe
+    // Works: DEBUG — fetch actual records to see what's being counted
     sb.from('works')
-      .select('id', { count: 'exact', head: true })
+      .select('id,title,status')
       .in('status', ['pending_review', 'submitted', 'pending', 'review', 'waiting_for_approval']),
 
-    // Talents: warten auf Freigabe
+    // Talents: DEBUG — fetch actual records
     sb.from('talents')
-      .select('id', { count: 'exact', head: true })
+      .select('id,title,status')
       .in('status', ['pending', 'pending_review']),
 
     // Experiences: NUR wenn status=pending_review
@@ -55,8 +55,8 @@ export async function GET(req: Request) {
       .select('id', { count: 'exact', head: true }),
   ]);
 
-  const works              = worksRes.count         ?? 0;
-  const talents            = talentsRes.count       ?? 0;
+  const works              = worksRes.data?.length   ?? 0;
+  const talents            = talentsRes.data?.length ?? 0;
   const experiences        = expRes.count           ?? 0;
   // momente_reports gibt uns rows mit moment_id — zähle distinct
   const momente = new Set((momentesRes.data ?? []).map((r: any) => r.moment_id)).size;
@@ -71,9 +71,11 @@ export async function GET(req: Request) {
   // DEBUG-BADGE-001 (2026-08-21): Temporärer Debug-Marker um zu sehen
   // welcher Code-Stand auf Vercel läuft. Entfernen nach Fix-Verifikation.
   const _debug = {
-    codeVersion: 'badge-fix-20260821c',
-    worksRawCount: worksRes.count,
-    talentsRawCount: talentsRes.count,
+    codeVersion: 'badge-fix-20260821d',
+    worksData: worksRes.data,
+    worksCount: worksRes.data?.length,
+    talentsData: talentsRes.data,
+    talentsCount: talentsRes.data?.length,
     worksError: worksRes.error?.message?.slice(0,100) || null,
     talentsError: talentsRes.error?.message?.slice(0,100) || null,
   };
