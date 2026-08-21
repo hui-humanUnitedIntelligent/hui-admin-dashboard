@@ -66,7 +66,9 @@ export async function GET(req: Request) {
 
   const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures;
 
-  return NextResponse.json({
+  // CACHE-BUST-001 (2026-08-21): Vercel liefert veraltete Badge-Zähler.
+  // Force no-store + immutable response um Edge-Caching zu verhindern.
+  const res = NextResponse.json({
     works,
     talents,
     experiences,
@@ -75,5 +77,12 @@ export async function GET(req: Request) {
     impactApplications,
     scoreFailures,
     total,
+  }, {
+    headers: {
+      'Cache-Control': 'no-store, max-age=0, must-revalidate',
+      'CDN-Cache-Control': 'no-store',
+      'Vercel-CDN-Cache-Control': 'no-store',
+    },
   });
+  return res;
 }
