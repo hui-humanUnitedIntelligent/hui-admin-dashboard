@@ -93,10 +93,11 @@ export const ADMIN_NAV: NavGroup[] = [
     label_en: 'System',
     icon: '🔧',
     items: [
-      { href: '/audit',    label_de: 'Audit Logs',    label_en: 'Audit Logs',    icon: '📋', roles: ['superadmin'], superadminOnly: true },
-      { href: '/system',   label_de: 'System Status', label_en: 'System Status', icon: '🔧', roles: ['superadmin'], superadminOnly: true },
-      { href: '/exports',  label_de: 'Daten-Export',  label_en: 'Data Export',   icon: '📥', roles: ['superadmin'], superadminOnly: true },
-      { href: '/settings', label_de: 'Einstellungen', label_en: 'Settings',      icon: '⚙️', roles: ['superadmin'] },
+      { href: '/audit',          label_de: 'Audit Logs',       label_en: 'Audit Logs',    icon: '📋', roles: ['superadmin'], superadminOnly: true },
+      { href: '/system-errors',  label_de: 'Systemfehler',     label_en: 'System Errors', icon: '🚨', roles: ['superadmin'], superadminOnly: true },
+      { href: '/system',          label_de: 'System Status',    label_en: 'System Status', icon: '🔧', roles: ['superadmin'], superadminOnly: true },
+      { href: '/exports',         label_de: 'Daten-Export',     label_en: 'Data Export',   icon: '📥', roles: ['superadmin'], superadminOnly: true },
+      { href: '/settings',         label_de: 'Einstellungen',   label_en: 'Settings',      icon: '⚙️', roles: ['superadmin'] },
     ],
   },
 ];
