@@ -49,6 +49,17 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
     return pending.getEffectiveCount(href);
   };
 
+  // BADGE-SYNC-005 (2026-08-22): Gruppen-Header-Badge — Summe aller Item-Badges
+  // in der Gruppe, damit offene Punkte auch im eingeklappten Zustand sichtbar
+  // sind (Michael musste bisher jede Gruppe aufklappen, um neue Einreichungen
+  // zu sehen; das entfällt jetzt).
+  const getGroupBadge = (group: typeof visibleGroups[number]): number => {
+    const hrefs = group.items
+      .map(i => i.href)
+      .filter(href => href !== '/employee/impact');
+    return pending.getEffectiveCountForGroup(hrefs);
+  };
+
   const handleNavClick = (href: string) => {
     // Badge fuer diesen href als "gesehen" markieren
     pending.markSeen(href);
@@ -62,6 +73,7 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
     <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
       {visibleGroups.map(group => {
         const isOpen = openGroups[group.id] ?? false;
+        const groupBadge = getGroupBadge(group);
         return (
           <div key={group.id} style={{ marginBottom: 4 }}>
             {/* Gruppen-Header */}
@@ -86,7 +98,30 @@ export default function AdminNavigation({ role, lang = 'de', onClose }: AdminNav
               onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
-              <span>{groupLabel(group, lang)}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{groupLabel(group, lang)}</span>
+                {groupBadge > 0 && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    background: '#ef4444',
+                    color: '#fff',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '0 4px',
+                    lineHeight: 1,
+                    flexShrink: 0,
+                    textTransform: 'none',
+                    letterSpacing: 'normal',
+                  }}>
+                    {groupBadge > 99 ? '99+' : groupBadge}
+                  </span>
+                )}
+              </span>
               <span style={{ fontSize: 9, transition: 'transform 0.2s', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▾</span>
             </button>
 

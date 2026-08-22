@@ -1,5 +1,6 @@
 // frontend/src/app/api/pending-counts/route.ts
 // BADGE-SYNC-004: + Impact Projekte (impact_applications) + Ablehnungsgründe (impact_score_failures)
+// BADGE-SYNC-005 (2026-08-22): + Fehlermeldungen (bug_reports, status='offen')
 import { NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
   // (0-50 Records) vernachlässigbar, aber KORREKT.
   const [
     worksRes, talentsRes, expRes, momentesRes, recReportsRes,
-    impactAppsRes, scoreFailuresRes,
+    impactAppsRes, scoreFailuresRes, bugReportsRes,
   ] = await Promise.all([
     // Works: warten auf Freigabe
     sb.from('works')
@@ -52,6 +53,11 @@ export async function GET(req: Request) {
     // Ablehnungsgründe: KI-abgelehnte Einreichungen
     sb.from('impact_score_failures')
       .select('id'),
+
+    // Fehlermeldungen: offene Bug-Reports (BADGE-SYNC-005)
+    sb.from('bug_reports')
+      .select('id')
+      .eq('status', 'offen'),
   ]);
 
   const works              = worksRes.data?.length     ?? 0;
@@ -62,8 +68,9 @@ export async function GET(req: Request) {
   const recReports          = recReportsRes.data?.length  ?? 0;
   const impactApplications  = impactAppsRes.data?.length ?? 0;
   const scoreFailures       = scoreFailuresRes.data?.length ?? 0;
+  const bugReports          = bugReportsRes.data?.length  ?? 0;
 
-  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures;
+  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures + bugReports;
 
   // CACHE-BUST-001 (2026-08-21): Vercel liefert veraltete Badge-Zähler.
   // Force no-store + immutable response um Edge-Caching zu verhindern.
@@ -75,6 +82,7 @@ export async function GET(req: Request) {
     recReports,
     impactApplications,
     scoreFailures,
+    bugReports,
     total,
   }, {
     headers: {
