@@ -14,7 +14,6 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { useDashboard } from '@/lib/hooks/useDashboard';
-import { useUsageAnalytics } from '@/lib/hooks/useUsageAnalytics';
 
 const card: React.CSSProperties = {
   background: 'var(--bg-secondary)',
@@ -72,85 +71,6 @@ function pieCard(icon: string, title: string, node: React.ReactNode) {
   );
 }
 
-// ── SADB-ANALYSE-005: Stat-Kacheln für App-Nutzung ─────────────────────────
-function statTile(label: string, value: string, sub?: string) {
-  return (
-    <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{sub}</div>}
-    </div>
-  );
-}
-
-function formatDuration(seconds: number) {
-  if (!seconds) return '—';
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}min`;
-}
-
-function UsageSection({ usage }: { usage: ReturnType<typeof useUsageAnalytics> }) {
-  if (usage.loading) {
-    return (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 10 }}>📊 App-Nutzung</div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Lade Nutzungsdaten…</div>
-      </div>
-    );
-  }
-  if (usage.error) {
-    return (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 10 }}>📊 App-Nutzung</div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nutzungsdaten noch nicht verfügbar (wartet auf erste Sessions).</div>
-      </div>
-    );
-  }
-
-  // Mini 7-Tage DAU-Balken
-  const maxDaily = Math.max(...usage.dailyUniques7, 1);
-  const days = ['Mo','Di','Mi','Do','Fr','Sa','So'];
-  const today = new Date().getDay();
-  const dayLabels: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = (today - i + 7) % 7;
-    dayLabels.push(days[d === 0 ? 6 : d - 1]);
-  }
-
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 10 }}>📊 App-Nutzung</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }} className="grid-2">
-        {statTile('DAU (heute)', String(usage.dau), `Ø 7T: ${usage.avgDau7}`)}
-        {statTile('WAU (7 Tage)', String(usage.wau), `${usage.sessions7d} Sessions`)}
-        {statTile('MAU (30 Tage)', String(usage.mau), `${usage.sessions30d} Sessions`)}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }} className="grid-2">
-        {statTile('Ø Sitzungsdauer', formatDuration(usage.avgSessionSeconds))}
-        {statTile('Ø Sessions/Nutzer/Tag', String(usage.avgSessionsPerUserPerDay))}
-        {statTile('Sessions heute', String(usage.sessionsToday))}
-      </div>
-      {/* Mini 7-Tage DAU-Balkendiagramm */}
-      <div style={{ ...card, padding: '12px 14px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>DAU — letzte 7 Tage</div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 50 }}>
-          {usage.dailyUniques7.map((val, i) => {
-            const h = Math.max(3, Math.round((val / maxDaily) * 46));
-            return (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: '100%', height: h, borderRadius: 3, background: val > 0 ? '#4ECDC4' : 'var(--bg-tertiary)', minHeight: 3 }} />
-                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{dayLabels[i]}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ════════════════════════════════════════════════════════════════════════════
 export default function AnalyticsPage() {
   const { currentUser } = useAuth();
@@ -163,7 +83,6 @@ export default function AnalyticsPage() {
 
   const userRole = currentUser?.role;
   const db = useDashboard(30000);
-  const usage = useUsageAnalytics(30000);
 
   return (
     <DashboardLayout title="Analytics">
@@ -182,9 +101,6 @@ export default function AnalyticsPage() {
         <a href="/dashboard" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'underline' }}>Hauptdashboard</a>
         — hier die vollständige Verteilungs-Analyse als Kuchendiagramme, live aus derselben Datenquelle.
       </div>
-
-      {/* ── SADB-ANALYSE-005: App-Nutzung (DAU/WAU/MAU, Ø Sitzungsdauer) ── */}
-      <UsageSection usage={usage} />
 
       {db.loading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-muted)', fontSize: 13 }}>Lade Analytics…</div>
