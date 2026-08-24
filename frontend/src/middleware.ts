@@ -1,6 +1,7 @@
 // frontend/src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { rateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } from '@/app/lib/rate-limit';
 
 // Pfade die NUR superadmin darf (kein /employee prefix!)
 const SUPERADMIN_PATHS = [
@@ -25,7 +26,35 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  // 1) Public — immer erlauben
+  // 1) API-Routen — Rate Limiting (vor Public-Check!)
+  if (pathname.startsWith('/api/')) {
+    const ip = getClientIP(req);
+
+    // Login/MFA-Routen: Brute-Force-Schutz (10/min)
+    if (pathname.startsWith('/api/auth/admin-login') || pathname.startsWith('/api/auth/mfa/')) {
+      const result = rateLimit(ip, 'auth-login', RATE_LIMITS.AUTH.maxRequests, RATE_LIMITS.AUTH.windowMs);
+      if (!result.allowed) return rateLimitResponse(result.resetAt);
+    }
+    // Export: sehr streng (5/min)
+    else if (pathname.startsWith('/api/export')) {
+      const result = rateLimit(ip, 'export', RATE_LIMITS.EXPORT.maxRequests, RATE_LIMITS.EXPORT.windowMs);
+      if (!result.allowed) return rateLimitResponse(result.resetAt);
+    }
+    // Schreibende Operationen: moderat (20/min)
+    else if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT' || req.method === 'DELETE') {
+      const result = rateLimit(ip, 'write', RATE_LIMITS.WRITE.maxRequests, RATE_LIMITS.WRITE.windowMs);
+      if (!result.allowed) return rateLimitResponse(result.resetAt);
+    }
+    // Standard GET: 60/min
+    else {
+      const result = rateLimit(ip, 'api-get', RATE_LIMITS.API.maxRequests, RATE_LIMITS.API.windowMs);
+      if (!result.allowed) return rateLimitResponse(result.resetAt);
+    }
+
+    return NextResponse.next();
+  }
+
+  // 2) Public — immer erlauben (non-API)
   if (
     pathname === '/login' ||
     pathname === '/login/mfa-enroll' ||
@@ -33,8 +62,7 @@ export function middleware(req: NextRequest) {
     pathname === '/manifest.json' ||
     pathname === '/sw-push.js' ||
     pathname === '/icon-192.png' ||
-    pathname === '/icon-512.png' ||
-    pathname.startsWith('/api/')
+    pathname === '/icon-512.png'
   ) {
     return NextResponse.next();
   }

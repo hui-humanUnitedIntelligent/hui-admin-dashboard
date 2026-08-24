@@ -1,21 +1,21 @@
 // API: Impact Votes Archive — Vormonat-Zusammenfassung für SADB
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { NextRequest, NextResponse } from 'next/server';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
+import { getServiceClient } from '@/app/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const guard = await guardSuperAdmin(request);
+  if (guard) return guard;
+
   try {
+    const sb = getServiceClient();
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month'); // 'YYYY-MM' oder null = alle
 
     // Vormonat-Stimmen aus Archiv laden
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .rpc('rpc_get_votes_archive_summary', { p_month: month || null });
 
     if (error) {

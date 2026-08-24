@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { guardSuperAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 // Balanced Growth v1 — Live-Finanzdaten fuer die /finance Seite.
@@ -9,7 +10,10 @@ export const dynamic  = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const guard = await guardSuperAdmin(req);
+  if (guard) return guard;
+
   try {
     const sb = getServiceClient();
 
