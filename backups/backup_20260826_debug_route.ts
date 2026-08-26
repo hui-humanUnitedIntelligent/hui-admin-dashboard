@@ -1,9 +1,9 @@
 // frontend/src/app/api/auth/debug/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { guardAdmin } from '@/app/lib/auth-guard';
+import { guardUser } from '@/app/lib/auth-guard';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardAdmin(req);
+  const guard = await guardUser(req);
   if (guard) return guard;
   const token = req.cookies.get('hui_admin_token')?.value;
   const role  = req.cookies.get('hui_admin_role')?.value;
