@@ -115,11 +115,24 @@ export async function middleware(req: NextRequest) {
     const { response, loggedOut } = await applyRefresh(req);
     refreshResponse = response;
     if (loggedOut) {
-      // Session tot — für API sofort 401 (guardAdmin würde das eh liefern, aber
-      // ohne unnötigen Supabase-Roundtrip), für Seiten weiter zur Login-Redirect-Logik
-      // unten (die greift automatisch, weil der Token-Cookie jetzt geleert ist).
+      // Session tot — sofortige Reaktion statt die Seite leer rendern zu lassen.
       if (pathname.startsWith('/api/')) {
+        // API: 401 zurück, Client kann daraufhin Login-Redirect machen.
         return NextResponse.json({ ok: false, error: 'Session expired' }, { status: 401 });
+      } else {
+        // Seite: Redirect zu /login. Die cookie-löschende Response (refreshResponse)
+        // wird nicht zurückgegeben — stattdessen bauen wir einen Redirect, der
+        // DIESELBEN Set-Cookie-Lösch-Header enthält, damit der Browser die
+        // abgelaufenen Cookies los wird und der Login-Seite eine saubere Session
+        // zeigt. Ohne diesen Redirect würde die Seite mit leerer Navigation
+        // ("Seiten-Reiter fehlt") rendern, weil useAuth() die gelöschte Role
+        // aus document.cookie liest und null zurückgibt.
+        const loginUrl = new URL('/login', req.url);
+        const redirect = NextResponse.redirect(loginUrl);
+        redirect.cookies.set('hui_admin_token', '', { path: '/', maxAge: 0 });
+        redirect.cookies.set('hui_admin_role', '', { path: '/', maxAge: 0 });
+        redirect.cookies.set('hui_admin_refresh', '', { path: '/', maxAge: 0 });
+        return redirect;
       }
     }
   }
