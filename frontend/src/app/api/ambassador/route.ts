@@ -3,7 +3,7 @@
 // Ambassadors = profiles WHERE (role = 'ambassador' OR is_ambassador = true) — v2 mit Referral-Details
 // Keine neue Tabelle. Bestehende Datenquellen: profiles, works, messages, impact_applications
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 // ── Level-Helfer (Balanced Growth v1: Starter/Bronze/Silber/Gold, 5/10/15/20% — aus Unternehmensanteil) ──
@@ -28,7 +28,7 @@ function levelStyle(level: string): { label: string; color: string } {
 
 // ── GET: Ambassador-Liste ───────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {
@@ -365,7 +365,7 @@ export async function GET(req: NextRequest) {
 
 // ── PATCH: Ambassador-Status + Aktionen ────────────────────────────────────
 export async function PATCH(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
     const body = await req.json();

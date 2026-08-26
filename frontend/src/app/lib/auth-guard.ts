@@ -1,12 +1,15 @@
 // frontend/src/app/lib/auth-guard.ts
 // ── Zentraler Auth-Guard für Admin API-Routes ─────────────────────────────
-// Strategie: Cookie-basierte Validierung (schnell, kein Supabase-Roundtrip).
-// Der hui_admin_token Cookie wird nur auf Existenz geprüft — die Middleware
-// hat bereits serverseitig sichergestellt, dass nur authentifizierte Requests
-// ankommen. getUser() wird NICHT mehr aufgerufen (JWT läuft nach 1h ab).
+// SICHERHEITSFIX (2026-08-26): Rolle wird NICHT mehr aus dem manipulierbaren
+// hui_admin_role-Cookie gelesen. Stattdessen wird der JWT (hui_admin_token,
+// httpOnly — kann nicht per JS gefälscht werden) gegen Supabase verifiziert
+// und die Rolle aus der profiles-Tabelle (DB-SSOT) geholt.
+// Der Cookie existiert weiterhin für UI-Routing (middleware.ts), ist aber
+// httpOnly:true und NICHT mehr die sicherheitskritische Quelle.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeRole } from '@/lib/roles';
+import { getServiceClient, getAnonClient } from '@/app/lib/supabase-server';
 
 export interface AuthResult {
   user:   { id: string; email: string; role: string } | null;
@@ -14,30 +17,91 @@ export interface AuthResult {
   status?: number;
 }
 
-// ── Validierung via Cookie — kein async Supabase-Call ─────────────────────
-function validateCookie(req: NextRequest): AuthResult {
-  const token     = req.cookies.get('hui_admin_token')?.value;
-  const cookieRole = req.cookies.get('hui_admin_role')?.value ?? '';
+// ── In-Memory Cache (30s TTL) — vermeidet DB-Hammering bei Rapid-Fire Calls ──
+interface CachedAuth {
+  userId: string;
+  email: string;
+  role: string;
+  expiresAt: number;
+}
+const _authCache = new Map<string, CachedAuth>();
+const CACHE_TTL_MS = 30_000; // 30 Sekunden
 
+function getCached(token: string): CachedAuth | null {
+  const entry = _authCache.get(token);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    _authCache.delete(token);
+    return null;
+  }
+  return entry;
+}
+
+function setCached(token: string, data: Omit<CachedAuth, 'expiresAt'>) {
+  // Prevent unbounded growth
+  if (_authCache.size > 200) {
+    const now = Date.now();
+    for (const [k, v] of _authCache) {
+      if (now > v.expiresAt) _authCache.delete(k);
+    }
+    if (_authCache.size > 100) {
+      const keys = [..._authCache.keys()].slice(0, 50);
+      keys.forEach(k => _authCache.delete(k));
+    }
+  }
+  _authCache.set(token, { ...data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+// ── Serverseitige Verifikation: JWT → Supabase Session → DB Rolle ──────────
+async function verifyAuth(req: NextRequest): Promise<AuthResult> {
+  const token = req.cookies.get('hui_admin_token')?.value;
   if (!token) return { user: null, error: 'Unauthorized', status: 401 };
 
-  const role = normalizeRole(cookieRole || 'employee');
+  // Cache-Check
+  const cached = getCached(token);
+  if (cached) {
+    return { user: { id: cached.userId, email: cached.email, role: cached.role } };
+  }
 
-  // Aus JWT sub lesen ohne Verifikation (nur für Logging, nicht sicherheitskritisch)
-  let userId = 'unknown';
+  // 1. JWT gegen Supabase verifizieren (Session gültig?)
+  const supabase = getAnonClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
+
+  if (authError || !authData?.user?.id) {
+    return { user: null, error: 'Session expired', status: 401 };
+  }
+
+  const userId = authData.user.id;
+  const email = authData.user.email ?? '';
+
+  // 2. Rolle aus DB (profiles) holen — SSOT, nicht aus Cookie
+  let role = 'employee';
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    userId = payload.sub ?? 'unknown';
-  } catch { /* ignore */ }
+    const serviceClient = getServiceClient();
+    const { data: profile, error: profileErr } = await serviceClient
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
 
-  return { user: { id: userId, email: '', role } };
+    if (profile?.role) {
+      role = normalizeRole(profile.role);
+    }
+  } catch {
+    // Fallback: employee (sicherer Default — KEIN superadmin)
+    role = 'employee';
+  }
+
+  setCached(token, { userId, email, role });
+
+  return { user: { id: userId, email, role } };
 }
 
 // ── guardAdmin: erlaubt superadmin ───────────────────────────────────────
 export async function guardAdmin(req: NextRequest): Promise<NextResponse | null> {
-  const result = validateCookie(req);
+  const result = await verifyAuth(req);
   if (!result.user) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ ok: false, error: result.error || 'Unauthorized' }, { status: result.status || 401 });
   }
   if (result.user.role !== 'superadmin') {
     return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
@@ -52,8 +116,10 @@ export async function guardSuperAdmin(req: NextRequest): Promise<NextResponse | 
 
 // ── guardUser: jeder authentifizierte User ────────────────────────────────
 export async function guardUser(req: NextRequest): Promise<NextResponse | null> {
-  const token = req.cookies.get('hui_admin_token')?.value;
-  if (!token) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  const result = await verifyAuth(req);
+  if (!result.user) {
+    return NextResponse.json({ ok: false, error: result.error || 'Unauthorized' }, { status: result.status || 401 });
+  }
   return null;
 }
 
@@ -64,7 +130,7 @@ export async function guardEmployee(req: NextRequest): Promise<NextResponse | nu
 
 // ── requireAdmin ──────────────────────────────────────────────────────────
 export async function requireAdmin(req: NextRequest): Promise<AuthResult> {
-  const result = validateCookie(req);
+  const result = await verifyAuth(req);
   if (!result.user) return result;
   if (result.user.role !== 'superadmin') {
     return { user: null, error: 'Forbidden', status: 403 };
@@ -79,6 +145,6 @@ export async function requireSuperAdmin(req: NextRequest): Promise<AuthResult> {
 
 // ── getAuthUser ───────────────────────────────────────────────────────────
 export async function getAuthUser(req: NextRequest): Promise<{ id: string; email: string; role: string } | null> {
-  const result = validateCookie(req);
+  const result = await verifyAuth(req);
   return result.user ?? null;
 }

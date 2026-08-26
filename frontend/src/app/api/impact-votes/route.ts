@@ -3,11 +3,11 @@
 // Tabelle: impact_votes (voter_id, project_id, pool_month)
 // Verknüpft project_id mit impact_applications (id, project_name) für Anzeige.
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {

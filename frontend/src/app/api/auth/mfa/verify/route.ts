@@ -3,6 +3,7 @@
 // Wird für BEIDE Fälle genutzt: Erst-Verifizierung eines gerade eingerichteten Faktors
 // (nach /mfa/enroll) UND normale Login-Challenge bei bereits eingerichtetem Faktor.
 // Bei Erfolg: finale hui_admin_token/hui_admin_role Cookies setzen, Pending-Cookie löschen.
+// SICHERHEITSFIX (2026-08-26): hui_admin_role jetzt httpOnly:true — nicht mehr per JS manipulierbar.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnonClient } from '@/app/lib/supabase-server';
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   const cookieBase = { secure: true, sameSite: 'lax' as const, path: '/', maxAge: MAX_AGE };
 
   res.cookies.set('hui_admin_token', data.access_token, { ...cookieBase, httpOnly: true });
-  res.cookies.set('hui_admin_role', pending.role, { ...cookieBase, httpOnly: false });
+  res.cookies.set('hui_admin_role', pending.role, { ...cookieBase, httpOnly: true });
   res.cookies.set('hui_mfa_pending', '', { path: '/', maxAge: 0 });
 
   return res;

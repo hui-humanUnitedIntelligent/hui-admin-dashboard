@@ -6,7 +6,7 @@
 // für die aggregierte Auswertung; einzelne user_id werden NIE zurückgegeben,
 // nur aggregierte Zahlen (Michael: "nicht wer, sondern wie oft/wie lange").
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export const dynamic    = 'force-dynamic';
@@ -14,7 +14,7 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {

@@ -1,11 +1,11 @@
 // IMPACT-VOTING v2: Monthly Project Selection API
 // Admin wählt 3 Projekte pro Monat für das Voting
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
     const { searchParams } = new URL(req.url);
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
     const body = await req.json();
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
     const body = await req.json();

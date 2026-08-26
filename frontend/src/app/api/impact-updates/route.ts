@@ -1,11 +1,11 @@
 // frontend/src/app/api/impact-updates/route.ts
 // Liefert Projekt-Updates für ein Impact-Projekt
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {

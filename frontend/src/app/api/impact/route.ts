@@ -1,7 +1,7 @@
 // frontend/src/app/api/impact/route.ts
 // Impact Pool — Stripe-ready: alle Zahlen kommen aus payments-Tabelle (Balanced Growth v1: 6% Impact vom Bruttoumsatz)
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee, guardAdmin } from '@/app/lib/auth-guard';
+import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 const IMPACT_RATE    = 0.06; // Balanced Growth v1: 6% des Umsatzes → Impact-Pool (30% von 20% HUI)
@@ -9,7 +9,7 @@ const NETTO_RATE     = 0.70; // Balanced Growth v1: 70% des Impact-Pools → Pro
 const FIRMA_RATE     = 0.50; // Balanced Growth v1: 50% von HUI = Unternehmensanteil (10% Brutto)
 
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
 
   try {

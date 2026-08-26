@@ -1,13 +1,12 @@
 // frontend/src/app/api/impact-applications/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { guardEmployee } from '@/app/lib/auth-guard';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
 
 const SUBMITTED = ['submitted','pending','pending_review','review','waiting_for_approval'];
 
 export async function GET(req: NextRequest) {
-  const guard = await guardEmployee(req);
+  const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
     const { searchParams } = new URL(req.url);
