@@ -31,6 +31,18 @@ const TIER_LABEL: Record<string, string> = {
   bronze: 'Bronze', silber: 'Silber', silver: 'Silber', gold: 'Gold', platin: 'Platin', platinum: 'Platin',
 };
 
+// BUCHUNGSNUMMER-001 (2026-08-26): Michael-Feedback — volle Buchungs-ID (z.B.
+// "bos_55c554d5-aa7c-4d96-95fe-32f7a2a9fa2e_67c778d4-a883-42b4-a050-ed8bf47dac32")
+// ist zu lang fuer Support/Admin-Alltag. Gekuerzt auf die ersten 8 Hex-Zeichen der
+// zugrundeliegenden UUID (order_id bei "bos_", row.id bei "tb_"), Grossbuchstaben.
+// IDENTISCHE Kuerzungslogik wie be-hui generateReceipt.js — Admin kann die kurze
+// Nummer vom Beleg 1:1 hier im Suchfeld eintippen und findet die passende Buchung.
+function shortBookingCode(bookingId: string | null | undefined): string {
+  if (!bookingId) return '–';
+  const core = bookingId.replace(/^(tb_|bos_)/, '');
+  return core.slice(0, 8).toUpperCase();
+}
+
 function Skeleton() {
   return (
     <tr>
@@ -61,7 +73,7 @@ function DetailPanel({ booking, loadingDetail }: { booking: HuiBooking; loadingD
     : null;
 
   const rows: [string, React.ReactNode][] = [
-    ['Buchungs-ID', booking.booking_id],
+    ['Buchungs-ID', <span key="bid" title={booking.booking_id} style={{ cursor: 'help', borderBottom: '1px dotted var(--text-muted)' }}>{shortBookingCode(booking.booking_id)}</span>],
     ['Quelle', booking.source ? (SOURCE_ICON[booking.source] + ' ' + TYPE_LABEL[booking.source]) : '—'],
     ['Status', statusToBadge(booking.status)],
     ['Erstellt', new Date(booking.created_at).toLocaleString('de-DE')],
@@ -154,6 +166,7 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
   const userRole = currentUser?.role;
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<HuiBooking | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -164,7 +177,24 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
     usePaginatedList(bookings, 'created_at');
 
   // Client-side type filter (API supports it too, but this handles already-fetched data)
-  const filteredBookings = typeFilter === 'all' ? bookings : bookings.filter(b => b.type === typeFilter || b.source === typeFilter);
+  const typeFilteredBookings = typeFilter === 'all' ? bookings : bookings.filter(b => b.type === typeFilter || b.source === typeFilter);
+
+  // BUCHUNGSNUMMER-001 (2026-08-26): Suche nach kurzer/voller Buchungs-ID, Titel,
+  // Nutzer- oder Wirker-Name/E-Mail — damit der Admin einen Beleg schnell per
+  // 8-stelliger Nummer aus dem Beleg-PDF wiederfindet.
+  const searchNorm = searchQuery.trim().toLowerCase();
+  const filteredBookings = !searchNorm ? typeFilteredBookings : typeFilteredBookings.filter((b) => {
+    const haystack = [
+      shortBookingCode(b.booking_id),
+      b.booking_id,
+      b.item_title,
+      b.user_name,
+      b.user_email,
+      b.wirker_name,
+      b.wirker_email,
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(searchNorm);
+  });
   const { pageItems: pagedFiltered, total: pagedFilteredTotal, totalPages: tpFiltered, page: pageF, goToPage: goF } = usePaginatedList(filteredBookings, 'created_at');
 
   const totalAmount = filteredBookings.reduce((s, b) => s + (b.amount || 0), 0);
@@ -214,6 +244,22 @@ export function BookingsView({ role }: { role: 'superadmin' | 'employee' }) {
             <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>{label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Suche — BUCHUNGSNUMMER-001 (2026-08-26): Buchungs-ID (kurz o. voll), Titel, Nutzer, Wirker */}
+      <div style={{ marginBottom: 12 }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Suche nach Buchungsnummer, Titel, Nutzer oder Wirker…"
+          style={{
+            width: '100%', maxWidth: 420, padding: '8px 12px', fontSize: 12,
+            border: '1px solid var(--border)', borderRadius: 8,
+            background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+            fontFamily: 'var(--font-body)', outline: 'none',
+          }}
+        />
       </div>
 
       {/* Filter — Status */}
