@@ -4,8 +4,10 @@
 // hui_admin_role-Cookie gelesen. Stattdessen wird der JWT (hui_admin_token,
 // httpOnly — kann nicht per JS gefälscht werden) gegen Supabase verifiziert
 // und die Rolle aus der profiles-Tabelle (DB-SSOT) geholt.
-// Der Cookie existiert weiterhin für UI-Routing (middleware.ts), ist aber
-// httpOnly:true und NICHT mehr die sicherheitskritische Quelle.
+// Der Cookie existiert weiterhin für UI-Routing (middleware.ts) und Frontend-Anzeige
+// (Sidebar-Badge/Navigation), ist aber NICHT mehr die sicherheitskritische Quelle —
+// httpOnly:false (s. mfa/verify/route.ts REGRESSION-FIX 2026-08-26: httpOnly:true machte
+// den Cookie für useAuth.ts unlesbar und kollabierte die gesamte Admin-Navigation).
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeRole } from '@/lib/roles';

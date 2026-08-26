@@ -3,7 +3,23 @@
 // Wird für BEIDE Fälle genutzt: Erst-Verifizierung eines gerade eingerichteten Faktors
 // (nach /mfa/enroll) UND normale Login-Challenge bei bereits eingerichtetem Faktor.
 // Bei Erfolg: finale hui_admin_token/hui_admin_role Cookies setzen, Pending-Cookie löschen.
-// SICHERHEITSFIX (2026-08-26): hui_admin_role jetzt httpOnly:true — nicht mehr per JS manipulierbar.
+// SICHERHEITSFIX (2026-08-26): hui_admin_token ist httpOnly:true (JWT, sicherheitskritisch —
+// darf nie per JS lesbar sein). Rolle wird server-seitig NICHT mehr aus dem Cookie vertraut:
+// auth-guard.ts (verifyAuth) liest die Rolle ausschließlich aus der profiles-Tabelle (DB-SSOT)
+// über den verifizierten JWT — der hui_admin_role-Cookie ist seitdem NICHT mehr
+// sicherheitsrelevant, sondern dient nur noch (a) middleware.ts für UI-Routing (Employee- vs.
+// Superadmin-Bereiche) und (b) dem Frontend (useAuth.ts) für Badge/Nav-Anzeige. Ein Angreifer,
+// der diesen Cookie per XSS fälscht, kann dadurch höchstens UI-Elemente sehen, aber KEINE
+// echten Admin-API-Calls ausführen (die prüfen die DB-Rolle, nicht den Cookie) — daher bewusst
+// httpOnly:false, s. Regression-Fix unten.
+// REGRESSION-FIX (2026-08-26, Folgefix): httpOnly:true auf hui_admin_role hatte einen
+// ungewollten Nebeneffekt — useAuth.ts liest die Rolle client-seitig per document.cookie fürs
+// UI (Sidebar-Navigation, Superadmin-Badge). httpOnly-Cookies sind für JS unsichtbar, dadurch
+// war role dort IMMER undefined → komplette Sidebar-Navigation kollabierte auf nur noch den
+// hartcodierten "Dashboard"-Link (AdminNavigation filtert alle Gruppen nach role, leere Rolle
+// = "employee"-Ansicht = keine sichtbaren Gruppen). Zurück auf httpOnly:false — die eigentliche
+// Sicherheitslücke (API vertraute dem Cookie als Rollen-Quelle) ist bereits durch auth-guard.ts
+// geschlossen, unabhängig von httpOnly hier.
 // SESSION-REFRESH-FIX (2026-08-26, Folgefix): zusätzlich hui_admin_refresh (httpOnly) mit dem
 // Supabase refresh_token setzen. Ohne diesen Cookie lief die Session nach 3600s (1h) unwiderruflich
 // in ein 401 "Session expired" auf JEDER API-Route, da auth-guard.ts seit dem obigen Fix den
@@ -60,7 +76,9 @@ export async function POST(req: NextRequest) {
   const cookieBase = { secure: true, sameSite: 'lax' as const, path: '/', maxAge: MAX_AGE };
 
   res.cookies.set('hui_admin_token', data.access_token, { ...cookieBase, httpOnly: true });
-  res.cookies.set('hui_admin_role', pending.role, { ...cookieBase, httpOnly: true });
+  // httpOnly:false — bewusst, s. REGRESSION-FIX-Kommentar oben. Nur UI-Anzeige, nicht
+  // sicherheitsrelevant (auth-guard.ts vertraut ausschließlich der DB-Rolle).
+  res.cookies.set('hui_admin_role', pending.role, { ...cookieBase, httpOnly: false });
   if (refreshToken) {
     res.cookies.set('hui_admin_refresh', refreshToken, { ...cookieBase, httpOnly: true });
   }
