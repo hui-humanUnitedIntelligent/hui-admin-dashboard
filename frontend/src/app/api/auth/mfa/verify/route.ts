@@ -4,6 +4,11 @@
 // (nach /mfa/enroll) UND normale Login-Challenge bei bereits eingerichtetem Faktor.
 // Bei Erfolg: finale hui_admin_token/hui_admin_role Cookies setzen, Pending-Cookie löschen.
 // SICHERHEITSFIX (2026-08-26): hui_admin_role jetzt httpOnly:true — nicht mehr per JS manipulierbar.
+// SESSION-REFRESH-FIX (2026-08-26, Folgefix): zusätzlich hui_admin_refresh (httpOnly) mit dem
+// Supabase refresh_token setzen. Ohne diesen Cookie lief die Session nach 3600s (1h) unwiderruflich
+// in ein 401 "Session expired" auf JEDER API-Route, da auth-guard.ts seit dem obigen Fix den
+// access_token echt gegen Supabase verifiziert (getUser) statt nur die Cookie-Existenz zu prüfen.
+// middleware.ts liest hui_admin_refresh und erneuert die Session automatisch vor Ablauf.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnonClient } from '@/app/lib/supabase-server';
@@ -46,11 +51,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: error?.message || 'Ungültiger Code.' }, { status: 401 });
   }
 
+  // challengeAndVerify() liefert eine AAL2-Session inkl. frischem refresh_token
+  // (Supabase rotiert refresh_token bei jeder Verwendung/Erneuerung) — offizieller Typ
+  // AuthMFAVerifyResponseData enthält refresh_token direkt, kein Cast nötig.
+  const refreshToken: string | undefined = data.refresh_token;
+
   const res = NextResponse.json({ ok: true, redirect: pending.dest });
   const cookieBase = { secure: true, sameSite: 'lax' as const, path: '/', maxAge: MAX_AGE };
 
   res.cookies.set('hui_admin_token', data.access_token, { ...cookieBase, httpOnly: true });
   res.cookies.set('hui_admin_role', pending.role, { ...cookieBase, httpOnly: true });
+  if (refreshToken) {
+    res.cookies.set('hui_admin_refresh', refreshToken, { ...cookieBase, httpOnly: true });
+  }
   res.cookies.set('hui_mfa_pending', '', { path: '/', maxAge: 0 });
 
   return res;
