@@ -18,7 +18,7 @@ function RoleBadge({ role }: { role: string }) {
     admin:      { label: 'Admin',       color: '#dd6b20' },
     wirker:     { label: 'Wirker',      color: '#d69e2e' },
     member:     { label: 'Member',      color: '#3182ce' },
-    user:       { label: 'User',        color: '#718096' },
+    user:       { label: 'Nutzer',      color: '#718096' },
   };
   const cfg = map[role?.toLowerCase()] ?? map['user'];
   return (
@@ -28,6 +28,28 @@ function RoleBadge({ role }: { role: string }) {
       background: cfg.color + '22', color: cfg.color, border: `1px solid ${cfg.color}44`,
     }}>
       {cfg.label}
+    </span>
+  );
+}
+
+// MEMBERSHIP-DE-001 (2026-08-26): Michael-Feedback — die rohe membership_type-Spalte
+// zeigte uneinheitliche Legacy-Werte ('basisuser', 'member', 'talent') je nach
+// Registrierungs-/Migrationsstand des Profils. Klare 2-Werte-Anzeige: "Talent" wenn
+// is_talent (V7.5 SSOT, siehe Migration 085) ODER membership_type==='talent' (Legacy-
+// Kompat. fuer Profile ohne is_talent-Flag) — sonst "Basis". 'member' (bezahlte
+// HuiMembershipFlow-Mitgliedschaft, unabhaengig vom Talent-Status) faellt bewusst
+// unter "Basis", da es keine Talent-Eigenschaft ausdrueckt.
+function MembershipBadge({ user }: { user: MergedUser }) {
+  const isTalent = Boolean(user.is_talent) || user.membership_type?.toLowerCase() === 'talent';
+  const label = isTalent ? 'Talent' : 'Basis';
+  const color = isTalent ? '#d69e2e' : '#718096';
+  return (
+    <span style={{
+      display: 'inline-block', padding: '2px 8px', borderRadius: 4,
+      fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
+      background: color + '22', color, border: `1px solid ${color}44`,
+    }}>
+      {label}
     </span>
   );
 }
@@ -194,8 +216,8 @@ export default function UserTable({ users, loading, onAction }: UserTableProps) 
                 <td style={{ ...COL, textAlign: 'center' }}>
                   <RoleBadge role={user.role} />
                 </td>
-                <td style={{ ...COL, textAlign: 'center', fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {user.membership_type ?? '—'}
+                <td style={{ ...COL, textAlign: 'center' }}>
+                  <MembershipBadge user={user} />
                 </td>
                 <td style={{ ...COL, textAlign: 'right', fontWeight: 600, fontSize: 13 }}>
                   {user.impact_eur > 0 ? `€ ${user.impact_eur.toFixed(2)}` : '—'}

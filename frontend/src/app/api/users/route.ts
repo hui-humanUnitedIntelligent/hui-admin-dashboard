@@ -21,6 +21,7 @@ interface Profile {
   avatar_url: string | null;
   role: string | null;
   membership_type: string | null;
+  is_talent: boolean | null;
   is_wirker: boolean | null;
   is_member: boolean | null;
   blocked: boolean | null;
@@ -38,7 +39,7 @@ interface MergedUser {
   last_sign_in_at: string | null; display_name: string | null;
   username: string | null; full_name: string | null;
   avatar_url: string | null; role: string; membership_type: string | null;
-  is_wirker: boolean; is_member: boolean;
+  is_talent: boolean; is_wirker: boolean; is_member: boolean;
   blocked: boolean; blocked_reason: string | null; blocked_at: string | null;
   phone: string | null; website: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
@@ -53,7 +54,7 @@ interface MergedUser {
 // Nur existierende Spalten — kein blocked_reason, kein is_deleted in DB
 const PROFILE_COLS = [
   'id','display_name','username','full_name','avatar_url','role',
-  'membership_type','is_wirker','is_member',
+  'membership_type','is_talent','is_wirker','is_member',
   'blocked','blocked_at','blocked_by','phone','website',
   'impact_eur','trust_score','last_seen_at','email','created_at',
   'location_label','bio','tagline','location','dna_tags',
@@ -146,6 +147,7 @@ export async function GET(req: NextRequest) {
         avatar_url:      p?.avatar_url ?? null,
         role:            p?.role ?? String(au.app_metadata?.role ?? 'user'),
         membership_type: p?.membership_type ?? null,
+        is_talent:       Boolean(p?.is_talent),
         is_wirker:       Boolean(p?.is_wirker),
         is_member:       Boolean(p?.is_member),
         blocked:         Boolean(p?.blocked) || isBanned,
@@ -175,6 +177,7 @@ export async function GET(req: NextRequest) {
           display_name: p.display_name, username: p.username,
           full_name: p.full_name, avatar_url: p.avatar_url,
           role: p.role ?? 'user', membership_type: p.membership_type,
+          is_talent: Boolean(p.is_talent),
           is_wirker: Boolean(p.is_wirker), is_member: Boolean(p.is_member),
           blocked: Boolean(p.blocked),
           blocked_reason: p.blocked_by ?? null,

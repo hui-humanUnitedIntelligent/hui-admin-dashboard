@@ -7,7 +7,7 @@ export interface MergedUser {
   last_sign_in_at: string | null; display_name: string | null;
   username: string | null; full_name: string | null;
   avatar_url: string | null; role: string; membership_type: string | null;
-  is_wirker: boolean; is_member: boolean;
+  is_talent: boolean; is_wirker: boolean; is_member: boolean;
   blocked: boolean; blocked_reason: string | null; blocked_at: string | null;
   phone: string | null; website: string | null; is_deleted: boolean;
   impact_eur: number; trust_score: number; last_seen_at: string | null;
