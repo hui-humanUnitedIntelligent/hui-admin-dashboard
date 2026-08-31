@@ -1,0 +1,67 @@
+{
+  "connected": true,
+  "siteVerified": true,
+  "siteUrl": "sc-domain:be-hui.com",
+  "checkedAt": "2026-08-31T12:00:00Z",
+  "period": {
+    "start": "2026-08-03",
+    "end": "2026-08-31"
+  },
+  "summary": {
+    "clicks": 0,
+    "impressions": 16,
+    "avgCtr": 0,
+    "avgPosition": 21.625
+  },
+  "topPages": [
+    {
+      "url": "https://www.be-hui.com/",
+      "clicks": 0,
+      "impressions": 16,
+      "ctr": 0,
+      "position": 21.625
+    },
+    {
+      "url": "https://www.be-hui.com/datenschutz.html",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 8
+    }
+  ],
+  "topQueries": [
+    {
+      "query": "h u i",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 31.25
+    },
+    {
+      "query": "hui",
+      "clicks": 0,
+      "impressions": 6,
+      "ctr": 0,
+      "position": 27.33
+    },
+    {
+      "query": "h.u.i",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 35
+    }
+  ],
+  "sitemaps": [
+    {
+      "path": "https://www.be-hui.com/sitemap.xml",
+      "lastSubmitted": "2026-06-06T11:37:04.283Z",
+      "lastDownloaded": "2026-08-28T13:25:51.375Z",
+      "status": "ok",
+      "errors": 0,
+      "warnings": 0,
+      "submittedPages": 59,
+      "indexed": 0
+    }
+  ]
+}

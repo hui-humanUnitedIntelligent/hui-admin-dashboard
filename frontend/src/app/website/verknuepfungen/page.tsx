@@ -13,26 +13,21 @@ interface CheckResult {
   detail: string;
 }
 
-const card: React.CSSProperties = {
-  background: 'var(--bg-secondary)',
-  border: '1px solid var(--border)',
-  borderRadius: 12,
-  padding: 18,
-};
-
 export default function WebsiteVerknuepfungenPage() {
   const [plausibleStatus, setPlausibleStatus] = useState<StatusLevel>('unknown');
+  const [gscConnected, setGscConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const checkStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/website/status', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        const check = data.checks?.find((c: CheckResult) => c.name === 'Plausible');
-        setPlausibleStatus(check?.status === 'ok' ? 'ok' : 'warning');
-      }
+      const [s, g] = await Promise.all([
+        fetch('/api/website/status', { cache: 'no-store' }).then(r => r.json()),
+        fetch('/gsc-data.json', { cache: 'no-store' }).then(r => r.json()),
+      ]);
+      const check = s.checks?.find((c: CheckResult) => c.name === 'Plausible');
+      setPlausibleStatus(check?.status === 'ok' ? 'ok' : 'warning');
+      setGscConnected(g?.connected === true && g?.siteVerified === true);
     } catch {
       setPlausibleStatus('unknown');
     } finally {
@@ -60,7 +55,7 @@ export default function WebsiteVerknuepfungenPage() {
           icon="📊"
           status={loading ? 'unknown' : plausibleStatus}
           description="Privacy-freundliche Web-Analytics"
-          actionLabel={plausibleStatus === 'ok' ? 'Öffnen ↗' : 'Öffnen ↗'}
+          actionLabel="Öffnen ↗"
           actionHref="https://plausible.io/be-hui.com"
           external
         />
@@ -80,10 +75,11 @@ export default function WebsiteVerknuepfungenPage() {
         <ConnectionCard
           name="Google Search Console"
           icon="🔍"
-          status="warning"
-          description="Indexierung & Suchperformance — noch nicht verbunden"
-          actionLabel="Verbinden"
-          actionHref="#"
+          status={loading ? 'unknown' : gscConnected ? 'ok' : 'warning'}
+          description={gscConnected ? 'Verbunden — Indexierung & Suchperformance' : 'Noch nicht verbunden'}
+          actionLabel={gscConnected ? "Öffnen ↗" : "Verbinden"}
+          actionHref={gscConnected ? "https://search.google.com/search-console?resource_id=sc-domain:be-hui.com" : "https://search.google.com/search-console"}
+          external
         />
 
         {/* HUI App */}
