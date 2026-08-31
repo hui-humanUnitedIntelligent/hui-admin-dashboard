@@ -61,9 +61,45 @@ export function needsRefresh(accessToken: string): boolean {
   return nowSec >= exp - REFRESH_BUFFER_SECONDS;
 }
 
+// ── SESSION-REFRESH-RACE-FIX (2026-08-31) ─────────────────────────────────
+// Root Cause "HTTP 401 auf Nutzerliste trotz aktiver Session": Jede Seite lädt
+// MEHRERE parallele API-Requests (z.B. /api/users + /api/pending-counts aus
+// der Sidebar). Läuft der access_token gerade ab, ruft applyRefresh() in
+// middleware.ts für JEDEN dieser parallelen Requests refreshSession() auf —
+// alle mit dem GLEICHEN refresh_token-Cookie-Wert (Requests sind unabhängige
+// HTTP-Aufrufe, kein gemeinsamer State). Supabase rotiert refresh_tokens
+// (Einmal-Nutzung): der ERSTE Aufruf gewinnt und bekommt neue Tokens, JEDER
+// weitere parallele Aufruf mit dem jetzt schon verbrauchten alten Token
+// bekommt von Supabase 400/401 zurück -> refreshSession() liefert invalid:true
+// -> middleware.ts löscht DANN alle Session-Cookies auf dessen Response. Je
+// nachdem welche Response der Browser zuletzt verarbeitet, kann die frische,
+// gültige Session des Gewinner-Requests durch die Cookie-Löschung des
+// Verlierer-Requests wieder zerstört werden -> 401 auf einzelnen Datenaufrufen
+// trotz sichtbar eingeloggter Navigation (Screenshot Michael, 2026-08-31).
+//
+// Fix: Single-Flight-Deduplizierung. Läuft für einen refresh_token bereits ein
+// Refresh, wird dessen Promise von allen weiteren parallelen Aufrufen wiederverwendet
+// statt einen zweiten Supabase-Request mit dem (nach dem ersten Call rotierten)
+// alten Token zu feuern. In-Memory-Cache pro Edge-Instanz — ausreichend, da
+// parallele Requests desselben Browser-Tabs so gut wie immer dieselbe Instanz
+// treffen (Vercel Edge Middleware, kurze Lebensdauer der Race-Window von <1s).
+const _inFlightRefresh = new Map<string, Promise<RefreshResult>>();
+
 /** Erneuert die Supabase-Session via REST-Endpoint (Edge-Runtime-kompatibel,
- *  kein supabase-js-Client nötig — reines fetch). */
+ *  kein supabase-js-Client nötig — reines fetch). Dedupliziert parallele
+ *  Aufrufe mit demselben refresh_token (siehe SESSION-REFRESH-RACE-FIX oben). */
 export async function refreshSession(refreshToken: string): Promise<RefreshResult> {
+  const existing = _inFlightRefresh.get(refreshToken);
+  if (existing) return existing;
+
+  const promise = doRefreshSession(refreshToken).finally(() => {
+    _inFlightRefresh.delete(refreshToken);
+  });
+  _inFlightRefresh.set(refreshToken, promise);
+  return promise;
+}
+
+async function doRefreshSession(refreshToken: string): Promise<RefreshResult> {
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
