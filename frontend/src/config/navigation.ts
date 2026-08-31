@@ -56,6 +56,20 @@ export const ADMIN_NAV: NavGroup[] = [
     ],
   },
   {
+    id: 'website',
+    label_de: 'HUI Website',
+    label_en: 'HUI Website',
+    icon: '🌐',
+    items: [
+      { href: '/website',            label_de: 'Übersicht',        label_en: 'Overview',         icon: '📊', roles: ['superadmin'] },
+      { href: '/website/seiten',      label_de: 'Seiten',           label_en: 'Pages',            icon: '📄', roles: ['superadmin'] },
+      { href: '/website/seo',         label_de: 'SEO & Google',     label_en: 'SEO & Google',     icon: '🔍', roles: ['superadmin'] },
+      { href: '/website/analytics',   label_de: 'Analytics',        label_en: 'Analytics',        icon: '📈', roles: ['superadmin'] },
+      { href: '/website/verknuepfungen', label_de: 'Verknüpfungen',  label_en: 'Connections',       icon: '🔗', roles: ['superadmin'] },
+      { href: '/website/technik',     label_de: 'Technischer Status', label_en: 'Technical Status', icon: '🔧', roles: ['superadmin'] },
+    ],
+  },
+  {
     id: 'content',
     label_de: 'Inhalte',
     label_en: 'Content',
