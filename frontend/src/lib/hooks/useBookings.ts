@@ -48,13 +48,17 @@ export function useBookings(opts: UseBookingsOptions = {}) {
 
   useEffect(() => {
     if (!realtime) return;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    const channel = supabase
-      .channel('admin:bookings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, fetchBookings)
-      .subscribe();
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); };
+    try {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      const channel = supabase
+        .channel('admin:bookings')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, fetchBookings)
+        .subscribe();
+      channelRef.current = channel;
+      return () => { try { supabase.removeChannel(channel); } catch { /* ignore */ } };
+    } catch (e) {
+      console.warn('[Realtime] useBookings channel setup failed:', e);
+    }
   }, [realtime, fetchBookings]);
 
   useEffect(() => {

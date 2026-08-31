@@ -62,16 +62,20 @@ export function useExperiences(opts: UseExperiencesOptions = {}): UseExperiences
   // ── Realtime-Subscription (experiences + projects) ───────────────────
   useEffect(() => {
     if (!realtime) return;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    try {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
 
-    const channel = supabase
-      .channel('admin:experiences')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'experiences' }, fetchEntries)
-      // .on('postgres_changes', { event: '*', schema: 'public', table: 'projects'    }, fetchEntries) // table does not exist
-      .subscribe();
+      const channel = supabase
+        .channel('admin:experiences')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'experiences' }, fetchEntries)
+        // .on('postgres_changes', { event: '*', schema: 'public', table: 'projects'    }, fetchEntries) // table does not exist
+        .subscribe();
 
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); };
+      channelRef.current = channel;
+      return () => { try { supabase.removeChannel(channel); } catch { /* ignore */ } };
+    } catch (e) {
+      console.warn('[Realtime] useExperiences channel setup failed:', e);
+    }
   }, [realtime, fetchEntries]);
 
   // ── Initial fetch + Polling-Fallback ─────────────────────────────────

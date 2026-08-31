@@ -101,14 +101,18 @@ export function useProfiles(opts: UseProfilesOptions = {}) {
 
   useEffect(() => {
     if (!realtime) return;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    const channel = supabase
-      .channel('admin:profiles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles'         }, fetchProfiles)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wirker_profiles'  }, fetchProfiles)
-      .subscribe();
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); };
+    try {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      const channel = supabase
+        .channel('admin:profiles')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles'         }, fetchProfiles)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'wirker_profiles'  }, fetchProfiles)
+        .subscribe();
+      channelRef.current = channel;
+      return () => { try { supabase.removeChannel(channel); } catch { /* ignore */ } };
+    } catch (e) {
+      console.warn('[Realtime] useProfiles channel setup failed:', e);
+    }
   }, [realtime, fetchProfiles]);
 
   useEffect(() => {

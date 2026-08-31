@@ -40,14 +40,18 @@ export function useImpact(opts: UseImpactOptions = {}) {
   // Realtime-Subscription
   useEffect(() => {
     if (!realtime) return;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    const channel = supabase
-      .channel('admin:impact')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'impact_projects' }, fetchImpact)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'impact_votes'    }, fetchImpact)
-      .subscribe();
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); };
+    try {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      const channel = supabase
+        .channel('admin:impact')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'impact_projects' }, fetchImpact)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'impact_votes'    }, fetchImpact)
+        .subscribe();
+      channelRef.current = channel;
+      return () => { try { supabase.removeChannel(channel); } catch { /* ignore */ } };
+    } catch (e) {
+      console.warn('[Realtime] useImpact channel setup failed:', e);
+    }
   }, [realtime, fetchImpact]);
 
   // Initialer Load + Interval

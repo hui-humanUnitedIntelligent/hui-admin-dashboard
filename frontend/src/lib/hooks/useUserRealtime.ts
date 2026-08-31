@@ -31,10 +31,14 @@ export function useSupabaseRealtime({
   const wsRef      = useRef<WebSocket | null>(null);
   const onEventRef = useRef(onEvent);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attemptsRef    = useRef(0);
+  const stoppedRef     = useRef(false);
   onEventRef.current = onEvent;
 
   const connect = useCallback(() => {
     if (!SUPABASE_URL || !SUPABASE_ANON || !enabled) return;
+    if (typeof WebSocket === 'undefined') return; // no WebSocket support
+    if (stoppedRef.current) return;
 
     const projectRef = SUPABASE_URL.replace('https://', '').split('.')[0];
     const wsUrl = `wss://${projectRef}.supabase.co/realtime/v1/websocket?apikey=${SUPABASE_ANON}&vsn=1.0.0`;
@@ -46,31 +50,38 @@ export function useSupabaseRealtime({
       let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
       ws.onopen = () => {
-        // 1. Phoenix join
-        const channelId = `realtime:public:${table}`;
-        const joinMsg = {
-          topic: channelId,
-          event: 'phx_join',
-          payload: {
-            config: {
-              broadcast: { self: false },
-              presence: { key: '' },
-              postgres_changes: [
-                { event: event === '*' ? '*' : event, schema: 'public', table },
-              ],
+        attemptsRef.current = 0; // successful connection -> reset counter
+        try {
+          // 1. Phoenix join
+          const channelId = `realtime:public:${table}`;
+          const joinMsg = {
+            topic: channelId,
+            event: 'phx_join',
+            payload: {
+              config: {
+                broadcast: { self: false },
+                presence: { key: '' },
+                postgres_changes: [
+                  { event: event === '*' ? '*' : event, schema: 'public', table },
+                ],
+              },
+              access_token: SUPABASE_ANON,
             },
-            access_token: SUPABASE_ANON,
-          },
-          ref: '1',
-        };
-        ws.send(JSON.stringify(joinMsg));
+            ref: '1',
+          };
+          ws.send(JSON.stringify(joinMsg));
 
-        // 2. Heartbeat alle 25s
-        heartbeatInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
-          }
-        }, 25000);
+          // 2. Heartbeat alle 25s
+          heartbeatInterval = setInterval(() => {
+            try {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
+              }
+            } catch { /* connection may be gone */ }
+          }, 25000);
+        } catch (e) {
+          console.warn('[Realtime] useUserRealtime onopen failed:', e);
+        }
       };
 
       ws.onmessage = (msg) => {
@@ -98,27 +109,48 @@ export function useSupabaseRealtime({
       };
 
       ws.onerror = () => {
-        ws.close();
+        try { ws.close(); } catch { /* ignore */ }
       };
 
       ws.onclose = () => {
         if (heartbeatInterval) clearInterval(heartbeatInterval);
-        if (enabled) {
-          reconnectTimer.current = setTimeout(connect, 3000);
+        if (stoppedRef.current || !enabled) return;
+        attemptsRef.current += 1;
+        if (attemptsRef.current > 5) {
+          console.warn('[Realtime] useUserRealtime: WebSocket dauerhaft nicht erreichbar — stoppe Reconnect.');
+          stoppedRef.current = true;
+          return;
         }
+        const backoff = Math.min(3000 * attemptsRef.current, 15000);
+        reconnectTimer.current = setTimeout(connect, backoff);
       };
-    } catch {
-      // WebSocket not supported / blocked
+    } catch (e) {
+      // WebSocket not supported / blocked (e.g. Safari SecurityError)
+      console.warn('[Realtime] useUserRealtime WebSocket fehlgeschlagen:', e);
+      if (stoppedRef.current || !enabled) return;
+      attemptsRef.current += 1;
+      if (attemptsRef.current > 5) {
+        stoppedRef.current = true;
+        return;
+      }
+      const backoff = Math.min(3000 * attemptsRef.current, 15000);
+      reconnectTimer.current = setTimeout(connect, backoff);
     }
   }, [table, event, enabled]);
 
   useEffect(() => {
+    stoppedRef.current = false;
+    attemptsRef.current = 0;
     connect();
     return () => {
+      stoppedRef.current = true;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.close();
+        try {
+          wsRef.current.onclose = null;
+          wsRef.current.onerror = null;
+          wsRef.current.close();
+        } catch { /* ignore */ }
       }
     };
   }, [connect]);

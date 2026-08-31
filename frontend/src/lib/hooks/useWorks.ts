@@ -65,17 +65,21 @@ export function useWorks(opts: UseWorksOptions = {}): UseWorksReturn {
   // ── Realtime-Subscription ─────────────────────────────────────────────────
   useEffect(() => {
     if (!realtime) return;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    try {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
 
-    const channel = supabase
-      .channel('admin:works:realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'works' }, () => {
-        fetchWorks();
-      })
-      .subscribe();
+      const channel = supabase
+        .channel('admin:works:realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'works' }, () => {
+          fetchWorks();
+        })
+        .subscribe();
 
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); };
+      channelRef.current = channel;
+      return () => { try { supabase.removeChannel(channel); } catch { /* ignore */ } };
+    } catch (e) {
+      console.warn('[Realtime] useWorks channel setup failed:', e);
+    }
   }, [realtime, fetchWorks]);
 
   // ── Initial fetch + Polling ───────────────────────────────────────────────

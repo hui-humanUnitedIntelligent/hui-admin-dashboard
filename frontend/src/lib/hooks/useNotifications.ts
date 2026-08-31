@@ -65,13 +65,17 @@ export function useNotifications(opts: UseNotificationsOptions = {}) {
   // Realtime-Subscription via supabase-js (nur READ — kein Schreiben)
   useEffect(() => {
     if (!realtime) return;
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    const channel = supabase
-      .channel('admin:notifications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchNotifications)
-      .subscribe();
-    channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); };
+    try {
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      const channel = supabase
+        .channel('admin:notifications')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchNotifications)
+        .subscribe();
+      channelRef.current = channel;
+      return () => { try { supabase.removeChannel(channel); } catch { /* ignore */ } };
+    } catch (e) {
+      console.warn('[Realtime] useNotifications channel setup failed:', e);
+    }
   }, [realtime, fetchNotifications]);
 
   useEffect(() => {

@@ -114,64 +114,71 @@ export function usePendingCounts(intervalMs = 30_000) {
   }, [refresh, intervalMs]);
 
   // ── Realtime: sofortige Badge-Aktualisierung bei DB-Änderung ──────────
+  // FIX (2026-08-31): try/catch um gesamten Channel-Setup — wenn WebSocket
+  // nicht verfügbar ist (Safari Privatmodus, SecurityError), darf das nicht
+  // die Seite crashen. Polling (30s) bleibt als Fallback aktiv.
   useEffect(() => {
     const sb = getRealtimeClient();
     if (!sb) return;
 
-    // Channel auf alle Tabellen hören, die Badges beeinflussen
-    const channel = sb
-      .channel('pending-counts-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'works' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'talents' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'experiences' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'momente_reports' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'beitraege' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'recommendation_reports' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'impact_applications' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'impact_score_failures' },
-        () => refresh()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bug_reports' },
-        () => refresh()
-      )
-      .subscribe();
+    try {
+      // Channel auf alle Tabellen hören, die Badges beeinflussen
+      const channel = sb
+        .channel('pending-counts-realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'works' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'talents' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'experiences' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'momente_reports' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'beitraege' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'recommendation_reports' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'impact_applications' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'impact_score_failures' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bug_reports' },
+          () => refresh()
+        )
+        .subscribe();
 
-    channelRef.current = channel;
-    return () => {
-      sb.removeChannel(channel);
-    };
+      channelRef.current = channel;
+      return () => {
+        try { sb.removeChannel(channel); } catch { /* ignore */ }
+      };
+    } catch (e) {
+      console.warn('[Realtime] usePendingCounts channel setup failed:', e);
+    }
   }, [refresh]);
 
   // ── Click-to-Clear: effective Counts nach "gesehen"-Status ──────────
