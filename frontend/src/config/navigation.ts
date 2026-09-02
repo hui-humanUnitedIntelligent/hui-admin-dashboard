@@ -45,6 +45,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/impact',       label_de: 'Impact Pool',      label_en: 'Impact Pool',      icon: '🌱', roles: ['superadmin'], superadminOnly: true },
       { href: '/finance',      label_de: 'Finanzen',         label_en: 'Finance',          icon: '💶', roles: ['superadmin'], superadminOnly: true },
       { href: '/stripe', label_de: 'Stripe', label_en: 'Stripe', icon: '💳', roles: ['superadmin'], superadminOnly: true },
+      { href: '/startphase',  label_de: 'HUI Startphase',     label_en: 'HUI Start Phase',     icon: '🚀', roles: ['superadmin'] },
       // ARCHIVIERT (2026-07-04, Michael): 'App Review' (/reviews) wird nicht mehr benoetigt --
       // aus der Navigation entfernt, Route/Daten bewusst NICHT geloescht. Nur bei einer spaeteren
       // Bereinigungsrunde nach Rueckfrage entfernen, nicht jetzt.
