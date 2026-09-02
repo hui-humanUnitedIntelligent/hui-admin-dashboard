@@ -15,7 +15,7 @@ interface Application {
   email: string;
   interest: string | null;
   country_region: string | null;
-  current_role: string | null;
+  current_role_text: string | null;
   about_you: string | null;
   contributions: string[] | string;
   skills: string | null;
@@ -338,7 +338,7 @@ export default function StartphaseDetailPage() {
             <div><div style={fieldLabel}>Name</div><div style={fieldValue}>{app.first_name} {app.last_name}</div></div>
             <div><div style={fieldLabel}>E-Mail</div><div style={fieldValue}>{app.email}</div></div>
             <div><div style={fieldLabel}>Land / Region</div><div style={fieldValue}>{emptyVal(app.country_region)}</div></div>
-            <div><div style={fieldLabel}>Aktuelle Rolle</div><div style={fieldValue}>{emptyVal(app.current_role)}</div></div>
+            <div><div style={fieldLabel}>Aktuelle Rolle</div><div style={fieldValue}>{emptyVal(app.current_role_text)}</div></div>
             <div><div style={fieldLabel}>Über dich</div><div style={fieldValue}>{emptyVal(app.about_you)}</div></div>
           </div>
         </div>

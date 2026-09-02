@@ -4,6 +4,8 @@
 -- Erstellt zwei Tabellen: startphase_applications + startphase_communications
 -- RLS: Öffentliche Insert erlaubt, alles andere gesperrt. Admin via Service Role.
 -- Idempotent: kann mehrfach ausgeführt werden.
+--
+-- HINWEIS: current_role ist ein PostgreSQL-Schlüsselwort → verwendet current_role_text.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ═══ 1. ENUM: startphase_status ════════════════════════════════════════════
@@ -36,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.startphase_applications (
 
   -- ── Weitere Felder ──
   country_region  TEXT,
-  current_role    TEXT,
+  current_role_text TEXT,            -- current_role ist PG-reserviert → current_role_text
   about_you       TEXT,
   contributions   JSONB DEFAULT '[]'::jsonb,
   skills          TEXT,
@@ -95,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.startphase_communications (
 CREATE INDEX IF NOT EXISTS idx_startphase_apps_status   ON public.startphase_applications(status);
 CREATE INDEX IF NOT EXISTS idx_startphase_apps_email    ON public.startphase_applications(email);
 CREATE INDEX IF NOT EXISTS idx_startphase_apps_created  ON public.startphase_applications(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_startphase_apps_interest  ON public.startphase_applications(interest);
+CREATE INDEX IF NOT EXISTS idx_startphase_apps_interest ON public.startphase_applications(interest);
 
 CREATE INDEX IF NOT EXISTS idx_startphase_comm_app_id    ON public.startphase_communications(application_id);
 CREATE INDEX IF NOT EXISTS idx_startphase_comm_created   ON public.startphase_communications(created_at DESC);
@@ -143,6 +145,8 @@ COMMENT ON TABLE public.startphase_communications IS
   'HUI Startphase — Kommunikationshistorie. RLS: voll gesperrt für non-admin, Admin via Service Role.';
 COMMENT ON COLUMN public.startphase_applications.interest IS
   'Vorausgewähltes Interesse von "Was bringst du mit?" Chips. Werte: idea, talent, experience, time, support, curiosity.';
+COMMENT ON COLUMN public.startphase_applications.current_role_text IS
+  'Aktuelle Tätigkeit/Rolle des Bewerbers (Freitext). current_role ist PG-reserviert, daher current_role_text.';
 COMMENT ON COLUMN public.startphase_applications.contributions IS
   'Checkbox-Auswahl aus dem Formular. JSON-Array von Werten: project, work, experience, talent, pioneer, idea, connector, explore, other, time, support, curiosity.';
 COMMENT ON COLUMN public.startphase_applications.status IS
