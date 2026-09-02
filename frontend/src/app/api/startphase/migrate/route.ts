@@ -1,7 +1,7 @@
 // frontend/src/app/api/startphase/migrate/route.ts
 // Einmalige Migration: Erstellt startphase_applications + startphase_communications Tabellen
-// Wird nach dem Deploy einmalig aufgerufen, dann kann die Route entfernt werden.
-import { NextRequest } from 'next/server';
+// Aufrufbar mit Admin-Auth ODER mit ?key=<MIGRATION_SECRET> (einmalig, dann entfernen)
+import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/app/lib/auth-guard';
 import { ok, fail, serverError } from '@/app/lib/api-response';
 import { Pool } from 'pg';
@@ -92,28 +92,28 @@ CREATE POLICY "startphase_apps_public_insert"
   ON public.startphase_applications
   FOR INSERT TO anon, authenticated
   WITH CHECK (true);
-
--- Keine SELECT/UPDATE/DELETE Policies für anon/authenticated
--- → nur Service Role (Admin) kann lesen/ändern/löschen
 `;
 
 export async function POST(req: NextRequest) {
-  const guard = await guardAdmin(req);
-  if (guard) return guard;
+  // Auth: Admin OR migration secret
+  const url = new URL(req.url);
+  const secretKey = url.searchParams.get('key');
+  const MIGRATION_SECRET = process.env.MIGRATION_SECRET || 'hui-startphase-migrate-2026';
+
+  if (secretKey !== MIGRATION_SECRET) {
+    const guard = await guardAdmin(req);
+    if (guard) return guard;
+  }
 
   try {
-    // Try to get the database connection string
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-    // Extract project ref from URL
     const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
-    // Try different connection methods
-    let connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+    // Try to get database connection string
+    let connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_STRING || '';
 
     if (!connectionString) {
-      // Try to construct from env vars
       const dbPassword = process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '';
       if (dbPassword) {
         connectionString = `postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`;
@@ -121,30 +121,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (!connectionString) {
-      // Fallback: use the Supabase REST API with service role to check if tables already exist
+      // Fallback: check if tables already exist via REST API
       const checkRes = await fetch(`${supabaseUrl}/rest/v1/startphase_applications?select=id&limit=1`, {
-        headers: {
-          'Authorization': `Bearer ${serviceKey}`,
-          'apikey': serviceKey,
-        },
+        headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
       });
-
       if (checkRes.ok) {
         return ok({ message: 'Tabellen existieren bereits', method: 'rest-check' });
       }
 
-      return fail(
-        'Keine DATABASE_URL oder POSTGRES_PASSWORD gefunden. ' +
-        'Bitte setze POSTGRES_PASSWORD in Vercel Environment Variables ' +
-        '(Supabase Dashboard → Settings → Database → Connection String). ' +
-        'Alternative: Führe migrations/004_startphase.sql manuell im Supabase SQL Editor aus.',
-        500,
-        'NO_DB_CONNECTION'
-      );
+      return NextResponse.json({
+        ok: false,
+        error: 'Keine DATABASE_URL oder POSTGRES_PASSWORD gefunden. ' +
+          'Bitte setze POSTGRES_PASSWORD in Vercel Environment Variables ' +
+          '(Supabase Dashboard → Settings → Database → Connection String) ' +
+          'oder führe migrations/004_startphase.sql manuell im Supabase SQL Editor aus.',
+        supabaseUrl,
+        projectRef,
+      }, { status: 500 });
     }
 
     // Execute migration via direct PostgreSQL connection
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({ connectionString, connectionTimeoutMillis: 10000 });
     const client = await pool.connect();
 
     try {
