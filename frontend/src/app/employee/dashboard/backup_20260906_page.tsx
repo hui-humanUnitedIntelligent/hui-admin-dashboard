@@ -129,12 +129,8 @@ export default function EmployeeDashboard() {
             "Anzahl aller Erlebnis-Buchungen der letzten 30 Tage, aus der bookings-Tabelle.")}
           {card('💳', 'Umsatz (Monat)',    val(kpis.monthlyRevenue, 'eur'),                `${kpis.totalPayments} Zahlungen gesamt`, undefined,
             "Summe aller erfolgreich bezahlten Bestellungen seit dem 1. dieses Monats (Single Source of Truth: stripe_payments). 'Zahlungen gesamt' ist die Gesamtzahl aller je erfolgreich abgeschlossenen Zahlungen.")}
-          {/* ARCHIVIERT (2026-09-06, Michael): 'Ambassadors aktiv'-KPI-Kachel aus dem Employee-Dashboard entfernt --
-              kpis.activeAmbassadors / pendingAmbassadors bleiben in useDashboard.ts unberuehrt (Daten/Code
-              bewusst NICHT geloescht), nur bei Rueckfrage spaeter wieder einblenden.
           {card('🤝', 'Ambassadors aktiv', val(kpis.activeAmbassadors),                     kpis.pendingAmbassadors > 0 ? `${kpis.pendingAmbassadors} Antrag offen` : 'Keine offen', undefined,
             "Nutzer mit Ambassador-Status. Provisionsstufen je nach Anzahl geworbener Nutzer: Starter 5%, Bronze 10%, Silber 15%, Gold 20% — berechnet vom Unternehmensanteil (10% vom Brutto, Balanced Growth v1).")}
-          */}
         </div>
 
         {/* Impact Pool */}

@@ -35,9 +35,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/users',        label_de: 'Nutzerliste',      label_en: 'User List',        icon: '👥', roles: ['superadmin'] },
       { href: '/employees', label_de: 'Mitarbeiter', label_en: 'Employees', icon: '👤', roles: ['superadmin'] },
   { href: '/admins',       label_de: 'Admin-Verwaltung', label_en: 'Admin Management', icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
-      // ARCHIVIERT (2026-09-06, Michael): 'Ambassadors' (/ambassadors) aus der Navigation entfernt --
-      // Route/Daten/Code bewusst NICHT geloescht, nur bei Rueckfrage spaeter wieder einblenden.
-      // { href: '/ambassadors',  label_de: 'Ambassadors',      label_en: 'Ambassadors',      icon: '🤝', roles: ['superadmin'], superadminOnly: true },
+      { href: '/ambassadors',  label_de: 'Ambassadors',      label_en: 'Ambassadors',      icon: '🤝', roles: ['superadmin'], superadminOnly: true },
       // ARCHIVIERT (2026-08-18, HUI): 'Talent-Pool' (/talents) aus der Navigation entfernt --
       // Route/Daten bewusst NICHT geloescht, nur bei Rueckfrage spaeter wieder einblenden.
       // { href: '/talents', label_de: 'Talent-Pool', label_en: 'Talent Pool', icon: '⭐', roles: ['superadmin'] },
@@ -131,9 +129,7 @@ export const EMPLOYEE_NAV: NavGroup[] = [
       { href: '/employee/tickets',      label_de: 'Support-Tickets',       label_en: 'Support Tickets',       icon: '🎫', roles: ['superadmin', 'employee'] },
       { href: '/employee/recommendation-reports', label_de: 'Meldungen', label_en: 'Recommendation Reports', icon: '⚠️', roles: ['superadmin', 'employee'] },
       { href: '/employee/payouts',    label_de: 'Auszahlungen',   label_en: 'Payouts',      icon: '💸', roles: ['superadmin','employee'] },
-    // ARCHIVIERT (2026-09-06, Michael): 'Ambassadors' (/employee/ambassadors) aus der Navigation entfernt --
-    // Route/Daten/Code bewusst NICHT geloescht, nur bei Rueckfrage spaeter wieder einblenden.
-    // { href: '/employee/ambassadors',  label_de: 'Ambassadors',           label_en: 'Ambassadors',           icon: '🤝', roles: ['superadmin'] },
+    { href: '/employee/ambassadors',  label_de: 'Ambassadors',           label_en: 'Ambassadors',           icon: '🤝', roles: ['superadmin'] },
       { href: '/employee/talents',      label_de: 'Talent-Pool',           label_en: 'Talent Pool',           icon: '⭐', roles: ['superadmin'] },
       { href: '/employee/transactions', label_de: 'Transaktionen',         label_en: 'Transactions',          icon: '⇄',  roles: ['superadmin'] },
       { href: '/employee/bookings',     label_de: 'Buchungen',             label_en: 'Bookings',              icon: '📅', roles: ['superadmin'] },
