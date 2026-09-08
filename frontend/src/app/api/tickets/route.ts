@@ -181,6 +181,30 @@ export async function PATCH(req: NextRequest) {
       const latest = threadRows[0]; // DESC sort → neueste zuerst
       const currentData = (latest.data as Record<string, unknown>) ?? {};
 
+      // PUNKT10-EMAIL-FALLBACK (2026-09-08, Michael): Follow-up-Nachrichten aus
+      // der App speichern die E-Mail oft als Leerstring (profile.email nicht
+      // gepflegt) -- bis heute fiel die Ticket-Antwort-E-Mail deshalb bei jedem
+      // Follow-up still aus (send-email failte 'to erforderlich' und der Fehler
+      // wurde per .catch(() => {}) verschluckt). Robuste Kette ab jetzt:
+      // (1) neueste Zeile, (2) neueste Zeile im Thread MIT gueltiger E-Mail,
+      // (3) Auth-E-Mail des Ticket-Erstellers via Admin-API. Beweisfall:
+      // Saschas Follow-up HUI-20260908-876 hatte data.email="" (10:24 heute).
+      let replyToEmail = String(currentData.email ?? '');
+      if (!replyToEmail.includes('@')) {
+        const fallbackRow = threadRows.find(r => {
+          const d = r.data as Record<string, unknown>;
+          return typeof d?.email === 'string' && (d.email as string).includes('@');
+        });
+        if (fallbackRow) {
+          replyToEmail = String((fallbackRow.data as Record<string, unknown>).email);
+        } else if (latest.user_id) {
+          try {
+            const { data: { user } = { user: null } } = await sb.auth.admin.getUserById(latest.user_id);
+            if (user?.email) replyToEmail = user.email;
+          } catch { /* Auth-Lookup fehlgeschlagen -- nicht kritisch */ }
+        }
+      }
+
       const updateData = {
         ...currentData,
         admin_reply:   body.reply,
@@ -226,7 +250,7 @@ export async function PATCH(req: NextRequest) {
             'Cookie':       req.headers.get('cookie') ?? '',
           },
           body: JSON.stringify({
-            to:               String(currentData.email ?? ''),
+            to:               replyToEmail,
             name:             String(currentData.name  ?? 'Nutzer'),
             subject:          String(currentData.subject ?? '').replace(/^RE:\s*/i,'').replace(/^\[HUI-[^\]]+\]\s*/,''),
             reply:            body.reply,
