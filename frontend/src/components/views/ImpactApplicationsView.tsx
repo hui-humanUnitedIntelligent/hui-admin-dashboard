@@ -1703,18 +1703,13 @@ export default function ImpactApplicationsView() {
         headers: { Authorization: `Bearer ${getSessionToken()}` },
       });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-      // Nutzer benachrichtigen
-      try {
-        await sendResonanzNotification(
-          app.user_id,
-          'impact_project_deleted',
-          '🗑️ Dein Herzensprojekt wurde entfernt',
-          `Dein Projekt „${app.project_name}" wurde vom HUI-Team entfernt. Bei Fragen wende dich bitte an den Support.`,
-          id,
-          app.project_name,
-          'Administrativ entfernt',
-        );
-      } catch { /* Notification-Fehler nicht kritisch */ }
+      // STILLE-ADMIN-DELETE-001 (2026-09-08, Michael): Admin-Löschung eines
+      // Herzensprojekts ist bewusst STILL — anders als Ablehnen (handleReject
+      // weiter oben, sendet weiterhin sendResonanzNotification) ist ein Hard-
+      // Delete ("Projekt entfernen") eine rein administrative Aufräum-Aktion
+      // (z.B. Duplikat, Spam, Testdaten) — der Ersteller bekommt KEINE
+      // Benachrichtigung ins Resonanzzentrum. Vorher wurde hier unconditional
+      // sendResonanzNotification(..., 'impact_project_deleted', ...) gerufen.
       showToast('Projekt gelöscht', 'error');
       setApps(prev => prev.filter(a => a.id !== id));
       setSelected(null);
