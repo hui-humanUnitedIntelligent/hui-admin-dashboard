@@ -1299,7 +1299,6 @@ function DetailModal({
               {row('Kurzbeschreibung', <ColText text={app.short_desc} />)}
               {row('Problem', <ColText text={app.problem} />)}
               {row('Vision / Lösung', <ColText text={app.vision} />)}
-              {row('Warum Förderung', <ColText text={app.why_support} />)}
               {row('Wunschbetrag', fmtEur(app.funding_goal))}
               {row('Mittelverwendung', <ColText text={app.funding_use} />)}
               {row('Standort', app.location || '—')}
