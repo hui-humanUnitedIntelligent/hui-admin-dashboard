@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     // list — Verlauf
     const { data } = await sb
       .from('notifications')
-      .select('id,title,body,type,created_at,user_id')
+      .select('id,title,body,type,created_at,user_id,data')
       .eq('type', 'broadcast')
       .order('created_at', { ascending: false })
       .limit(500);
@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
     for (const n of (data ?? [])) {
       const key = `${n.title}|${n.created_at?.slice(0, 16)}`;
       if (!map.has(key)) {
-        map.set(key, { id: n.id, title: n.title, body: n.body ?? '', target_group: 'all', sent_count: 1, created_at: n.created_at });
+        // BROADCAST-TARGET-GATE (2026-09-11): echte Zielgruppe aus data-JSONB
+        // statt hardcoded 'all' (Migration 137 schreibt sie ab jetzt mit).
+        const tg = (n.data as { target_group?: string } | null)?.target_group || 'all';
+        map.set(key, { id: n.id, title: n.title, body: n.body ?? '', target_group: tg, sent_count: 1, created_at: n.created_at });
       } else {
         map.get(key)!.sent_count++;
       }
@@ -141,9 +144,16 @@ export async function POST(req: NextRequest) {
 
     if (userIds.length === 0) return NextResponse.json({ ok: false, error: 'Keine Empfänger gefunden' }, { status: 400 });
 
-    // data-JSONB: trailer_url + youtube_url — der be-hui-Trigger liest beide
-    // Felder und baut daraus den Feed-Moment (type='video', klickbarer Link).
+    // data-JSONB: target_group + trailer_url + youtube_url.
+    // BROADCAST-TARGET-GATE (2026-09-11, Migration 137 be-hui): target_group wird
+    // JEDES Mal mitgeschrieben — der be-hui-Trigger trg_broadcast_to_beitrag
+    // postet NUR noch target_group='all' als oeffentlichen Feed-Moment; private
+    // Zielgruppen (admins/wirker/members/basisuser) bleiben reine
+    // Resonanzzentrum-Nachrichten. Vorher: JEDE Zielgruppe wurde public gepostet
+    // (Michael-Report: Admin-Test-Broadcast "fuer alle sichtbar").
+    // trailer_url + youtube_url bauen (bei 'all') den Video-Feed-Moment.
     const broadcastData = {
+      target_group,
       ...(trailerStorageUrl ? { trailer_url: trailerStorageUrl } : {}),
       ...(youtubeUrl ? { youtube_url: youtubeUrl } : {}),
     };
@@ -185,13 +195,47 @@ export async function DELETE(req: NextRequest) {
     const sb = getServiceClient();
     const broadcast_id = req.nextUrl.searchParams.get('broadcast_id');
     if (!broadcast_id) return NextResponse.json({ error: 'broadcast_id fehlt' }, { status: 400 });
-    const { data: ref } = await sb.from('notifications').select('title,created_at').eq('id', broadcast_id).single();
+    // BROADCAST-DELETE-FEEDPOST-FIX (2026-09-11, Michael-Report "SADB-
+    // Loeschen funktioniert nicht"): Der bisherige Handler loeschte NUR die
+    // notifications-Zeilen — der Feed-Post (beitraege, moment_source=
+    // 'system_broadcast', vom DB-Trigger angelegt) blieb fuer ALLE sichtbar.
+    // Jetzt 3 Schritte: notifications + Feed-Post + Trailer-Storage-Objekt.
+    const { data: ref } = await sb.from('notifications').select('title,body,data,created_at').eq('id', broadcast_id).single();
     if (!ref) return NextResponse.json({ error: 'Broadcast nicht gefunden' }, { status: 404 });
     const minTime = ref.created_at.slice(0, 16);
     const maxTime = new Date(new Date(ref.created_at).getTime() + 60000).toISOString();
-    const { count } = await sb.from('notifications').delete({ count: 'exact' })
+
+    // 1) Notifications (alle Empfaenger-Kopien, wie bisher)
+    const { count: notifCount } = await sb.from('notifications').delete({ count: 'exact' })
       .eq('type', 'broadcast').eq('title', ref.title).gte('created_at', minTime).lte('created_at', maxTime);
-    return NextResponse.json({ ok: true, deleted_count: count ?? 0 });
+
+    // 2) Feed-Post (vom Trigger trx_broadcast_to_beitrag angelegt — gleiche
+    //    Transaktion wie der notifications-Insert, also im selben Zeitfenster)
+    const { count: feedPostCount } = await sb.from('beitraege').delete({ count: 'exact' })
+      .eq('moment_source', 'system_broadcast')
+      .eq('caption', ref.title)
+      .gte('created_at', new Date(new Date(ref.created_at).getTime() - 60000).toISOString())
+      .lte('created_at', maxTime);
+
+    // 3) Trailer-Objekt aus dem 'broadcasts'-Bucket (sonst bleibt es als
+    //    Storage-Leiche liegen; das taegliche 30-Tage-Cron fasst es nicht an,
+    //    wenn der Post manuell geloescht wird)
+    let trailerDeleted = false;
+    const trailerUrl = (ref.data as { trailer_url?: string } | null)?.trailer_url;
+    if (trailerUrl) {
+      const fileName = trailerUrl.split('/').pop();
+      if (fileName) {
+        const { error: trailerErr } = await sb.storage.from('broadcasts').remove([fileName]);
+        trailerDeleted = !trailerErr;
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      deleted_count: notifCount ?? 0,
+      deleted_feed_posts: feedPostCount ?? 0,
+      trailer_deleted: trailerDeleted,
+    });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
