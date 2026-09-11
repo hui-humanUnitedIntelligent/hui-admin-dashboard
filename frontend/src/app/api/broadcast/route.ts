@@ -54,12 +54,71 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// ── VIDEO-BROADCAST-001 (2026-09-11): Multipart-Upload ────────────────────────
+// Der Broadcast-POST sendet jetzt multipart/form-data mit:
+//   trailer (File, video/*, max MAX_BROADCAST_VIDEO_BYTES — beliebig lang),
+//   youtube_url (String, youtube.com/youtu.be), title, body, target_group.
+// Trailer wird in den Supabase-Storage-Bucket 'broadcasts' (public-read,
+// 500MB-Limit, video/* — Migration 136 be-hui) hochgeladen; die Storage-URL
+// + YouTube-Link landen im notifications.data-JSONB. Der be-hui-Trigger
+// trg_broadcast_to_beitrag erzeugt daraus transaktional den Feed-Moment
+// (type='video' + klickbarer YouTube-Link) — KEIN posted_by_bot-Flag/Retry
+// noetig (alte JSON-Requests ohne trailer bleiben kompatibel: Gedanke-Post).
+const MAX_BROADCAST_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB (Storage-Bucket-Limit identisch)
+const YOUTUBE_URL_RE = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=[\w-]{6,}|youtu\.be\/[\w-]{6,})/;
+
 export async function POST(req: NextRequest) {
   const guard = await guardAdmin(req);
   if (guard) return guard;
   try {
-    const { title, body, target_group } = await req.json();
+    const contentType = req.headers.get('content-type') || '';
+    let title = '', body = '', target_group = 'all', youtubeUrl = '';
+    let trailerFile: File | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      // Neuer Weg: multipart mit Trailer-File
+      const form = await req.formData();
+      title = String(form.get('title') || '').trim();
+      body = String(form.get('body') || '').trim();
+      target_group = String(form.get('target_group') || 'all');
+      youtubeUrl = String(form.get('youtube_url') || '').trim();
+      const tf = form.get('trailer');
+      if (tf instanceof File && tf.size > 0) trailerFile = tf;
+    } else {
+      // Legacy-Weg: JSON ohne Trailer (Altlasten/Kompatibilitaet)
+      const j = await req.json();
+      title = String(j.title || '').trim();
+      body = String(j.body || '').trim();
+      target_group = String(j.target_group || 'all');
+    }
+
     if (!title || !body) return NextResponse.json({ ok: false, error: 'Titel und Inhalt erforderlich' }, { status: 400 });
+    if (contentType.includes('multipart/form-data')) {
+      // Alle 3 Komponenten Pflicht (neues Video-Broadcast-Format)
+      if (!trailerFile) return NextResponse.json({ ok: false, error: 'Trailer-Video erforderlich' }, { status: 400 });
+      if (!youtubeUrl) return NextResponse.json({ ok: false, error: 'YouTube-Link erforderlich' }, { status: 400 });
+      if (!trailerFile.type.startsWith('video/')) return NextResponse.json({ ok: false, error: 'Bitte ein Video-Format wählen (MP4, WebM, etc.)' }, { status: 400 });
+      if (trailerFile.size > MAX_BROADCAST_VIDEO_BYTES) return NextResponse.json({ ok: false, error: 'Datei zu groß (max 500MB)' }, { status: 400 });
+      if (!YOUTUBE_URL_RE.test(youtubeUrl)) return NextResponse.json({ ok: false, error: 'Ungültiger YouTube-Link' }, { status: 400 });
+    }
+
+    let trailerStorageUrl: string | null = null;
+    if (trailerFile) {
+      // Extension aus dem Original-Namen (Fallsicherheit: immer .mp4 als Fallback)
+      const extMatch = /\.(mp4|webm|mov|m4v|ogv)$/i.exec(trailerFile.name);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'mp4';
+      const fileName = `trailer-${Date.now()}.${ext}`;
+      const uploadData = await trailerFile.arrayBuffer();
+      const sbUp = getServiceClient();
+      const { data: upData, error: upErr } = await sbUp.storage
+        .from('broadcasts')
+        .upload(fileName, uploadData, { contentType: trailerFile.type, upsert: false });
+      if (upErr || !upData) {
+        return NextResponse.json({ ok: false, error: `Trailer-Upload fehlgeschlagen: ${upErr?.message || 'unbekannt'}` }, { status: 500 });
+      }
+      trailerStorageUrl = sbUp.storage.from('broadcasts').getPublicUrl(fileName).data.publicUrl;
+    }
+
     const sb = getServiceClient();
 
     let userIds: string[] = [];
@@ -82,14 +141,20 @@ export async function POST(req: NextRequest) {
 
     if (userIds.length === 0) return NextResponse.json({ ok: false, error: 'Keine Empfänger gefunden' }, { status: 400 });
 
-    const notifications = userIds.map(uid => ({ user_id: uid, type: 'broadcast', title, body, is_read: false, read: false, data: {} }));
+    // data-JSONB: trailer_url + youtube_url — der be-hui-Trigger liest beide
+    // Felder und baut daraus den Feed-Moment (type='video', klickbarer Link).
+    const broadcastData = {
+      ...(trailerStorageUrl ? { trailer_url: trailerStorageUrl } : {}),
+      ...(youtubeUrl ? { youtube_url: youtubeUrl } : {}),
+    };
+    const notifications = userIds.map(uid => ({ user_id: uid, type: 'broadcast', title, body, is_read: false, read: false, data: broadcastData }));
     const CHUNK = 500;
     // BUGFIX (2026-08-18): Insert-Fehler wurden bisher NICHT geprueft -- z.B. wenn
     // der DB-Trigger trg_broadcast_to_beitrag() beim Anlegen des myHUI-Feed-Posts
     // fehlschlaegt (z.B. FK-Verletzung, weil das myHUI-System-Profil fehlt), wird
     // die GESAMTE notifications-INSERT-Transaktion zurueckgerollt -- der Broadcast
     // kommt dann bei NIEMANDEM an, obwohl die Route bisher trotzdem "ok:true"
-    // zurückgab. Jetzt: Fehler pro Chunk sammeln und als echten Fehler melden.
+    // zurueckgab. Jetzt: Fehler pro Chunk sammeln und als echten Fehler melden.
     let sentCount = 0;
     const errors: string[] = [];
     for (let i = 0; i < notifications.length; i += CHUNK) {

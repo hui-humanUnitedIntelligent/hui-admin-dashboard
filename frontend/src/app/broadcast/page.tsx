@@ -10,6 +10,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import { showToast } from '@/components/ui/Toast';
 import { getSessionToken } from '@/lib/session';
+import { useSettings } from '@/components/providers/ThemeProvider';
 
 interface BroadcastRecord { id: string; title: string; body: string; target_group: string; sent_count: number; created_at: string; }
 interface Stats { total_users: number; wirker: number; members: number; admins: number; total_broadcasts: number; }
@@ -41,6 +42,7 @@ export default function BroadcastPage() {
   if (!isSuperAdmin(currentUser?.role)) return null;
 
   const userRole = currentUser?.role;
+  const { t } = useSettings();
   const [stats, setStats]             = useState<Stats | null>(null);
   const [history, setHistory]         = useState<BroadcastRecord[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -52,6 +54,11 @@ export default function BroadcastPage() {
   const [body, setBody]               = useState('');
   const [targetGroup, setTargetGroup] = useState('all');
   const [preview, setPreview]         = useState(false);
+  // ── VIDEO-BROADCAST-001 (2026-09-11): Trailer + YouTube-Link ──
+  const [trailerFile, setTrailerFile] = useState<File | null>(null);
+  const [trailerPreviewUrl, setTrailerPreviewUrl] = useState<string | null>(null);
+  const [youtubeUrl, setYoutubeUrl]   = useState('');
+  const [uploadingTrailer, setUploadingTrailer] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,26 +86,71 @@ export default function BroadcastPage() {
     return 0;
   })();
 
+  // ── VIDEO-BROADCAST-001 (2026-09-11) ─────────────────────────────────────────
+  // Trailer-Select: NUR Format-Pruefung (MIME video/*) + Size (max 500MB).
+  // KEINE Laengen-/Duration-Beschraenkung — Trailer duerfen beliebig lang sein.
+  const MAX_BROADCAST_VIDEO_BYTES = 500 * 1024 * 1024;
+  const YOUTUBE_URL_RE = /^https:\/\/(www\.)?(youtube\.com\/watch\?v=[\w-]{6,}|youtu\.be\/[\w-]{6,})/;
+
+  const handleTrailerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      showToast(t('broadcast.trailerInvalid'), 'error');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_BROADCAST_VIDEO_BYTES) {
+      showToast(t('broadcast.trailerTooLarge'), 'error');
+      e.target.value = '';
+      return;
+    }
+    setTrailerFile(file);
+    // Preview-URL (nur lokal, zum Anschauen vor dem Upload)
+    if (trailerPreviewUrl) URL.revokeObjectURL(trailerPreviewUrl);
+    setTrailerPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleTrailerRemove = () => {
+    if (trailerPreviewUrl) URL.revokeObjectURL(trailerPreviewUrl);
+    setTrailerPreviewUrl(null);
+    setTrailerFile(null);
+  };
+
   const handleSend = async () => {
     if (!title.trim() || !body.trim()) { showToast('Titel und Nachricht erforderlich', 'error'); return; }
+    if (!trailerFile) { showToast(t('broadcast.trailerRequired'), 'error'); return; }
+    if (!youtubeUrl.trim()) { showToast(t('broadcast.youtubeRequired'), 'error'); return; }
+    if (!YOUTUBE_URL_RE.test(youtubeUrl.trim())) { showToast(t('broadcast.youtubeInvalid'), 'error'); return; }
     if (!confirm(`Broadcast an ${estimated} User senden?`)) return;
     setSending(true);
+    setUploadingTrailer(true);
     try {
-    const res = await fetch('/api/broadcast', {
+    // multipart/form-data — die Route laedt den Trailer nach Supabase Storage
+    // ('broadcasts'-Bucket) und schreibt trailer_url + youtube_url ins
+    // notifications.data; der be-hui-Trigger erzeugt daraus den Feed-Moment.
+    const fd = new FormData();
+      fd.append('title', title);
+      fd.append('body', body);
+      fd.append('target_group', targetGroup);
+      fd.append('youtube_url', youtubeUrl.trim());
+      fd.append('trailer', trailerFile);
+      const res = await fetch('/api/broadcast', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, body, target_group: targetGroup }),
+        body: fd,
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`✅ Broadcast an ${data.sent_count} User gesendet`, 'success');
+        showToast(t('broadcast.trailerPosted'), 'success');
         setTitle(''); setBody(''); setPreview(false);
+        handleTrailerRemove();
+        setYoutubeUrl('');
         load();
       } else {
         showToast(data.error || 'Fehler beim Senden', 'error');
       }
-    } finally { setSending(false); }
+    } finally { setSending(false); setUploadingTrailer(false); }
   };
 
   const handleDelete = async (broadcastId: string, title: string) => {
@@ -206,6 +258,46 @@ export default function BroadcastPage() {
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3, textAlign: 'right' }}>{body.length}/500</div>
             </div>
 
+            {/* ── VIDEO-BROADCAST-001 (2026-09-11): Trailer-Video + YouTube-Link ── */}
+            {/* Trailer-Video Upload */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 6 }}>🎬 {t('broadcast.trailerLabel')} *</label>
+              {!trailerFile ? (
+                <label style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '18px 13px', background: 'var(--bg-primary)', border: '1px dashed var(--border)',
+                  borderRadius: 9, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer',
+                  fontFamily: 'var(--font-body)', transition: 'all 0.15s',
+                }}>
+                  <span style={{ fontSize: 16 }}>📤</span> {t('broadcast.trailerUpload')}
+                  <input type="file" accept="video/*" onChange={handleTrailerSelect} style={{ display: 'none' }} />
+                </label>
+              ) : (
+                <div style={{ border: '1px solid var(--accent)', borderRadius: 9, padding: 10, background: 'var(--bg-primary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      🎬 {trailerFile.name} <span style={{ color: 'var(--text-muted)' }}>({(trailerFile.size / (1024 * 1024)).toFixed(1)} MB)</span>
+                    </div>
+                    <button onClick={handleTrailerRemove} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 8px', fontSize: 10, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>✕</button>
+                  </div>
+                  {/* Video-Preview — Trailer vor dem Upload anschauen */}
+                  {trailerPreviewUrl && (
+                    <video src={trailerPreviewUrl} controls playsInline style={{ width: '100%', maxHeight: 220, borderRadius: 7, background: '#000', display: 'block' }} />
+                  )}
+                </div>
+              )}
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Beliebige Länge · max 500MB · MP4, WebM, MOV</div>
+            </div>
+
+            {/* YouTube-Link (vollständiger Film) */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: 5 }}>▶️ {t('broadcast.youtubeLabel')} *</label>
+              <input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder={t('broadcast.youtubeUrl')} style={input} />
+              {youtubeUrl && !YOUTUBE_URL_RE.test(youtubeUrl.trim()) && (
+                <div style={{ fontSize: 10, color: '#e04050', marginTop: 3 }}>⚠️ {t('broadcast.youtubeInvalid')}</div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => setPreview(p => !p)}
@@ -215,17 +307,19 @@ export default function BroadcastPage() {
               </button>
               <button
                 onClick={handleSend}
-                disabled={sending || !title.trim() || !body.trim()}
+                disabled={sending || !title.trim() || !body.trim() || !trailerFile || !youtubeUrl.trim() || !YOUTUBE_URL_RE.test(youtubeUrl.trim())}
                 style={{
                   flex: 1, padding: '9px 18px', borderRadius: 9, border: 'none',
-                  background: sending || !title.trim() || !body.trim() ? 'var(--bg-tertiary)' : 'var(--accent)',
-                  color: sending || !title.trim() || !body.trim() ? 'var(--text-muted)' : '#0F1117',
-                  cursor: sending || !title.trim() || !body.trim() ? 'default' : 'pointer',
+                  background: sending || !title.trim() || !body.trim() || !trailerFile || !youtubeUrl.trim() || !YOUTUBE_URL_RE.test(youtubeUrl.trim()) ? 'var(--bg-tertiary)' : 'var(--accent)',
+                  color: sending || !title.trim() || !body.trim() || !trailerFile || !youtubeUrl.trim() || !YOUTUBE_URL_RE.test(youtubeUrl.trim()) ? 'var(--text-muted)' : '#0F1117',
+                  cursor: sending || !title.trim() || !body.trim() || !trailerFile || !youtubeUrl.trim() || !YOUTUBE_URL_RE.test(youtubeUrl.trim()) ? 'default' : 'pointer',
                   fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-body)',
                   transition: 'all 0.15s',
                 }}
               >
-                {sending ? '⏳ Wird gesendet…' : `📨 An ${estimated} User senden`}
+                {sending
+                  ? (uploadingTrailer ? `⏳ ${t('broadcast.trailerUploading')}` : '⏳ Wird gesendet…')
+                  : `📨 An ${estimated} User senden`}
               </button>
             </div>
           </div>
