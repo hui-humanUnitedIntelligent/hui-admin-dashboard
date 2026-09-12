@@ -95,15 +95,16 @@ export async function POST(req: NextRequest) {
       target_group = String(j.target_group || 'all');
     }
 
+    // BROADCAST-OPTIONAL-MEDIA-001 (2026-09-12, Michael): Nur Titel + Text sind
+    // Pflicht. Trailer-Video und YouTube-Link sind OPTIONAL — Validierung nur
+    // noch dann, wenn das jeweilige Feld gefüllt ist. Der be-hui-Trigger
+    // (Migration 136) verarbeitet leere trailer_url/youtube_url bereits
+    // korrekt: ohne Trailer = Gedanke-Post, ohne YouTube-Link = Text ohne
+    // angehaengten Film-Verweis. Beide Felder leer = klassischer Text-Broadcast.
     if (!title || !body) return NextResponse.json({ ok: false, error: 'Titel und Inhalt erforderlich' }, { status: 400 });
-    if (contentType.includes('multipart/form-data')) {
-      // Alle 3 Komponenten Pflicht (neues Video-Broadcast-Format)
-      if (!trailerFile) return NextResponse.json({ ok: false, error: 'Trailer-Video erforderlich' }, { status: 400 });
-      if (!youtubeUrl) return NextResponse.json({ ok: false, error: 'YouTube-Link erforderlich' }, { status: 400 });
-      if (!trailerFile.type.startsWith('video/')) return NextResponse.json({ ok: false, error: 'Bitte ein Video-Format wählen (MP4, WebM, etc.)' }, { status: 400 });
-      if (trailerFile.size > MAX_BROADCAST_VIDEO_BYTES) return NextResponse.json({ ok: false, error: 'Datei zu groß (max 500MB)' }, { status: 400 });
-      if (!YOUTUBE_URL_RE.test(youtubeUrl)) return NextResponse.json({ ok: false, error: 'Ungültiger YouTube-Link' }, { status: 400 });
-    }
+    if (trailerFile && !trailerFile.type.startsWith('video/')) return NextResponse.json({ ok: false, error: 'Bitte ein Video-Format wählen (MP4, WebM, etc.)' }, { status: 400 });
+    if (trailerFile && trailerFile.size > MAX_BROADCAST_VIDEO_BYTES) return NextResponse.json({ ok: false, error: 'Datei zu groß (max 500MB)' }, { status: 400 });
+    if (youtubeUrl && !YOUTUBE_URL_RE.test(youtubeUrl)) return NextResponse.json({ ok: false, error: 'Ungültiger YouTube-Link' }, { status: 400 });
 
     let trailerStorageUrl: string | null = null;
     if (trailerFile) {

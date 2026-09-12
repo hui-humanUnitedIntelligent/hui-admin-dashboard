@@ -102,17 +102,16 @@ export const translations: Record<Lang, Record<string, string>> = {
     'dashboard.impactPool':  'Impact Pool',
     'dashboard.activeWorks': 'Aktive Werke',
     // ── Broadcast (VIDEO-BROADCAST-001, 2026-09-11) ───────────────────────────
-    'broadcast.trailerLabel':     'Trailer-Video',
+    // BROADCAST-OPTIONAL-MEDIA-001 (2026-09-12): Trailer + YouTube optional
+    'broadcast.trailerLabel':     'Trailer-Video (optional)',
     'broadcast.trailerUpload':    'Video auswählen…',
     'broadcast.trailerInvalid':  'Bitte ein Video-Format wählen (MP4, WebM, etc.)',
     'broadcast.trailerTooLarge':  'Datei zu groß (max 500MB)',
-    'broadcast.trailerRequired': 'Trailer-Video erforderlich',
     'broadcast.trailerUploading':'Trailer wird hochgeladen…',
-    'broadcast.trailerPosted':   '✅ Trailer und YouTube-Link gepostet',
-    'broadcast.youtubeLabel':    'YouTube-Link (vollständiger Film)',
+    'broadcast.trailerPosted':   '✅ Broadcast gesendet',
+    'broadcast.youtubeLabel':    'YouTube-Link (vollständiger Film, optional)',
     'broadcast.youtubeUrl':      'https://www.youtube.com/watch?v=…',
     'broadcast.youtubeInvalid':  'Ungültiger YouTube-Link',
-    'broadcast.youtubeRequired':'YouTube-Link erforderlich',
   },
 
   en: {
@@ -211,17 +210,16 @@ export const translations: Record<Lang, Record<string, string>> = {
     'dashboard.impactPool':  'Impact Pool',
     'dashboard.activeWorks': 'Active Works',
     // ── Broadcast (VIDEO-BROADCAST-001, 2026-09-11) ───────────────────────────
-    'broadcast.trailerLabel':     'Trailer video',
+    // BROADCAST-OPTIONAL-MEDIA-001 (2026-09-12): Trailer + YouTube optional
+    'broadcast.trailerLabel':     'Trailer video (optional)',
     'broadcast.trailerUpload':    'Choose video…',
     'broadcast.trailerInvalid':  'Please choose a video format (MP4, WebM, etc.)',
     'broadcast.trailerTooLarge':  'File too large (max 500MB)',
-    'broadcast.trailerRequired': 'Trailer video required',
     'broadcast.trailerUploading':'Uploading trailer…',
-    'broadcast.trailerPosted':   '✅ Trailer and YouTube link posted',
-    'broadcast.youtubeLabel':    'YouTube link (full movie)',
+    'broadcast.trailerPosted':   '✅ Broadcast sent',
+    'broadcast.youtubeLabel':    'YouTube link (full movie, optional)',
     'broadcast.youtubeUrl':      'https://www.youtube.com/watch?v=…',
     'broadcast.youtubeInvalid':  'Invalid YouTube link',
-    'broadcast.youtubeRequired':'YouTube link required',
   },
 };
 
