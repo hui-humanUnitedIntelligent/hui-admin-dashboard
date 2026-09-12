@@ -31,6 +31,40 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // ── BROADCAST-413-FIX (2026-09-12): Signierte Upload-URL fuer Trailer ──
+    // BEWEIS (live gegen hui-admin.com getestet): Vercel Serverless hat ein
+    // hartes 4.5MB Request-Body-Limit — ein 10MB multipart POST beantwortet
+    // Vercel mit HTTP 413 FUNCTION_PAYLOAD_TOO_LARGE, die Route laeuft NIE.
+    // Michaels Tilo.MOV (echtes iPhone-Video) ist groesser -> Broadcast kam
+    // nicht an, ohne jede Fehlermeldung (der alte handleSend hatte try/finally
+    // OHNE catch). Fix: Der Browser laedt das Video direkt zu Supabase Storage
+    // hoch (Bucket-Limit 500MB gilt weiter, KEIN Vercel-Limit) — diese Route
+    // signiert nur die Upload-URL (Admin-Gate bleibt serverseitig) und der
+    // POST erhaelt die finale Storage-URL als winziges JSON. Mechanik E2E
+    // verifiziert (2026-09-12): sign -> PUT mit ?token -> HTTP 200 ->
+    // public-URL liefert Inhalte, Testobjekt wieder entfernt.
+    if (action === 'sign_trailer') {
+      const filename = req.nextUrl.searchParams.get('filename') || '';
+      const size = Number(req.nextUrl.searchParams.get('size') || 0);
+      const mime = req.nextUrl.searchParams.get('mime') || '';
+      if (!size || size > MAX_BROADCAST_VIDEO_BYTES) return NextResponse.json({ ok: false, error: 'Datei zu groß (max 500MB)' }, { status: 400 });
+      if (!mime.startsWith('video/')) return NextResponse.json({ ok: false, error: 'Bitte ein Video-Format wählen (MP4, WebM, etc.)' }, { status: 400 });
+      const extMatch = /\.(mp4|webm|mov|m4v|ogv)$/i.exec(filename);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'mp4';
+      const fileName = `trailer-${Date.now()}.${ext}`;
+      const sbSign = getServiceClient();
+      const { data: signed, error: signErr } = await sbSign.storage.from('broadcasts').createSignedUploadUrl(fileName);
+      if (signErr || !signed) return NextResponse.json({ ok: false, error: `Upload-Signatur fehlgeschlagen: ${signErr?.message || 'unbekannt'}` }, { status: 500 });
+      const { data: pub } = sbSign.storage.from('broadcasts').getPublicUrl(fileName);
+      const sbUrl = (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+      return NextResponse.json({
+        ok: true,
+        path: signed.path,
+        upload_url: `${sbUrl}/storage/v1/object/upload/sign/broadcasts/${signed.path}?token=${encodeURIComponent(signed.token)}`,
+        public_url: pub.publicUrl,
+      });
+    }
+
     // list — Verlauf
     const { data } = await sb
       .from('notifications')
@@ -77,9 +111,12 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get('content-type') || '';
     let title = '', body = '', target_group = 'all', youtubeUrl = '';
     let trailerFile: File | null = null;
+    let trailerUrlDirect = '';
 
     if (contentType.includes('multipart/form-data')) {
-      // Neuer Weg: multipart mit Trailer-File
+      // Alter multipart-Weg mit Trailer-File — NUR noch fuer Dateien <= 4MB
+      // praktikabel (Vercel-Serverless-Body-Limit 4.5MB, siehe BROADCAST-413-FIX).
+      // Das SADB-Frontend nutzt diesen Weg seit dem 413-Fix nicht mehr.
       const form = await req.formData();
       title = String(form.get('title') || '').trim();
       body = String(form.get('body') || '').trim();
@@ -88,11 +125,14 @@ export async function POST(req: NextRequest) {
       const tf = form.get('trailer');
       if (tf instanceof File && tf.size > 0) trailerFile = tf;
     } else {
-      // Legacy-Weg: JSON ohne Trailer (Altlasten/Kompatibilitaet)
+      // JSON-Weg (Standard): trailer_url = finale Storage-URL aus dem
+      // Client-Direktupload (sign_trailer), KEIN File im Request-Body.
       const j = await req.json();
       title = String(j.title || '').trim();
       body = String(j.body || '').trim();
       target_group = String(j.target_group || 'all');
+      youtubeUrl = String(j.youtube_url || '').trim();
+      trailerUrlDirect = String(j.trailer_url || '').trim();
     }
 
     // BROADCAST-OPTIONAL-MEDIA-001 (2026-09-12, Michael): Nur Titel + Text sind
@@ -105,8 +145,19 @@ export async function POST(req: NextRequest) {
     if (trailerFile && !trailerFile.type.startsWith('video/')) return NextResponse.json({ ok: false, error: 'Bitte ein Video-Format wählen (MP4, WebM, etc.)' }, { status: 400 });
     if (trailerFile && trailerFile.size > MAX_BROADCAST_VIDEO_BYTES) return NextResponse.json({ ok: false, error: 'Datei zu groß (max 500MB)' }, { status: 400 });
     if (youtubeUrl && !YOUTUBE_URL_RE.test(youtubeUrl)) return NextResponse.json({ ok: false, error: 'Ungültiger YouTube-Link' }, { status: 400 });
-
+    // BROADCAST-413-FIX: Client-Direktupload-URL validieren — nur exakte
+    // public-URLs aus dem broadcasts-Bucket des eigenen Supabase-Projekts
+    // akzeptieren (kein Open Redirect / keine fremden Quellen im Feed).
     let trailerStorageUrl: string | null = null;
+    if (trailerUrlDirect) {
+      const sbUrl = (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+      const expectedPrefix = `${sbUrl}/storage/v1/object/public/broadcasts/`;
+      const objectName = trailerUrlDirect.slice(expectedPrefix.length);
+      if (!trailerUrlDirect.startsWith(expectedPrefix) || !/^[\w.-]+$/.test(objectName)) {
+        return NextResponse.json({ ok: false, error: 'Ungültige Trailer-URL' }, { status: 400 });
+      }
+      trailerStorageUrl = trailerUrlDirect;
+    }
     if (trailerFile) {
       // Extension aus dem Original-Namen (Fallsicherheit: immer .mp4 als Fallback)
       const extMatch = /\.(mp4|webm|mov|m4v|ogv)$/i.exec(trailerFile.name);

@@ -324,6 +324,29 @@ export default function BroadcastPage() {
     setTrailerFile(null);
   };
 
+  // ── BROADCAST-413-FIX (2026-09-12): Client-Direktupload ────────────────────
+  // BEWEIS (live getestet): Vercel Serverless beantwortet Request-Bodies > 4.5MB
+  // mit HTTP 413 FUNCTION_PAYLOAD_TOO_LARGE — die Route laeuft nie. Michaels
+  // Tilo.MOV ist ein echtes iPhone-Video und lag darueber: Der Broadcast kam
+  // nicht an, OHNE jede Fehlermeldung (handleSend hatte try/finally ohne catch,
+  // res.json() warf auf dem 413-Text-Body -> unhandled rejection).
+  // Neuer Weg: 1. sign_trailer (Route signiert Upload-URL, Admin-Gate bleibt
+  // serverseitig) -> 2. Browser laedt das Video DIREKT zu Supabase Storage
+  // (Bucket-Limit 500MB, kein Vercel-Limit) -> 3. POST enthaelt nur noch die
+  // finale Storage-URL als winziges JSON.
+  const uploadTrailerDirect = async (file: File): Promise<string> => {
+    const signRes = await fetch(`/api/broadcast?action=sign_trailer&filename=${encodeURIComponent(file.name)}&size=${file.size}&mime=${encodeURIComponent(file.type || 'video/mp4')}`, { credentials: 'include' });
+    const sign = await signRes.json();
+    if (!signRes.ok || !sign.ok) throw new Error(sign.error || 'Upload-Freigabe fehlgeschlagen');
+    const upRes = await fetch(sign.upload_url, {
+      method: 'PUT',
+      headers: { 'x-upsert': 'false', 'Content-Type': file.type || 'video/mp4' },
+      body: file,
+    });
+    if (!upRes.ok) throw new Error(`Video-Upload fehlgeschlagen (HTTP ${upRes.status})`);
+    return sign.public_url as string;
+  };
+
   const handleSend = async () => {
     // BROADCAST-OPTIONAL-MEDIA-001 (2026-09-12, Michael): Nur Titel + Text sind
     // Pflicht. Trailer-Video und YouTube-Link sind OPTIONAL — Format-Check nur
@@ -336,20 +359,19 @@ export default function BroadcastPage() {
     setSending(true);
     if (trailerFile) setUploadingTrailer(true);
     try {
-    // multipart/form-data — die Route laedt den Trailer nach Supabase Storage
-    // ('broadcasts'-Bucket) und schreibt trailer_url + youtube_url ins
-    // notifications.data; der be-hui-Trigger erzeugt daraus den Feed-Moment.
-    const fd = new FormData();
-      fd.append('title', title);
-      fd.append('body', body);
-      fd.append('target_group', targetGroup);
-      fd.append('youtube_url', youtubeUrl.trim());
-      // BROADCAST-OPTIONAL-MEDIA-001: Trailer nur anhaengen wenn ausgewaehlt
-      if (trailerFile) fd.append('trailer', trailerFile);
+      // BROADCAST-413-FIX: Trailer (falls gewaehlt) DIREKT zu Storage
+      // hochladen — NUR die URL geht anschliessend als JSON an die Route.
+      let trailerUrl = '';
+      if (trailerFile) trailerUrl = await uploadTrailerDirect(trailerFile);
       const res = await fetch('/api/broadcast', {
         method: 'POST',
         credentials: 'include',
-        body: fd,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title, body, target_group: targetGroup,
+          youtube_url: youtubeUrl.trim(),
+          ...(trailerUrl ? { trailer_url: trailerUrl } : {}),
+        }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -361,6 +383,11 @@ export default function BroadcastPage() {
       } else {
         showToast(data.error || 'Fehler beim Senden', 'error');
       }
+    } catch (err) {
+      // BROADCAST-413-FIX: Vorher gab es KEINEN catch — bei Netzwerk-/Plattform-
+      // Fehlern (413, Offline, Storage-Ausfall) sah der Nutzer GAR NICHTS und
+      // der Button sprang kommentarlos zurueck. Jetzt: konkreter Fehler-Toast.
+      showToast(err instanceof Error ? err.message : 'Unerwarteter Fehler beim Senden', 'error');
     } finally { setSending(false); setUploadingTrailer(false); }
   };
 
