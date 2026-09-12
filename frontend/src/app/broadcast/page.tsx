@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 
 import { isSuperAdmin } from '@/lib/roles';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import PageHeader from '@/components/layout/PageHeader';
@@ -42,6 +42,64 @@ function timeAgo(iso: string) {
 // Breite/Aspect, object-contain, KEINE Caps/Balken) und der YouTube-Link
 // als teal klickbarer Verweis (LinkifiedText-Verhalten im Feed).
 const MYHUI_AVATAR_URL = 'https://gxztrhvhcxhmunhhkfjd.supabase.co/storage/v1/object/public/media/avatars/152619c1-9adc-40bf-9078-eb67f5024ed2/fox-avatar.png';
+
+// VIDEO-BREITEN-FIX (2026-09-11, permanente Regel, Bug 93ce2b88 — siehe
+// be-hui BaseFeedCard.jsx getAdaptiveMediaHeight()): Bei Video-Containern
+// mit object-fit:"contain" MUSS die Container-Hoehe EXAKT aus
+// containerWidth / aspect folgen — jede feste maxHeight/Orientierungs-Cap
+// erzeugt Letterbox-Balken (genau der hier gemeldete Bug: Tilo.MOV als
+// 9:16-Hochformat wurde durch die alte maxHeight:220 auf eine breite,
+// kurze Box gequetscht statt volle Hoehe zu bekommen). SSOT-Formel 1:1
+// aus dem be-hui-Feed uebernommen: natural = containerWidth/aspect,
+// geclampt auf [150, min(920, max(600, 92% Viewport-Hoehe))] — NUR
+// physikalische Extrem-Randfaelle (Panorama-Floor / Riesenfenster-Cap),
+// keine Orientierungs-Logik. AdaptiveVideoBox ist die EINE Komponente
+// fuer jede Video-Vorschau in diesem Formular (Upload-Widget + Vorschau-
+// Karte) — kein duplizierter Sizing-Code.
+function computeAdaptiveVideoHeight(aspect: number | null, containerWidth: number): number {
+  if (!aspect || !containerWidth) return 260; // Platzhalter bis Metadaten da sind (kein Layout-Sprung)
+  const natural = containerWidth / aspect;
+  const vh = (typeof window !== 'undefined' && window.innerHeight) || 844;
+  const maxH = Math.min(920, Math.max(600, vh * 0.92));
+  return Math.min(Math.max(natural, 150), maxH);
+}
+
+function AdaptiveVideoBox({ src, muted = false }: { src: string; muted?: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerW, setContainerW] = useState(0);
+  const [aspect, setAspect] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    setContainerW(containerRef.current.offsetWidth);
+    const ro = new ResizeObserver(() => {
+      if (containerRef.current) setContainerW(containerRef.current.offsetWidth);
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Aspect-Ratio zuruecksetzen wenn sich die Quelle aendert (neue Datei ausgewaehlt)
+  useEffect(() => { setAspect(null); }, [src]);
+
+  const h = computeAdaptiveVideoHeight(aspect, containerW);
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: h, background: '#000', borderRadius: 12, overflow: 'hidden' }}>
+      <video
+        src={src}
+        controls
+        muted={muted}
+        playsInline
+        preload="metadata"
+        onLoadedMetadata={e => {
+          const v = e.currentTarget;
+          if (v.videoWidth && v.videoHeight) setAspect(v.videoWidth / v.videoHeight);
+        }}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+      />
+    </div>
+  );
+}
 
 // URL-Linkify fuer die Vorschau (Spiegel von LinkifiedText.jsx im Feed:
 // URLs werden teal + unterstrichen + klickbar, oeffnen im neuen Tab).
@@ -86,7 +144,6 @@ export default function BroadcastPage() {
   const [trailerFile, setTrailerFile] = useState<File | null>(null);
   const [trailerPreviewUrl, setTrailerPreviewUrl] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl]   = useState('');
-  const [trailerAspect, setTrailerAspect] = useState<number | null>(null);
   const [uploadingTrailer, setUploadingTrailer] = useState(false);
 
   const load = useCallback(async () => {
@@ -135,7 +192,6 @@ export default function BroadcastPage() {
       return;
     }
     setTrailerFile(file);
-    setTrailerAspect(null);
     // Preview-URL (nur lokal, zum Anschauen vor dem Upload)
     if (trailerPreviewUrl) URL.revokeObjectURL(trailerPreviewUrl);
     setTrailerPreviewUrl(URL.createObjectURL(file));
@@ -145,7 +201,6 @@ export default function BroadcastPage() {
     if (trailerPreviewUrl) URL.revokeObjectURL(trailerPreviewUrl);
     setTrailerPreviewUrl(null);
     setTrailerFile(null);
-    setTrailerAspect(null);
   };
 
   const handleSend = async () => {
@@ -315,9 +370,12 @@ export default function BroadcastPage() {
                     </div>
                     <button onClick={handleTrailerRemove} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 8px', fontSize: 10, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>✕</button>
                   </div>
-                  {/* Video-Preview — Trailer vor dem Upload anschauen */}
+                  {/* Video-Preview — Trailer vor dem Upload anschauen.
+                      VIDEO-BREITEN-FIX: AdaptiveVideoBox statt fester maxHeight —
+                      9:16-Hochformat (z.B. Tilo.MOV) bekommt jetzt die volle
+                      breiten-exakte Hoehe statt in eine kurze Box gequetscht zu werden. */}
                   {trailerPreviewUrl && (
-                    <video src={trailerPreviewUrl} controls playsInline style={{ width: '100%', maxHeight: 220, borderRadius: 7, background: '#000', display: 'block' }} />
+                    <AdaptiveVideoBox src={trailerPreviewUrl} />
                   )}
                 </div>
               )}
@@ -395,16 +453,12 @@ export default function BroadcastPage() {
                   </span>
                 </div>
 
-                {/* Trailer-Video (Spiegel: FeedMedia — breiten-exakte Hoehe = Breite/Aspect,
-                    object-contain auf #000, KEINE Balken. VIDEO-BREITEN-FIX.) */}
+                {/* Trailer-Video (Spiegel: FeedMedia — AdaptiveVideoBox, dieselbe
+                    SSOT-Formel wie im echten Feed: Hoehe = Breite/Aspect, object-
+                    contain auf #000, KEINE Balken, KEIN Crop. VIDEO-BREITEN-FIX. */}
                 {trailerPreviewUrl && (
                   <div style={{ margin: '10px 16px 0' }}>
-                    {/* Aspect-Probe: echte Ratio aus Video-Metadaten lesen (nicht blockierend) */}
-                    <video src={trailerPreviewUrl} preload="metadata" aria-hidden="true"
-                      onLoadedMetadata={e => { const v = e.currentTarget; if (v.videoWidth && v.videoHeight) setTrailerAspect(v.videoWidth / v.videoHeight); }}
-                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
-                    <video src={trailerPreviewUrl} controls muted playsInline
-                      style={{ width: '100%', aspectRatio: trailerAspect ? String(trailerAspect) : '16/9', background: '#000', objectFit: 'contain', borderRadius: 14, display: 'block' }} />
+                    <AdaptiveVideoBox src={trailerPreviewUrl} muted />
                   </div>
                 )}
 
