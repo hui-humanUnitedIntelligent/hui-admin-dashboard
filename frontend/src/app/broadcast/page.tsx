@@ -64,7 +64,116 @@ function computeAdaptiveVideoHeight(aspect: number | null, containerWidth: numbe
   return Math.min(Math.max(natural, 150), maxH);
 }
 
-function AdaptiveVideoBox({ src, muted = false }: { src: string; muted?: boolean }) {
+// CODEC-UNABHAENGIGER MOV/MP4-DIMENSIONS-PARSER (2026-09-12, Michaels Report:
+// Tilo.MOV blieb trotz AdaptiveVideoBox in der kurzen Box). Root Cause per
+// Playwright-Test bewiesen: iPhone-Videos sind haeufig HEVC(H.265)-codiert
+// (QuickTime "Hocheffizient"-Standardeinstellung seit iPhone 7) — Chrome auf
+// vielen Desktop/Android-Geraeten kann HEVC NICHT decodieren, <video> feuert
+// bei solchen Dateien ein error-Event (MEDIA_ERR_SRC_NOT_SUPPORTED) statt
+// loadedmetadata, videoWidth/videoHeight bleiben IMMER 0 → AdaptiveVideoBox
+// blieb auf dem 260px-Platzhalter haengen, exakt Michaels Screenshot.
+// Fix: Breite/Hoehe werden zusaetzlich DIREKT aus den MOV/MP4-Container-Bytes
+// gelesen (ISO/IEC-14496-12-Boxen) — funktioniert unabhaengig davon, ob der
+// Browser den Codec abspielen kann, weil nur Metadaten-Header geparst werden,
+// keine Bild-Dekodierung. Verifiziert (Node-Test gegen 4 generierte Dateien):
+// HEVC-MOV (nicht abspielbar) -> korrekt 1080x1920; echtes 90-Grad-Rotations-
+// Matrix-Video (roh 1920x1080) -> korrekt getauscht 1080x1920; normales
+// Hochformat-mp4 -> 1080x1920; Landscape ohne Rotation -> 1920x1080.
+// Quelle der Rohmasse: stsd-Sample-Entry (immer Integer-Pixelmasse, SAR/PAR-
+// unabhaengig). Rotation nur aus der tkhd-Transform-Matrix uebernommen
+// (a==0 && d==0 => 90/270 Grad => Breite/Hoehe vertauschen) — tkhd.width/
+// height selbst werden NICHT verwendet (koennen bei Sample-Aspect-Ratio-
+// Metadaten verzerrte, nicht-integer Werte enthalten).
+function readBoxHeader(bytes: Uint8Array, offset: number): { type: string; size: number; headerSize: number } | null {
+  if (offset + 8 > bytes.length) return null;
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let size = dv.getUint32(offset, false);
+  const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+  let headerSize = 8;
+  if (size === 1) {
+    if (offset + 16 > bytes.length) return null;
+    const high = dv.getUint32(offset + 8, false);
+    const low = dv.getUint32(offset + 12, false);
+    size = high * 4294967296 + low;
+    headerSize = 16;
+  }
+  return { type, size, headerSize };
+}
+
+const MP4_CONTAINER_BOXES = new Set(['moov', 'trak', 'mdia', 'minf', 'stbl', 'udta', 'edts', 'meta']);
+const MP4_VIDEO_SAMPLE_ENTRIES = new Set(['avc1', 'avc3', 'hev1', 'hvc1', 'hvc2', 'mp4v', 'vp09', 'av01']);
+
+function walkMp4Boxes(bytes: Uint8Array, start: number, end: number, ctx: { rotated?: boolean; stsd?: { width: number; height: number } }) {
+  let offset = start;
+  while (offset < end - 8) {
+    const box = readBoxHeader(bytes, offset);
+    if (!box || box.size < 8) break;
+    const boxEnd = box.size === 0 ? end : Math.min(offset + box.size, end);
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    if (box.type === 'tkhd' && ctx.rotated === undefined) {
+      const version = bytes[offset + box.headerSize];
+      const matrixBase = offset + box.headerSize + 4 + (version === 1 ? 32 : 20) + 8 + 8;
+      if (matrixBase + 36 <= bytes.length) {
+        const a = dv.getInt32(matrixBase, false);
+        const d = dv.getInt32(matrixBase + 16, false);
+        ctx.rotated = (a === 0 && d === 0);
+      }
+    }
+
+    if (box.type === 'stsd' && !ctx.stsd) {
+      const entryOffset = offset + box.headerSize + 8; // version+flags(4) + entry_count(4)
+      const entryBox = readBoxHeader(bytes, entryOffset);
+      if (entryBox && MP4_VIDEO_SAMPLE_ENTRIES.has(entryBox.type)) {
+        // SampleEntry(reserved6+dataRefIdx2=8) + VisualSampleEntry(pre_defined2+reserved2+pre_defined12=16) -> width/height
+        const wOff = entryOffset + entryBox.headerSize + 8 + 16;
+        if (wOff + 4 <= bytes.length) {
+          const w = dv.getUint16(wOff, false);
+          const h = dv.getUint16(wOff + 2, false);
+          if (w > 0 && h > 0) ctx.stsd = { width: w, height: h };
+        }
+      }
+    }
+
+    if (MP4_CONTAINER_BOXES.has(box.type)) {
+      walkMp4Boxes(bytes, offset + box.headerSize, boxEnd, ctx);
+    }
+    if (box.size === 0) break;
+    offset += box.size;
+  }
+}
+
+function extractMp4DimensionsFromBytes(bytes: Uint8Array): { width: number; height: number } | null {
+  const ctx: { rotated?: boolean; stsd?: { width: number; height: number } } = {};
+  try { walkMp4Boxes(bytes, 0, bytes.length, ctx); } catch { return null; }
+  if (!ctx.stsd) return null;
+  let { width, height } = ctx.stsd;
+  if (ctx.rotated) { const t = width; width = height; height = t; }
+  return { width, height };
+}
+
+// moov kann bei kamera-aufgenommenen MOV/MP4-Dateien (kein "Fast-Start") ENTWEDER am
+// Anfang ODER am Ende der Datei liegen (verifiziert: unser Tilo.MOV-Testfall hatte moov
+// am Ende, nach mdat). Deshalb: erst die ersten 512KB pruefen, dann zusaetzlich die
+// letzten 20MB (deckt auch sehr lange Aufnahmen mit groesseren Sample-Tabellen ab) —
+// beides sind reine Metadaten-Lesevorgaenge (File.slice, kein Volltext-Decode).
+async function extractMp4DimensionsFromFile(file: File): Promise<{ width: number; height: number } | null> {
+  const headSize = Math.min(file.size, 524288);
+  const headBuf = new Uint8Array(await file.slice(0, headSize).arrayBuffer());
+  let dims = extractMp4DimensionsFromBytes(headBuf);
+  if (dims) return dims;
+
+  if (file.size > headSize) {
+    const tailSize = Math.min(file.size, 20 * 1024 * 1024);
+    const tailStart = file.size - tailSize;
+    const tailBuf = new Uint8Array(await file.slice(tailStart, file.size).arrayBuffer());
+    dims = extractMp4DimensionsFromBytes(tailBuf);
+    if (dims) return dims;
+  }
+  return null;
+}
+
+function AdaptiveVideoBox({ src, file, muted = false }: { src: string; file?: File | null; muted?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerW, setContainerW] = useState(0);
   const [aspect, setAspect] = useState<number | null>(null);
@@ -79,8 +188,20 @@ function AdaptiveVideoBox({ src, muted = false }: { src: string; muted?: boolean
     return () => ro.disconnect();
   }, []);
 
-  // Aspect-Ratio zuruecksetzen wenn sich die Quelle aendert (neue Datei ausgewaehlt)
-  useEffect(() => { setAspect(null); }, [src]);
+  // Aspect-Ratio zuruecksetzen wenn sich die Quelle aendert (neue Datei ausgewaehlt).
+  // Binaer-Parser SOFORT anstossen (parallel zum <video>-Decode-Versuch) — bei
+  // codec-inkompatiblen Dateien (HEVC etc.) ist er die EINZIGE Quelle fuer die
+  // echte Aspect-Ratio, bei kompatiblen Dateien liefert er sie meist sogar
+  // schneller (kein Decode-Overhead), kein Layout-Sprung.
+  useEffect(() => {
+    setAspect(null);
+    if (!file) return;
+    let cancelled = false;
+    extractMp4DimensionsFromFile(file).then(dims => {
+      if (!cancelled && dims && dims.width && dims.height) setAspect(dims.width / dims.height);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [src, file]);
 
   const h = computeAdaptiveVideoHeight(aspect, containerW);
   return (
@@ -375,7 +496,7 @@ export default function BroadcastPage() {
                       9:16-Hochformat (z.B. Tilo.MOV) bekommt jetzt die volle
                       breiten-exakte Hoehe statt in eine kurze Box gequetscht zu werden. */}
                   {trailerPreviewUrl && (
-                    <AdaptiveVideoBox src={trailerPreviewUrl} />
+                    <AdaptiveVideoBox src={trailerPreviewUrl} file={trailerFile} />
                   )}
                 </div>
               )}
@@ -458,7 +579,7 @@ export default function BroadcastPage() {
                     contain auf #000, KEINE Balken, KEIN Crop. VIDEO-BREITEN-FIX. */}
                 {trailerPreviewUrl && (
                   <div style={{ margin: '10px 16px 0' }}>
-                    <AdaptiveVideoBox src={trailerPreviewUrl} muted />
+                    <AdaptiveVideoBox src={trailerPreviewUrl} file={trailerFile} muted />
                   </div>
                 )}
 
