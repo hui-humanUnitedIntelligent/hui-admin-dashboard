@@ -1085,6 +1085,59 @@ function DetailModal({
     onClose();
   };
 
+  // ── PROJECT-SHARE-001 (2026-09-13, Michael-Request): "ganz unten im
+  // Uebersichtsmodal" Teilen/Weiterleiten -- primaer fuer Telegram, wo das
+  // Team die Projekt-Antraege intern bespricht. Web Share API oeffnet auf
+  // Mobilgeraeten (die SADB-PWA "HUI Admin" ist installiert, siehe
+  // manifest.json) das native Android-Share-Sheet mit Telegram als Option.
+  // Fallback (kein navigator.share, z.B. Desktop-Browser): Text in die
+  // Zwischenablage kopieren, damit er trotzdem manuell in Telegram
+  // eingefuegt werden kann.
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const buildShareText = () => {
+    const lines: string[] = [];
+    lines.push(`💚 HUI-Projekt-Antrag: ${app.project_name}`);
+    lines.push(`Status: ${statusLabel(app.status)} · Eingereicht: ${fmt(app.submitted_at || app.created_at)}`);
+    if (app.location) lines.push(`📍 ${app.location}`);
+    const kontakt = [app.contact_name, app.contact_email].filter(Boolean).join(' · ');
+    if (kontakt) lines.push(`👤 Kontakt: ${kontakt}`);
+    lines.push('');
+    if (app.short_desc) lines.push(`📝 Kurzbeschreibung:\n${app.short_desc}`);
+    if (app.problem) lines.push(`\n❗ Problem:\n${app.problem}`);
+    if (app.vision) lines.push(`\n💡 Vision / Lösung:\n${app.vision}`);
+    if (app.funding_goal) lines.push(`\n💶 Wunschbetrag: ${fmtEur(app.funding_goal)}`);
+    if (app.funding_use) lines.push(`\n💰 Mittelverwendung:\n${app.funding_use}`);
+    if (app.cover_url) lines.push(`\n${app.cover_url}`);
+    lines.push(`\nID: ${app.id}`);
+    return lines.join('\n');
+  };
+
+  const handleShare = async () => {
+    const shareText = buildShareText();
+    const shareTitle = `HUI-Projekt: ${app.project_name}`;
+    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: shareTitle, text: shareText });
+        return;
+      } catch (e: any) {
+        // Nutzer hat das Share-Sheet abgebrochen (AbortError) -- kein Fehler,
+        // kein Fallback noetig.
+        if (e?.name === 'AbortError') return;
+        // Echter Fehler (z.B. Share-API im WebView-Kontext blockiert) -->
+        // Clipboard-Fallback unten.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShareCopied(true);
+      showToast('In Zwischenablage kopiert — jetzt in Telegram einfügen', 'success');
+      setTimeout(() => setShareCopied(false), 2500);
+    } catch {
+      showToast('Teilen wird von diesem Browser nicht unterstützt', 'error');
+    }
+  };
+
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
       <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', paddingTop: 2 }}>{label}</span>
@@ -1590,6 +1643,22 @@ function DetailModal({
                 </div>
               </div>
             )}
+
+            {/* ── Teilen / Weiterleiten (PROJECT-SHARE-001) ── */}
+            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={handleShare}
+                style={{
+                  width: '100%', padding: '12px 20px', borderRadius: 10,
+                  border: '1px solid var(--accent)', cursor: 'pointer',
+                  background: 'var(--accent)11', color: 'var(--accent)',
+                  fontWeight: 700, fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {shareCopied ? '✅ Kopiert — jetzt in Telegram einfügen' : '🔗 Teilen / Weiterleiten'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
