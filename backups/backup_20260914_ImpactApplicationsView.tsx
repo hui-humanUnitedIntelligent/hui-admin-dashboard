@@ -37,10 +37,6 @@ interface ImpactApplication {
   other_links: string | null;
   why_support: string | null;
   status: string; // Echte DB-Werte: 'approved' | 'rejected'
-  // HUI-FIT-SCORE-V2 (2026-09-14): Score + Breakdown des Bewerbungsassistenten
-  // (Migration 20260914_140, nullable — alte Einreichungen haben null)
-  fit_score: number | null;
-  score_breakdown: string[] | null;
   rejection_reason: string | null;
   admin_comment: string | null;
   review_note: string | null;
@@ -1356,31 +1352,6 @@ function DetailModal({
               {row('Kurzbeschreibung', <ColText text={app.short_desc} />)}
               {row('Problem', <ColText text={app.problem} />)}
               {row('Vision / Lösung', <ColText text={app.vision} />)}
-              {(app.fit_score !== null && app.fit_score !== undefined) && row('HUI Fit Score', (
-                <span>
-                  <span style={{
-                    fontWeight: 700,
-                    color: app.fit_score >= 65 ? '#22c55e' : app.fit_score >= 25 ? '#d4952a' : '#ef4444',
-                  }}>
-                    {app.fit_score}
-                  </span>
-                  {app.fit_score >= 65 ? ' — Direkt-Genehmigung (≥ 65)'
-                    : app.fit_score >= 25 ? ' — Manuelle Prüfung (25–64)'
-                    : ' — Unter Mindestschwelle (< 25)'}
-                  {Array.isArray(app.score_breakdown) && app.score_breakdown.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                      {app.score_breakdown.map((line: string, i: number) => (
-                        <div key={i} style={{
-                          paddingLeft: i === 0 || i === app.score_breakdown!.length - 1 ? 0 : 14,
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {i === 0 || i === app.score_breakdown!.length - 1 ? line : `├─ ${line}`}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </span>
-              ))}
               {row('Wunschbetrag', fmtEur(app.funding_goal))}
               {row('Mittelverwendung', <ColText text={app.funding_use} />)}
               {row('Standort', app.location || '—')}
