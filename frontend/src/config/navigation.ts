@@ -86,6 +86,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: '/impact-projekte', label_de: 'Impact Projekte',           label_en: 'Impact Projects',        icon: '💚', roles: ['superadmin'], superadminOnly: true },
       { href: '/score-failures',  label_de: 'Ablehnungsgründe',          label_en: 'Rejection Reasons',      icon: '🔍', roles: ['superadmin'], superadminOnly: true },
       { href: '/memberships',     label_de: 'Mitgliedschaften',          label_en: 'Memberships',            icon: '🏅', roles: ['superadmin'] },
+      { href: '/content-guard',   label_de: 'Chat Content Guard',        label_en: 'Chat Content Guard',     icon: '🛡️', roles: ['superadmin'], superadminOnly: true },
     ],
   },
   {

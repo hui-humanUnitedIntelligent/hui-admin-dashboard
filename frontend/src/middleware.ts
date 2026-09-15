@@ -11,6 +11,7 @@ const SUPERADMIN_PATHS = [
   '/broadcast', '/churns', '/exports', '/experiences', '/flags',
   '/impact-projekte', '/memberships', '/reports', '/reviews',
   '/score-failures', '/settings', '/system', '/talents', '/tickets',
+  '/content-guard',
 ];
 
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 Tage — identisch zu mfa/verify
