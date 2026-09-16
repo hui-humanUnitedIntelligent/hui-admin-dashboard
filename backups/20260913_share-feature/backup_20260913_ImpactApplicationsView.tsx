@@ -37,10 +37,6 @@ interface ImpactApplication {
   other_links: string | null;
   why_support: string | null;
   status: string; // Echte DB-Werte: 'approved' | 'rejected'
-  // HUI-FIT-SCORE-V2 (2026-09-14): Score + Breakdown des Bewerbungsassistenten
-  // (Migration 20260914_140, nullable — alte Einreichungen haben null)
-  fit_score: number | null;
-  score_breakdown: string[] | null;
   rejection_reason: string | null;
   admin_comment: string | null;
   review_note: string | null;
@@ -980,19 +976,11 @@ function VotingTab() {
 function statusColor(status: string) {
   if (status === 'approved') return '#22c55e';
   if (status === 'rejected') return '#ef4444';
-  // PENDING-RESUBMIT-LABEL-001 (2026-09-16): 'pending'/'submitted' entstehen seit
-  // IMPACT-PROJECT-EDIT-001 (be-hui Commit 5712d65b, live 2.1.600) auch als
-  // RESUBMISSION eines bereits einmal bewilligten Projekts (Nutzer bearbeitet
-  // sein Projekt -> status faellt zurueck auf 'pending', damit es hier erneut
-  // geprueft wird -- Stimmen/Foerdersumme bleiben unberuehrt, siehe Kommentar
-  // im be-hui-Quellcode). Vorher fiel das auf den generischen Grau-Fallback.
-  if (status === 'pending' || status === 'submitted') return '#f59e0b';
   return '#6b7280';
 }
 function statusLabel(status: string) {
   if (status === 'approved') return '✅ Bewilligt';
   if (status === 'rejected') return '❌ Abgelehnt';
-  if (status === 'pending' || status === 'submitted') return '⏳ Zur Prüfung';
   return `${status}`;
 }
 function fmt(d: string | null) {
@@ -1097,59 +1085,6 @@ function DetailModal({
     onClose();
   };
 
-  // ── PROJECT-SHARE-001 (2026-09-13, Michael-Request): "ganz unten im
-  // Uebersichtsmodal" Teilen/Weiterleiten -- primaer fuer Telegram, wo das
-  // Team die Projekt-Antraege intern bespricht. Web Share API oeffnet auf
-  // Mobilgeraeten (die SADB-PWA "HUI Admin" ist installiert, siehe
-  // manifest.json) das native Android-Share-Sheet mit Telegram als Option.
-  // Fallback (kein navigator.share, z.B. Desktop-Browser): Text in die
-  // Zwischenablage kopieren, damit er trotzdem manuell in Telegram
-  // eingefuegt werden kann.
-  const [shareCopied, setShareCopied] = useState(false);
-
-  const buildShareText = () => {
-    const lines: string[] = [];
-    lines.push(`💚 HUI-Projekt-Antrag: ${app.project_name}`);
-    lines.push(`Status: ${statusLabel(app.status)} · Eingereicht: ${fmt(app.submitted_at || app.created_at)}`);
-    if (app.location) lines.push(`📍 ${app.location}`);
-    const kontakt = [app.contact_name, app.contact_email].filter(Boolean).join(' · ');
-    if (kontakt) lines.push(`👤 Kontakt: ${kontakt}`);
-    lines.push('');
-    if (app.short_desc) lines.push(`📝 Kurzbeschreibung:\n${app.short_desc}`);
-    if (app.problem) lines.push(`\n❗ Problem:\n${app.problem}`);
-    if (app.vision) lines.push(`\n💡 Vision / Lösung:\n${app.vision}`);
-    if (app.funding_goal) lines.push(`\n💶 Wunschbetrag: ${fmtEur(app.funding_goal)}`);
-    if (app.funding_use) lines.push(`\n💰 Mittelverwendung:\n${app.funding_use}`);
-    if (app.cover_url) lines.push(`\n${app.cover_url}`);
-    lines.push(`\nID: ${app.id}`);
-    return lines.join('\n');
-  };
-
-  const handleShare = async () => {
-    const shareText = buildShareText();
-    const shareTitle = `HUI-Projekt: ${app.project_name}`;
-    if (typeof navigator !== 'undefined' && (navigator as any).share) {
-      try {
-        await (navigator as any).share({ title: shareTitle, text: shareText });
-        return;
-      } catch (e: any) {
-        // Nutzer hat das Share-Sheet abgebrochen (AbortError) -- kein Fehler,
-        // kein Fallback noetig.
-        if (e?.name === 'AbortError') return;
-        // Echter Fehler (z.B. Share-API im WebView-Kontext blockiert) -->
-        // Clipboard-Fallback unten.
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(shareText);
-      setShareCopied(true);
-      showToast('In Zwischenablage kopiert — jetzt in Telegram einfügen', 'success');
-      setTimeout(() => setShareCopied(false), 2500);
-    } catch {
-      showToast('Teilen wird von diesem Browser nicht unterstützt', 'error');
-    }
-  };
-
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
       <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', paddingTop: 2 }}>{label}</span>
@@ -1195,24 +1130,6 @@ function DetailModal({
             </div>
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 20, padding: 4, flexShrink: 0 }}>✕</button>
           </div>
-
-          {/* RESUBMIT-HINT-001 (2026-09-16): 'reviewed_at' bleibt beim Editieren
-              unberuehrt (nur status+submitted_at werden von ImpactProjectEditSheet
-              geaendert) -- ist es gesetzt UND Status ist wieder 'pending', ist das
-              zweifelsfrei eine Bearbeitung eines vorher schon geprueften Projekts,
-              keine Erst-Einreichung. Stimmen/Foerdersumme sind vom Update NICHT
-              betroffen (bleiben in impact_votes bzw. current_amount_eur unveraendert). */}
-          {(app.status === 'pending' || app.status === 'submitted') && app.reviewed_at && (
-            <div style={{
-              margin: '0 24px', marginTop: 14, padding: '10px 14px', borderRadius: 10,
-              background: '#f59e0b15', border: '1px solid #f59e0b33',
-              fontSize: 12.5, color: 'var(--text-primary)', lineHeight: 1.5,
-            }}>
-              🔄 <strong>Bearbeitung eines bereits geprüften Projekts</strong> — zuletzt geprüft am {fmt(app.reviewed_at)}.
-              Der Nutzer hat Inhalte/Bild/Fördersumme geändert und erneut eingereicht.
-              Stimmen und bisher erhaltene Fördersumme sind davon nicht betroffen.
-            </div>
-          )}
 
           {/* Body */}
           <div style={{ padding: '20px 24px' }}>
@@ -1382,31 +1299,6 @@ function DetailModal({
               {row('Kurzbeschreibung', <ColText text={app.short_desc} />)}
               {row('Problem', <ColText text={app.problem} />)}
               {row('Vision / Lösung', <ColText text={app.vision} />)}
-              {(app.fit_score !== null && app.fit_score !== undefined) && row('HUI Fit Score', (
-                <span>
-                  <span style={{
-                    fontWeight: 700,
-                    color: app.fit_score >= 65 ? '#22c55e' : app.fit_score >= 25 ? '#d4952a' : '#ef4444',
-                  }}>
-                    {app.fit_score}
-                  </span>
-                  {app.fit_score >= 65 ? ' — Direkt-Genehmigung (≥ 65)'
-                    : app.fit_score >= 25 ? ' — Manuelle Prüfung (25–64)'
-                    : ' — Unter Mindestschwelle (< 25)'}
-                  {Array.isArray(app.score_breakdown) && app.score_breakdown.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                      {app.score_breakdown.map((line: string, i: number) => (
-                        <div key={i} style={{
-                          paddingLeft: i === 0 || i === app.score_breakdown!.length - 1 ? 0 : 14,
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {i === 0 || i === app.score_breakdown!.length - 1 ? line : `├─ ${line}`}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </span>
-              ))}
               {row('Wunschbetrag', fmtEur(app.funding_goal))}
               {row('Mittelverwendung', <ColText text={app.funding_use} />)}
               {row('Standort', app.location || '—')}
@@ -1698,22 +1590,6 @@ function DetailModal({
                 </div>
               </div>
             )}
-
-            {/* ── Teilen / Weiterleiten (PROJECT-SHARE-001) ── */}
-            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-              <button
-                onClick={handleShare}
-                style={{
-                  width: '100%', padding: '12px 20px', borderRadius: 10,
-                  border: '1px solid var(--accent)', cursor: 'pointer',
-                  background: 'var(--accent)11', color: 'var(--accent)',
-                  fontWeight: 700, fontSize: 14,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                }}
-              >
-                {shareCopied ? '✅ Kopiert — jetzt in Telegram einfügen' : '🔗 Teilen / Weiterleiten'}
-              </button>
-            </div>
           </div>
         </div>
       </div>

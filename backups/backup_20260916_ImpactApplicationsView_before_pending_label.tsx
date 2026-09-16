@@ -37,6 +37,10 @@ interface ImpactApplication {
   other_links: string | null;
   why_support: string | null;
   status: string; // Echte DB-Werte: 'approved' | 'rejected'
+  // HUI-FIT-SCORE-V2 (2026-09-14): Score + Breakdown des Bewerbungsassistenten
+  // (Migration 20260914_140, nullable — alte Einreichungen haben null)
+  fit_score: number | null;
+  score_breakdown: string[] | null;
   rejection_reason: string | null;
   admin_comment: string | null;
   review_note: string | null;
@@ -288,6 +292,188 @@ function VotingDetailPanel({
   );
 }
 
+
+// ── MonthlySelectionPanel: Admin wählt 3 Projekte pro Monat ─────────────────
+function MonthlySelectionPanel({ ranking }: { ranking: ImpactRanking[] }) {
+  const [monthlyProjects, setMonthlyProjects] = useState<{project_id:string;project_name:string;votes:number;position:number}[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<{id:string;event_type:string;project_id:string|null;pool_month:string;created_at:string;data:any}[]>([]);
+  const poolMonth = new Date().toISOString().slice(0, 7);
+
+  const loadMonthly = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/impact-monthly-projects?month=${poolMonth}`, { credentials: 'include' });
+      const d = await res.json();
+      setMonthlyProjects(d?.data ?? []);
+    } catch(e) { console.error('Monthly load error:', e); }
+    finally { setLoading(false); }
+  }, [poolMonth]);
+
+  const loadEvents = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/impact-events?limit=50`, { credentials: 'include' });
+      const d = await res.json();
+      setEvents(d?.data ?? []);
+    } catch(e) { console.error('Events load error:', e); }
+  }, []);
+
+  useEffect(() => { loadMonthly(); loadEvents(); }, [loadMonthly, loadEvents]);
+
+  const handleSelect = async (projectId: string) => {
+    try {
+      const res = await fetch('/api/impact-monthly-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ project_id: projectId, pool_month: poolMonth }),
+      });
+      const d = await res.json();
+      if (d?.ok !== false) {
+        loadMonthly();
+      } else {
+        alert(d?.error || 'Fehler beim Auswählen');
+      }
+    } catch(e) { alert('Verbindungsfehler'); }
+  };
+
+  const handleRemove = async (projectId: string) => {
+    try {
+      const res = await fetch('/api/impact-monthly-projects', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ project_id: projectId, pool_month: poolMonth }),
+      });
+      loadMonthly();
+    } catch(e) { alert('Verbindungsfehler'); }
+  };
+
+  const availableProjects = ranking.filter(r =>
+    !r.is_completed &&
+    !monthlyProjects.some(m => m.project_id === r.project_id)
+  );
+
+  const EVENT_LABELS: Record<string, {emoji:string;label:string}> = {
+    impact_vote_cast:        { emoji:'🗳️', label:'Stimme abgegeben' },
+    impact_ranking_updated:  { emoji:'📊', label:'Ranking aktualisiert' },
+    impact_project_completed:{ emoji:'✅', label:'Projekt abgeschlossen' },
+    impact_project_added:    { emoji:'➕', label:'Projekt hinzugefügt' },
+    impact_month_reset:      { emoji:'🔄', label:'Monats-Reset' },
+  };
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      {/* Monats-Auswahl */}
+      <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:16, padding:20 }}>
+        <h3 style={{ margin:'0 0 4px', fontSize:16, fontWeight:600 }}>
+          📅 Monats-Auswahl — {poolMonth}
+        </h3>
+        <p style={{ margin:'0 0 16px', fontSize:13, color:'var(--text-muted)' }}>
+          Wähle 3 Projekte für das Voting diesen Monat. Das Ranking aktualisiert sich automatisch nach Stimmen.
+        </p>
+
+        {/* Ausgewählte Projekte */}
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {loading ? (
+            <div style={{ color:'var(--text-muted)', fontSize:13, padding:12 }}>Lade…</div>
+          ) : monthlyProjects.length === 0 ? (
+            <div style={{ color:'var(--text-muted)', fontSize:13, padding:12, fontStyle:'italic' }}>
+              Noch keine Projekte ausgewählt — unten aus der Liste hinzufügen.
+            </div>
+          ) : (
+            monthlyProjects.map((p, i) => (
+              <div key={p.project_id} style={{
+                display:'flex', alignItems:'center', justifyContent:'space-between',
+                background:'var(--bg-primary)', border:'1px solid var(--border)',
+                borderRadius:10, padding:'10px 14px',
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ fontSize:18 }}>{['🥇','🥈','🥉'][i] || `#${i+1}`}</span>
+                  <span style={{ fontSize:14, fontWeight:500 }}>{p.project_name}</span>
+                  <span style={{ fontSize:12, color:'var(--text-muted)' }}>
+                    {p.votes} Stimme{p.votes !== 1 ? 'n' : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleRemove(p.project_id)}
+                  style={{
+                    background:'transparent', border:'1px solid #ef4444',
+                    borderRadius:8, padding:'4px 10px', cursor:'pointer',
+                    color:'#ef4444', fontSize:12, fontWeight:500,
+                  }}
+                >Entfernen</button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Verfügbare Projekte zum Hinzufügen */}
+        {monthlyProjects.length < 3 && availableProjects.length > 0 && (
+          <div style={{ marginTop:14 }}>
+            <div style={{ fontSize:12, fontWeight:600, marginBottom:6, color:'var(--text-muted)' }}>
+              Verfügbare Projekte ({availableProjects.length}):
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:200, overflow:'auto' }}>
+              {availableProjects.slice(0, 20).map(r => (
+                <button
+                  key={r.project_id}
+                  onClick={() => handleSelect(r.project_id)}
+                  style={{
+                    display:'flex', alignItems:'center', justifyContent:'space-between',
+                    background:'var(--bg-primary)', border:'1px solid var(--border)',
+                    borderRadius:8, padding:'8px 12px', cursor:'pointer',
+                    textAlign:'left', fontSize:13,
+                  }}
+                >
+                  <span>{r.project_name}</span>
+                  <span style={{ fontSize:11, color:'#0DC4B5', fontWeight:600 }}>+ Hinzufügen</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {monthlyProjects.length === 3 && (
+          <div style={{ marginTop:12, padding:'8px 12px', background:'#0DC4B510', borderRadius:8, fontSize:12, color:'#0DC4B5', fontWeight:600 }}>
+            ✓ 3 Projekte ausgewählt — Voting aktiv
+          </div>
+        )}
+      </div>
+
+      {/* Event-Log */}
+      <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:16, padding:20 }}>
+        <h3 style={{ margin:'0 0 12px', fontSize:16, fontWeight:600 }}>
+          📋 Impact Event-Log
+        </h3>
+        {events.length === 0 ? (
+          <div style={{ color:'var(--text-muted)', fontSize:13, fontStyle:'italic' }}>Noch keine Events.</div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:300, overflow:'auto' }}>
+            {events.map(e => {
+              const info = EVENT_LABELS[e.event_type] || { emoji:'📝', label:e.event_type };
+              const projName = ranking.find(r => r.project_id === e.project_id)?.project_name;
+              return (
+                <div key={e.id} style={{
+                  display:'flex', alignItems:'center', gap:8,
+                  padding:'6px 10px', borderBottom:'1px solid var(--border)',
+                  fontSize:12,
+                }}>
+                  <span style={{ fontSize:14 }}>{info.emoji}</span>
+                  <span style={{ fontWeight:500 }}>{info.label}</span>
+                  {projName && <span style={{ color:'var(--text-muted)' }}>— {projName}</span>}
+                  <span style={{ marginLeft:'auto', color:'var(--text-muted)', fontSize:11 }}>
+                    {new Date(e.created_at).toLocaleString('de-DE')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── VotingTab Komponente ───────────────────────────────────────────────────────
 function VotingTab() {
   const [ranking, setRanking]                     = useState<ImpactRanking[]>([]);
@@ -367,6 +553,9 @@ function VotingTab() {
   const top3       = ranking.filter(r => r.rank != null && r.rank <= 3).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
   const completed  = ranking.filter(r => r.is_completed);
 
+  // Monats-Auswahl Panel (v2: Admin wählt 3 Projekte)
+  const _monthlyPanel = <MonthlySelectionPanel ranking={ranking} />;
+
   // All projects (approved + pending) with status filter
   const allProjects = ranking.filter(r => {
     if (statusFilter === 'completed') return r.is_completed;
@@ -410,6 +599,7 @@ function VotingTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <MonthlySelectionPanel ranking={ranking} />
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
@@ -899,6 +1089,59 @@ function DetailModal({
     onClose();
   };
 
+  // ── PROJECT-SHARE-001 (2026-09-13, Michael-Request): "ganz unten im
+  // Uebersichtsmodal" Teilen/Weiterleiten -- primaer fuer Telegram, wo das
+  // Team die Projekt-Antraege intern bespricht. Web Share API oeffnet auf
+  // Mobilgeraeten (die SADB-PWA "HUI Admin" ist installiert, siehe
+  // manifest.json) das native Android-Share-Sheet mit Telegram als Option.
+  // Fallback (kein navigator.share, z.B. Desktop-Browser): Text in die
+  // Zwischenablage kopieren, damit er trotzdem manuell in Telegram
+  // eingefuegt werden kann.
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const buildShareText = () => {
+    const lines: string[] = [];
+    lines.push(`💚 HUI-Projekt-Antrag: ${app.project_name}`);
+    lines.push(`Status: ${statusLabel(app.status)} · Eingereicht: ${fmt(app.submitted_at || app.created_at)}`);
+    if (app.location) lines.push(`📍 ${app.location}`);
+    const kontakt = [app.contact_name, app.contact_email].filter(Boolean).join(' · ');
+    if (kontakt) lines.push(`👤 Kontakt: ${kontakt}`);
+    lines.push('');
+    if (app.short_desc) lines.push(`📝 Kurzbeschreibung:\n${app.short_desc}`);
+    if (app.problem) lines.push(`\n❗ Problem:\n${app.problem}`);
+    if (app.vision) lines.push(`\n💡 Vision / Lösung:\n${app.vision}`);
+    if (app.funding_goal) lines.push(`\n💶 Wunschbetrag: ${fmtEur(app.funding_goal)}`);
+    if (app.funding_use) lines.push(`\n💰 Mittelverwendung:\n${app.funding_use}`);
+    if (app.cover_url) lines.push(`\n${app.cover_url}`);
+    lines.push(`\nID: ${app.id}`);
+    return lines.join('\n');
+  };
+
+  const handleShare = async () => {
+    const shareText = buildShareText();
+    const shareTitle = `HUI-Projekt: ${app.project_name}`;
+    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: shareTitle, text: shareText });
+        return;
+      } catch (e: any) {
+        // Nutzer hat das Share-Sheet abgebrochen (AbortError) -- kein Fehler,
+        // kein Fallback noetig.
+        if (e?.name === 'AbortError') return;
+        // Echter Fehler (z.B. Share-API im WebView-Kontext blockiert) -->
+        // Clipboard-Fallback unten.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShareCopied(true);
+      showToast('In Zwischenablage kopiert — jetzt in Telegram einfügen', 'success');
+      setTimeout(() => setShareCopied(false), 2500);
+    } catch {
+      showToast('Teilen wird von diesem Browser nicht unterstützt', 'error');
+    }
+  };
+
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
       <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', paddingTop: 2 }}>{label}</span>
@@ -1113,7 +1356,31 @@ function DetailModal({
               {row('Kurzbeschreibung', <ColText text={app.short_desc} />)}
               {row('Problem', <ColText text={app.problem} />)}
               {row('Vision / Lösung', <ColText text={app.vision} />)}
-              {row('Warum Förderung', <ColText text={app.why_support} />)}
+              {(app.fit_score !== null && app.fit_score !== undefined) && row('HUI Fit Score', (
+                <span>
+                  <span style={{
+                    fontWeight: 700,
+                    color: app.fit_score >= 65 ? '#22c55e' : app.fit_score >= 25 ? '#d4952a' : '#ef4444',
+                  }}>
+                    {app.fit_score}
+                  </span>
+                  {app.fit_score >= 65 ? ' — Direkt-Genehmigung (≥ 65)'
+                    : app.fit_score >= 25 ? ' — Manuelle Prüfung (25–64)'
+                    : ' — Unter Mindestschwelle (< 25)'}
+                  {Array.isArray(app.score_breakdown) && app.score_breakdown.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      {app.score_breakdown.map((line: string, i: number) => (
+                        <div key={i} style={{
+                          paddingLeft: i === 0 || i === app.score_breakdown!.length - 1 ? 0 : 14,
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {i === 0 || i === app.score_breakdown!.length - 1 ? line : `├─ ${line}`}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </span>
+              ))}
               {row('Wunschbetrag', fmtEur(app.funding_goal))}
               {row('Mittelverwendung', <ColText text={app.funding_use} />)}
               {row('Standort', app.location || '—')}
@@ -1405,6 +1672,22 @@ function DetailModal({
                 </div>
               </div>
             )}
+
+            {/* ── Teilen / Weiterleiten (PROJECT-SHARE-001) ── */}
+            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={handleShare}
+                style={{
+                  width: '100%', padding: '12px 20px', borderRadius: 10,
+                  border: '1px solid var(--accent)', cursor: 'pointer',
+                  background: 'var(--accent)11', color: 'var(--accent)',
+                  fontWeight: 700, fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {shareCopied ? '✅ Kopiert — jetzt in Telegram einfügen' : '🔗 Teilen / Weiterleiten'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1517,18 +1800,13 @@ export default function ImpactApplicationsView() {
         headers: { Authorization: `Bearer ${getSessionToken()}` },
       });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-      // Nutzer benachrichtigen
-      try {
-        await sendResonanzNotification(
-          app.user_id,
-          'impact_project_deleted',
-          '🗑️ Dein Herzensprojekt wurde entfernt',
-          `Dein Projekt „${app.project_name}" wurde vom HUI-Team entfernt. Bei Fragen wende dich bitte an den Support.`,
-          id,
-          app.project_name,
-          'Administrativ entfernt',
-        );
-      } catch { /* Notification-Fehler nicht kritisch */ }
+      // STILLE-ADMIN-DELETE-001 (2026-09-08, Michael): Admin-Löschung eines
+      // Herzensprojekts ist bewusst STILL — anders als Ablehnen (handleReject
+      // weiter oben, sendet weiterhin sendResonanzNotification) ist ein Hard-
+      // Delete ("Projekt entfernen") eine rein administrative Aufräum-Aktion
+      // (z.B. Duplikat, Spam, Testdaten) — der Ersteller bekommt KEINE
+      // Benachrichtigung ins Resonanzzentrum. Vorher wurde hier unconditional
+      // sendResonanzNotification(..., 'impact_project_deleted', ...) gerufen.
       showToast('Projekt gelöscht', 'error');
       setApps(prev => prev.filter(a => a.id !== id));
       setSelected(null);
