@@ -86,15 +86,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (review_note      !== undefined) updatePayload.review_note      = review_note;
     if (status === 'rejected') updatePayload.rejected_at = now;
 
-    // IMPACT-EDIT-SNAPSHOT-001 (2026-09-16): Bei Freigabe den Edit-Snapshot
-    // und den Grund zuruecksetzen — der genehmigte Stand ist jetzt der neue
-    // "Original"-Zustand; der naechste Edit-Zyklus (be-hui
-    // ImpactProjectEditSheet) snapshottet wieder frisch.
-    if (status === 'approved') {
-      updatePayload.edit_snapshot = null;
-      updatePayload.edit_reason   = null;
-    }
-
     // Update ausführen
     const { data, error } = await sb
       .from('impact_applications')

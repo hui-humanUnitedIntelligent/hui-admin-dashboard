@@ -49,80 +49,9 @@ interface ImpactApplication {
   rejected_at: string | null;
   submitted_at: string | null;
   created_at: string;
-  // IMPACT-EDIT-SNAPSHOT-001 (2026-09-16, Migration 20260916_143):
-  // Snapshot des letzten genehmigten Zustands (geschrieben von be-hui
-  // ImpactProjectEditSheet VOR dem Edit; hier geleert bei Freigabe) +
-  // optionaler vom Nutzer angegebener Grund der Aenderung.
-  edit_snapshot: Record<string, unknown> | null;
-  edit_reason: string | null;
 }
 
 type TabKey = 'all' | 'approved' | 'rejected' | 'voting';
-
-// ── IMPACT-EDIT-SNAPSHOT-001 (2026-09-16): Diff-Ansicht fuer Resubmissions ──
-// Vergleicht edit_snapshot (letzter genehmigter Stand, vom be-hui
-// ImpactProjectEditSheet VOR dem Edit geschrieben) mit den aktuellen Feldern
-// und zeigt nur die Felder, die sich unterscheiden. Kein Snapshot (aeltere
-// Edits vor Migration 143 oder Erst-Einreichungen) -> nichts gerendert.
-function EditDiffSection({ app }: { app: ImpactApplication }) {
-  const snap = app.edit_snapshot;
-  if (!snap) return null;
-
-  const asStr = (key: string, v: unknown): string => {
-    if (key === 'media_urls')
-      return Array.isArray(v) ? `${v.length} Datei(en)` : 'keine';
-    if (key === 'cover_url') return v ? 'vorhanden' : 'keins';
-    if (key === 'funding_goal') return v != null ? `${v} €` : '—';
-    return v ? String(v) : '—';
-  };
-
-  const fieldDefs: Array<{ key: string; label: string }> = [
-    { key: 'project_name', label: 'Projektname' },
-    { key: 'short_desc',   label: 'Kurzbeschreibung' },
-    { key: 'problem',       label: 'Problem' },
-    { key: 'vision',       label: 'Vision / Umsetzung' },
-    { key: 'funding_goal', label: 'Fördersumme' },
-    { key: 'cover_url',     label: 'Titelbild' },
-    { key: 'media_urls',    label: 'Zusätzliche Bilder/Videos' },
-  ];
-
-  const diffs = fieldDefs
-    .map(({ key, label }) => {
-      const before = asStr(key, snap[key]);
-      const after  = asStr(key, (app as unknown as Record<string, unknown>)[key]);
-      return { label, before, after, changed: before !== after };
-    })
-    .filter(d => d.changed);
-
-  if (diffs.length === 0) return null;
-
-  return (
-    <div style={{
-      margin: '0 24px', marginTop: 12, padding: '12px 14px', borderRadius: 10,
-      background: 'var(--bg-secondary, #f7f7f5)', border: '1px solid var(--border, #e5e5e0)',
-    }}>
-      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
-        📋 Geänderte Inhalte gegenüber der letzten Freigabe
-      </div>
-      {diffs.map(d => (
-        <div key={d.label} style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.5 }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.label}</div>
-          <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-            Vorher: {d.before.length > 160 ? d.before.slice(0, 160) + '…' : d.before}
-          </div>
-          <div style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-            Nachher: {d.after.length > 160 ? d.after.slice(0, 160) + '…' : d.after}
-          </div>
-        </div>
-      ))}
-      {app.edit_reason && (
-        <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--text-primary)', lineHeight: 1.5 }}>
-          💬 <strong>Nutzer-Angabe:</strong> {app.edit_reason}
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 async function fetchApplications(): Promise<ImpactApplication[]> {
@@ -1284,11 +1213,6 @@ function DetailModal({
               Stimmen und bisher erhaltene Fördersumme sind davon nicht betroffen.
             </div>
           )}
-
-          {/* IMPACT-EDIT-SNAPSHOT-001: Diff-Ansicht (nur bei Resubmission mit
-              Snapshot; Erst-Einreichungen und Edits vor Migration 143 haben
-              keinen edit_snapshot und sehen diesen Block nicht). */}
-          <EditDiffSection app={app} />
 
           {/* Body */}
           <div style={{ padding: '20px 24px' }}>
