@@ -269,14 +269,7 @@ export async function PATCH(req: NextRequest) {
       if (!existing) return fail('Nicht gefunden');
       const d = { ...(existing.data as object ?? {}) } as Record<string, unknown>;
 
-      // BADGE-SYNC-008 (2026-09-18, Michael: "die 2 muss dann auch wieder
-      // weg wenn ich draufgeklickt habe und/oder wenn alle abgeschlossen
-      // sind"): Schliessen einer Nachricht/eines Threads OHNE ihn vorher zu
-      // oeffnen liess read_by_admin auf false stehen -> der Badge (zaehlt
-      // Threads mit >=1 ungelesener Nachricht) blieb fuer geschlossene
-      // Tickets fuer immer haengen. Ein geschlossenes Ticket braucht keine
-      // weitere Admin-Aufmerksamkeit mehr -> close setzt read_by_admin=true.
-      if (body.action === 'close')  { d.status = 'closed'; d.read_by_admin = true; }
+      if (body.action === 'close')  d.status = 'closed';
       if (body.action === 'reopen') d.status = 'open';
       if (body.action === 'read')   d.read_by_admin = true;
       if (body.status)   d.status   = body.status;
@@ -297,11 +290,9 @@ export async function PATCH(req: NextRequest) {
         return String(d?.ticket_number ?? '') === body.ticket_number;
       });
       for (const row of threadRows) {
-        const updatedData: Record<string, unknown> = { ...(row.data as object ?? {}), status: newStatus };
-        // BADGE-SYNC-008: Beim Schliessen des GESAMTEN Threads ebenfalls
-        // read_by_admin=true setzen — sonst haengt der Ungelesen-Badge fest.
-        if (newStatus === 'closed') updatedData.read_by_admin = true;
-        await sb.from('notifications').update({ data: updatedData }).eq('id', row.id);
+        await sb.from('notifications').update({
+          data: { ...(row.data as object ?? {}), status: newStatus }
+        }).eq('id', row.id);
       }
       return ok({ ticket_number: body.ticket_number, status: newStatus });
     }
