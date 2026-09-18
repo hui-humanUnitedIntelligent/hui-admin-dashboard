@@ -13,12 +13,6 @@
 //   3. Bei echten neuen Items (Count steigt über seen-Wert) → Badge kommt zurück.
 //
 // BADGE-SYNC-005 (2026-08-22): + Fehlermeldungen (bug_reports, status='offen').
-// BADGE-SYNC-006 (2026-09-18, Michael: "wenn ein Ticket rein kommt bei SADB
-// muss auch eine rote Eins davor stehen"): + Support-Tickets (notifications,
-// type='support_ticket'). Zählt UNGELESENE Threads — dieselbe Definition
-// (thread.unread = irgendeine Nachricht im Thread mit read_by_admin=false),
-// die auf der Tickets-Seite selbst schon als "N ungelesen"-Pill angezeigt
-// wird (tickets/route.ts groupIntoThreads()) — keine zweite Wahrheit.
 // Zusätzlich: getEffectiveCountForGroup(hrefs) — Summe der effektiven Counts
 // über mehrere hrefs, damit die Gruppen-Header (Management/Inhalte/Tools/System)
 // auch im eingeklappten Zustand einen Gesamt-Badge zeigen können.
@@ -35,13 +29,12 @@ export type PendingCounts = {
   impactApplications: number;
   scoreFailures:      number;
   bugReports:         number;
-  tickets:            number;
   total:              number;
 };
 
 const EMPTY: PendingCounts = {
   works: 0, talents: 0, experiences: 0, momente: 0, recReports: 0,
-  impactApplications: 0, scoreFailures: 0, bugReports: 0, tickets: 0, total: 0,
+  impactApplications: 0, scoreFailures: 0, bugReports: 0, total: 0,
 };
 
 const STORAGE_KEY = 'sadb_seen_counts';
@@ -71,13 +64,11 @@ const HREF_TO_KEY: Record<string, keyof PendingCounts> = {
   '/impact-projekte':        'impactApplications',
   '/score-failures':         'scoreFailures',
   '/bug-reports':            'bugReports',
-  '/tickets':                'tickets',
   '/employee/works':                  'works',
   '/employee/talent-offers':          'talents',
   '/employee/experiences':            'experiences',
   '/employee/recommendation-reports': 'recReports',
   '/employee/reasons':                'scoreFailures',
-  '/employee/tickets':                'tickets',
 };
 
 /** Markiert einen Bereich als "gesehen" — Badge verschwindet bis neue Items kommen. */
@@ -179,11 +170,6 @@ export function usePendingCounts(intervalMs = 30_000) {
           { event: '*', schema: 'public', table: 'bug_reports' },
           () => refresh()
         )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'notifications', filter: 'type=eq.support_ticket' },
-          () => refresh()
-        )
         .subscribe();
 
       channelRef.current = channel;
@@ -197,24 +183,10 @@ export function usePendingCounts(intervalMs = 30_000) {
 
   // ── Click-to-Clear: effective Counts nach "gesehen"-Status ──────────
   // Fuer jeden href: zeige Badge nur wenn echter Count > zuletzt gesehener Count
-  //
-  // BADGE-SYNC-007 (2026-09-18, Michael: "immer noch kein +1 bei neu
-  // eingegangenen support Tickets"): Fuer Tickets gibt es bereits eine ECHTE
-  // Server-Wahrheit (notifications.data.read_by_admin, exakt dieselbe
-  // Definition wie die "N ungelesen"-Pille auf der Tickets-Seite selbst).
-  // Die generische Click-to-Clear-Daempfung (fuer works/talents/etc. gedacht,
-  // die KEIN eigenes read/unread-Flag haben) ist fuer Tickets eine zweite,
-  // konkurrierende Wahrheit (verstoesst gegen HUI-Charta "keine zweite
-  // Wahrheit"): ein blosser Klick auf den Nav-Punkt (ohne das Ticket zu
-  // oeffnen) hat den Badge lokal geloescht, obwohl das Ticket serverseitig
-  // weiter unread war. Fix: Fuer den 'tickets'-Key wird der ECHTE Server-Wert
-  // ungedaempft zurueckgegeben; er verschwindet nur noch, wenn der Thread
-  // wirklich geoeffnet wird (tickets/route.ts setzt dann read_by_admin=true).
   const getEffectiveCount = useCallback((href: string): number => {
     const key = HREF_TO_KEY[href];
     if (!key) return 0;
     const actual = counts[key] ?? 0;
-    if (key === 'tickets') return actual; // SSOT = read_by_admin, keine Client-Daempfung
     const seen = getSeenCounts()[href] ?? 0;
     return Math.max(0, actual - seen);
   }, [counts]);
@@ -230,12 +202,6 @@ export function usePendingCounts(intervalMs = 30_000) {
     ...counts,
     getEffectiveCount,
     getEffectiveCountForGroup,
-    // BADGE-SYNC-007: markSeen fuer Tickets-hrefs ist bewusst ein No-Op --
-    // der Ticket-Badge kennt kein Client-"gesehen", nur den Server-Read-Status.
-    markSeen: (href: string) => {
-      const key = HREF_TO_KEY[href];
-      if (key === 'tickets') return;
-      markSeen(href, counts[key] ?? 0);
-    },
+    markSeen: (href: string) => markSeen(href, counts[HREF_TO_KEY[href]] ?? 0),
   };
 }

@@ -197,24 +197,10 @@ export function usePendingCounts(intervalMs = 30_000) {
 
   // ── Click-to-Clear: effective Counts nach "gesehen"-Status ──────────
   // Fuer jeden href: zeige Badge nur wenn echter Count > zuletzt gesehener Count
-  //
-  // BADGE-SYNC-007 (2026-09-18, Michael: "immer noch kein +1 bei neu
-  // eingegangenen support Tickets"): Fuer Tickets gibt es bereits eine ECHTE
-  // Server-Wahrheit (notifications.data.read_by_admin, exakt dieselbe
-  // Definition wie die "N ungelesen"-Pille auf der Tickets-Seite selbst).
-  // Die generische Click-to-Clear-Daempfung (fuer works/talents/etc. gedacht,
-  // die KEIN eigenes read/unread-Flag haben) ist fuer Tickets eine zweite,
-  // konkurrierende Wahrheit (verstoesst gegen HUI-Charta "keine zweite
-  // Wahrheit"): ein blosser Klick auf den Nav-Punkt (ohne das Ticket zu
-  // oeffnen) hat den Badge lokal geloescht, obwohl das Ticket serverseitig
-  // weiter unread war. Fix: Fuer den 'tickets'-Key wird der ECHTE Server-Wert
-  // ungedaempft zurueckgegeben; er verschwindet nur noch, wenn der Thread
-  // wirklich geoeffnet wird (tickets/route.ts setzt dann read_by_admin=true).
   const getEffectiveCount = useCallback((href: string): number => {
     const key = HREF_TO_KEY[href];
     if (!key) return 0;
     const actual = counts[key] ?? 0;
-    if (key === 'tickets') return actual; // SSOT = read_by_admin, keine Client-Daempfung
     const seen = getSeenCounts()[href] ?? 0;
     return Math.max(0, actual - seen);
   }, [counts]);
@@ -230,12 +216,6 @@ export function usePendingCounts(intervalMs = 30_000) {
     ...counts,
     getEffectiveCount,
     getEffectiveCountForGroup,
-    // BADGE-SYNC-007: markSeen fuer Tickets-hrefs ist bewusst ein No-Op --
-    // der Ticket-Badge kennt kein Client-"gesehen", nur den Server-Read-Status.
-    markSeen: (href: string) => {
-      const key = HREF_TO_KEY[href];
-      if (key === 'tickets') return;
-      markSeen(href, counts[key] ?? 0);
-    },
+    markSeen: (href: string) => markSeen(href, counts[HREF_TO_KEY[href]] ?? 0),
   };
 }
