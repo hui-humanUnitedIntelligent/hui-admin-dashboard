@@ -1,6 +1,11 @@
 // frontend/src/app/api/pending-counts/route.ts
 // BADGE-SYNC-004: + Impact Projekte (impact_applications) + Ablehnungsgründe (impact_score_failures)
 // BADGE-SYNC-005 (2026-08-22): + Fehlermeldungen (bug_reports, status='offen')
+// BADGE-SYNC-006 (2026-09-18, Michael: "wenn ein Ticket rein kommt bei SADB
+// muss auch eine rote Eins davor stehen"): + Support-Tickets. Zaehlt Threads
+// mit mindestens einer ungelesenen Nachricht (read_by_admin=false) — exakt
+// dieselbe Definition wie die "N ungelesen"-Pill auf der Tickets-Seite selbst
+// (tickets/route.ts groupIntoThreads() -> thread.unread).
 import { NextResponse } from 'next/server';
 import { guardEmployee } from '@/app/lib/auth-guard';
 import { getServiceClient } from '@/app/lib/supabase-server';
@@ -19,7 +24,7 @@ export async function GET(req: Request) {
   // (0-50 Records) vernachlässigbar, aber KORREKT.
   const [
     worksRes, talentsRes, expRes, momentesRes, recReportsRes,
-    impactAppsRes, scoreFailuresRes, bugReportsRes,
+    impactAppsRes, scoreFailuresRes, bugReportsRes, ticketsRes,
   ] = await Promise.all([
     // Works: warten auf Freigabe
     sb.from('works')
@@ -58,6 +63,12 @@ export async function GET(req: Request) {
     sb.from('bug_reports')
       .select('id')
       .eq('status', 'offen'),
+
+    // Support-Tickets: alle Nachrichten holen, unread-Threads werden unten
+    // gezaehlt (BADGE-SYNC-006) — kleine Admin-Tabelle, select(id,data) reicht.
+    sb.from('notifications')
+      .select('id, data')
+      .eq('type', 'support_ticket'),
   ]);
 
   const works              = worksRes.data?.length     ?? 0;
@@ -70,7 +81,20 @@ export async function GET(req: Request) {
   const scoreFailures       = scoreFailuresRes.data?.length ?? 0;
   const bugReports          = bugReportsRes.data?.length  ?? 0;
 
-  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures + bugReports;
+  // Support-Tickets: pro Thread (ticket_number) pruefen ob irgendeine
+  // Nachricht read_by_admin=false hat -> Anzahl UNGELESENER Threads,
+  // nicht Anzahl Nachrichten (ein Thread mit 3 ungelesenen Antworten zaehlt
+  // trotzdem nur als 1 -- gleiche Definition wie tickets/route.ts unread-Flag).
+  const ticketRows = ticketsRes.data ?? [];
+  const unreadTicketThreads = new Set<string>();
+  for (const row of ticketRows as Array<{ data: Record<string, unknown> | null }>) {
+    const d = row.data ?? {};
+    const tnr = String(d.ticket_number ?? '');
+    if (tnr && !d.read_by_admin) unreadTicketThreads.add(tnr);
+  }
+  const tickets = unreadTicketThreads.size;
+
+  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures + bugReports + tickets;
 
   // CACHE-BUST-001 (2026-08-21): Vercel liefert veraltete Badge-Zähler.
   // Force no-store + immutable response um Edge-Caching zu verhindern.
@@ -83,6 +107,7 @@ export async function GET(req: Request) {
     impactApplications,
     scoreFailures,
     bugReports,
+    tickets,
     total,
   }, {
     headers: {

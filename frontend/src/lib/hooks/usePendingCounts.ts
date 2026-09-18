@@ -13,6 +13,12 @@
 //   3. Bei echten neuen Items (Count steigt über seen-Wert) → Badge kommt zurück.
 //
 // BADGE-SYNC-005 (2026-08-22): + Fehlermeldungen (bug_reports, status='offen').
+// BADGE-SYNC-006 (2026-09-18, Michael: "wenn ein Ticket rein kommt bei SADB
+// muss auch eine rote Eins davor stehen"): + Support-Tickets (notifications,
+// type='support_ticket'). Zählt UNGELESENE Threads — dieselbe Definition
+// (thread.unread = irgendeine Nachricht im Thread mit read_by_admin=false),
+// die auf der Tickets-Seite selbst schon als "N ungelesen"-Pill angezeigt
+// wird (tickets/route.ts groupIntoThreads()) — keine zweite Wahrheit.
 // Zusätzlich: getEffectiveCountForGroup(hrefs) — Summe der effektiven Counts
 // über mehrere hrefs, damit die Gruppen-Header (Management/Inhalte/Tools/System)
 // auch im eingeklappten Zustand einen Gesamt-Badge zeigen können.
@@ -29,12 +35,13 @@ export type PendingCounts = {
   impactApplications: number;
   scoreFailures:      number;
   bugReports:         number;
+  tickets:            number;
   total:              number;
 };
 
 const EMPTY: PendingCounts = {
   works: 0, talents: 0, experiences: 0, momente: 0, recReports: 0,
-  impactApplications: 0, scoreFailures: 0, bugReports: 0, total: 0,
+  impactApplications: 0, scoreFailures: 0, bugReports: 0, tickets: 0, total: 0,
 };
 
 const STORAGE_KEY = 'sadb_seen_counts';
@@ -64,11 +71,13 @@ const HREF_TO_KEY: Record<string, keyof PendingCounts> = {
   '/impact-projekte':        'impactApplications',
   '/score-failures':         'scoreFailures',
   '/bug-reports':            'bugReports',
+  '/tickets':                'tickets',
   '/employee/works':                  'works',
   '/employee/talent-offers':          'talents',
   '/employee/experiences':            'experiences',
   '/employee/recommendation-reports': 'recReports',
   '/employee/reasons':                'scoreFailures',
+  '/employee/tickets':                'tickets',
 };
 
 /** Markiert einen Bereich als "gesehen" — Badge verschwindet bis neue Items kommen. */
@@ -168,6 +177,11 @@ export function usePendingCounts(intervalMs = 30_000) {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'bug_reports' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: 'type=eq.support_ticket' },
           () => refresh()
         )
         .subscribe();
