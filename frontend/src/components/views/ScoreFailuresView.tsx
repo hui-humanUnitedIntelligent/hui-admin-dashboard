@@ -25,6 +25,9 @@ interface ScoreFailure {
   ai_score: number;
   grund: string;
   created_at: string;
+  status: 'active' | 'deleted';
+  deleted_by: string | null;
+  deleted_at: string | null;
 }
 
 const GRUND_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
@@ -35,23 +38,6 @@ const GRUND_LABELS: Record<string, { label: string; emoji: string; color: string
   kein_hui_bezug:{ label: 'Kein HUI-Bezug',    emoji: '🎯',  color: '#6b7280' },
 };
 
-
-// ── Session-Token-Helper ──────────────────────────────────────────────────────
-function getSessionToken(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    // Supabase speichert die Session unter 'sb-<project-ref>-auth-token'
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i) || '';
-      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        const val = JSON.parse(localStorage.getItem(key) || '{}');
-        return val?.access_token || '';
-      }
-    }
-  } catch { /* ignore */ }
-  return '';
-}
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchFailures(): Promise<ScoreFailure[]> {
   const res = await fetch(
@@ -166,14 +152,19 @@ export default function ScoreFailuresView() {
   const [showDeleted, setShowDeleted] = useState(false);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Diesen Eintrag löschen?')) return;
+    if (!confirm('Diesen Eintrag in „Gelöscht“ verschieben?')) return;
     setDeletingId(id);
     try {
       await softDeleteFailure(id);
-      setFailures(prev => prev.map(f => f.id===id ? { ...f, status: 'deleted' } : f));
-      showToast('Eintrag gelöscht (Soft-Delete)', 'success');
-    } catch { showToast('Fehler beim Löschen', 'error'); }
-    finally { setDeletingId(null); }
+      setFailures(prev => prev.map(f => f.id === id
+        ? { ...f, status: 'deleted', deleted_at: new Date().toISOString() }
+        : f));
+      setSelected(prev => prev?.id === id ? null : prev);
+      showToast('Eintrag gelöscht', 'success');
+    } catch (error) {
+      console.error('[ScoreFailures] Soft-Delete fehlgeschlagen:', error);
+      showToast('Fehler beim Löschen', 'error');
+    } finally { setDeletingId(null); }
   };
 
   const handleHardDelete = async (id: string) => {
@@ -182,14 +173,17 @@ export default function ScoreFailuresView() {
     try {
       await hardDeleteFailure(id);
       setFailures(prev => prev.filter(f => f.id !== id));
+      setSelected(prev => prev?.id === id ? null : prev);
       showToast('Endgültig gelöscht', 'success');
-    } catch { showToast('Fehler beim endgültigen Löschen', 'error'); }
-    finally { setDeletingId(null); }
+    } catch (error) {
+      console.error('[ScoreFailures] Hard-Delete fehlgeschlagen:', error);
+      showToast('Fehler beim endgültigen Löschen', 'error');
+    } finally { setDeletingId(null); }
   };
 
   // Filter + Search
   const filtered = failures.filter(f => {
-    const fStatus = (f as ScoreFailure & { status?: string }).status;
+    const fStatus = f.status;
     if (!showDeleted && fStatus === 'deleted') return false;
     if (showDeleted && fStatus !== 'deleted') return false;
     const matchGrund = filterGrund === 'all' || f.grund === filterGrund;
@@ -317,9 +311,15 @@ export default function ScoreFailuresView() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(f.id); }}
-                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                      🗑 Löschen
+                    <button
+                      disabled={deletingId === f.id}
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (showDeleted) handleHardDelete(f.id);
+                        else handleDelete(f.id);
+                      }}
+                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: 11, fontWeight: 700, cursor: deletingId === f.id ? 'wait' : 'pointer', opacity: deletingId === f.id ? 0.55 : 1 }}>
+                      {deletingId === f.id ? 'Lösche …' : showDeleted ? '🗑 Endgültig löschen' : '🗑 Löschen'}
                     </button>
                   </div>
                 </div>

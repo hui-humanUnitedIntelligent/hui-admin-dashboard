@@ -18,15 +18,19 @@ export async function DELETE(
   try {
     const sb = getServiceClient();
 
-    // Datensatz vorher laden (für Medien)
-    const { data: row } = await sb.from('impact_score_failures').select('*').eq('id', id).single();
-
-
-    // Hard-Delete
-    const { error } = await sb.from('impact_score_failures').delete().eq('id', id);
+    // Hard-Delete mit Rückgabeprüfung: Supabase liefert bei einer unbekannten
+    // ID sonst erfolgreich 0 gelöschte Zeilen, was die UI fälschlich als
+    // erledigt anzeigen würde.
+    const { data, error } = await sb
+      .from('impact_score_failures')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
     if (error) throw error;
+    if (!data) return NextResponse.json({ ok: false, error: 'Eintrag nicht gefunden' }, { status: 404 });
 
-    return ok({ message: 'Endgültig gelöscht', id });
+    return ok({ message: 'Endgültig gelöscht', id: data.id });
   } catch (e) {
     return serverError(e instanceof Error ? e.message : 'Fehler');
   }

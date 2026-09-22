@@ -17,17 +17,20 @@ export async function POST(req: NextRequest) {
     if (!id) return NextResponse.json({ ok: false, error: 'Keine ID' }, { status: 400 });
 
     const sb = getServiceClient();
-    const { error } = await sb
+    const { data, error } = await sb
       .from('impact_score_failures')
       .update({
         status: 'deleted',
         deleted_by: user?.id ?? null,
         deleted_at: new Date().toISOString(),
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id,status,deleted_by,deleted_at')
+      .maybeSingle();
 
     if (error) throw error;
-    return ok({ message: 'Soft-Delete erfolgreich', id });
+    if (!data) return NextResponse.json({ ok: false, error: 'Eintrag nicht gefunden' }, { status: 404 });
+    return ok({ message: 'Soft-Delete erfolgreich', ...data });
   } catch (e) {
     return serverError(e instanceof Error ? e.message : 'Fehler');
   }
