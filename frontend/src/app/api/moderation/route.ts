@@ -84,6 +84,12 @@ export async function GET(req: NextRequest) {
     const user = userMap[userId] || {};
     return {
       ...m,
+      // MODERATION-ORIGINAL-CONTENT-001 (2026-09-22): DB-Spalte heißt
+      // text_content, die UI las bisher aber `text` — deshalb waren die
+      // tatsächlich geprüften Kommentare/Momenttexte in der Inhaltsprüfung
+      // leer. `original_text` ist jetzt die explizite 1:1-Quelle: exakt der
+      // String, den moderate-content geprüft und protokolliert hat.
+      original_text: m.text_content ?? null,
       beitrag_type: beitrag.type || null,
       beitrag_caption: beitrag.caption || null,
       beitrag_content: beitrag.content || null,

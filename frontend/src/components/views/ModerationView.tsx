@@ -14,7 +14,7 @@ interface ModerationEntry {
   user_id: string | null;
   media_url: string | null;
   media_type: string | null;
-  text: string | null;
+  original_text: string | null;
   is_flagged: boolean;
   is_blurred: boolean;
   is_false_positive: boolean;
@@ -62,9 +62,14 @@ function timeAgo(iso: string | null): string {
   return `Vor ${d}d`;
 }
 
-function isImage(src: string | null): boolean {
+function isVideo(src: string | null): boolean {
   if (!src) return false;
-  return /\.(jpg|jpeg|png|gif|webp|avif)/i.test(src) || src.includes('supabase.co/storage');
+  return /\.(mp4|mov|webm|ogg)(?:$|[?#])/i.test(src);
+}
+
+function isImage(src: string | null): boolean {
+  if (!src || isVideo(src)) return false;
+  return /\.(jpg|jpeg|png|gif|webp|avif)(?:$|[?#])/i.test(src) || src.includes('supabase.co/storage');
 }
 
 export function ModerationView({ role }: { role: string }) {
@@ -204,9 +209,13 @@ export function ModerationView({ role }: { role: string }) {
       {!loading && entries.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {entries.map(entry => {
-            const hasMedia = !!entry.beitrag_src || !!entry.media_url;
-            const mediaSrc = entry.beitrag_src || entry.media_url;
+            // 1:1-Quelle ist zuerst der bei der Prüfung gespeicherte Snapshot.
+            // Der aktuelle Beitrag ist nur Fallback für Legacy-Zeilen.
+            const exactText = entry.original_text ?? entry.beitrag_content ?? entry.beitrag_caption ?? null;
+            const mediaSrc = entry.media_url || entry.beitrag_src;
+            const hasMedia = !!mediaSrc;
             const showImage = hasMedia && isImage(mediaSrc);
+            const showVideo = hasMedia && isVideo(mediaSrc);
             const isBlurred = entry.is_blurred || entry.beitrag_moderation_blurred;
             const isFlagged = entry.is_flagged || entry.beitrag_moderation_flag;
             const isFP = entry.is_false_positive;
@@ -274,38 +283,52 @@ export function ModerationView({ role }: { role: string }) {
 
                 {/* Content */}
                 <div style={{ padding: '12px 14px' }}>
-                  {/* Text */}
-                  {(entry.beitrag_caption || entry.beitrag_content || entry.text) && (
-                    <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-primary)', marginBottom: 10, whiteSpace: 'pre-line' }}>
-                      {entry.beitrag_content || entry.beitrag_caption || entry.text}
+                  {/* MODERATION-ORIGINAL-CONTENT-001: exakt der Text/Medien-
+                      Snapshot, den moderate-content geprüft hat. Vorher las
+                      diese View das nicht existente Feld `entry.text`, obwohl
+                      die DB/API `text_content` liefert — dadurch blieb der
+                      gemeldete Inhalt im Screenshot komplett unsichtbar. */}
+                  <section style={{ border:'1px solid rgba(196,69,26,0.28)', background:'rgba(196,69,26,0.045)', borderRadius:10, padding:12 }}>
+                    <div style={{ fontSize:10, fontWeight:800, color:'#C0451A', textTransform:'uppercase', letterSpacing:'0.65px', marginBottom:8 }}>
+                      Gemeldeter Inhalt (1:1)
                     </div>
-                  )}
 
-                  {/* Media preview */}
-                  {hasMedia && showImage && (
-                    <div style={{
-                      marginTop: 8,
-                      borderRadius: 8,
-                      overflow: 'hidden',
-                      maxWidth: 300,
-                      border: '1px solid var(--border)',
-                    }}>
-                      <img
+                    {exactText && (
+                      <div style={{ fontSize:13, lineHeight:1.6, color:'var(--text-primary)', whiteSpace:'pre-wrap', overflowWrap:'anywhere', marginBottom:hasMedia ? 10 : 0 }}>
+                        {exactText}
+                      </div>
+                    )}
+
+                    {showImage && (
+                      <div style={{ borderRadius:8, overflow:'hidden', maxWidth:520, border:'1px solid var(--border)', background:'var(--bg-secondary)' }}>
+                        <img
+                          src={mediaSrc || ""}
+                          alt="Gemeldeter Originalinhalt"
+                          style={{ width:'100%', height:'auto', objectFit:'contain', display:'block', filter:isBlurred ? 'blur(20px)' : 'none' }}
+                        />
+                      </div>
+                    )}
+
+                    {showVideo && (
+                      <video
                         src={mediaSrc || ""}
-                        alt=""
-                        style={{
-                          width: '100%',
-                          display: 'block',
-                          filter: isBlurred ? 'blur(20px)' : 'none',
-                        }}
+                        controls
+                        style={{ width:'100%', maxWidth:520, height:'auto', objectFit:'contain', display:'block', borderRadius:8, border:'1px solid var(--border)', background:'#000', filter:isBlurred ? 'blur(20px)' : 'none' }}
                       />
-                    </div>
-                  )}
-                  {hasMedia && !showImage && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-                      Video: {mediaSrc?.slice(0, 60)}...
-                    </div>
-                  )}
+                    )}
+
+                    {!exactText && !hasMedia && (
+                      <div style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic' }}>
+                        Für diesen Legacy-Eintrag wurde kein Originalinhalt gespeichert.
+                      </div>
+                    )}
+
+                    {hasMedia && !showImage && !showVideo && (
+                      <a href={mediaSrc || '#'} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'var(--accent)', overflowWrap:'anywhere' }}>
+                        Originalmedium öffnen
+                      </a>
+                    )}
+                  </section>
 
                   {/* Detection details */}
                   <div style={{

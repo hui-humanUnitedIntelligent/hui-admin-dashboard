@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   // (0-50 Records) vernachlässigbar, aber KORREKT.
   const [
     worksRes, talentsRes, expRes, momentesRes, recReportsRes,
-    impactAppsRes, scoreFailuresRes, bugReportsRes, ticketsRes,
+    impactAppsRes, scoreFailuresRes, moderationRes, bugReportsRes, ticketsRes,
   ] = await Promise.all([
     // Works: warten auf Freigabe
     sb.from('works')
@@ -59,6 +59,15 @@ export async function GET(req: Request) {
     sb.from('impact_score_failures')
       .select('id'),
 
+    // Inhaltsprüfung: nur echte, noch nicht bearbeitete Treffer.
+    // Cleared/False-Positive/Blurred zählen nicht weiter als neue Meldung.
+    // Legacy-Treffer ohne admin_status bleiben zur Sicherheit sichtbar.
+    sb.from('content_moderation')
+      .select('id')
+      .eq('is_flagged', true)
+      .eq('is_false_positive', false)
+      .or('admin_status.is.null,admin_status.in.(pending,urgent_review)'),
+
     // Fehlermeldungen: offene Bug-Reports (BADGE-SYNC-005)
     sb.from('bug_reports')
       .select('id')
@@ -79,6 +88,7 @@ export async function GET(req: Request) {
   const recReports          = recReportsRes.data?.length  ?? 0;
   const impactApplications  = impactAppsRes.data?.length ?? 0;
   const scoreFailures       = scoreFailuresRes.data?.length ?? 0;
+  const moderation          = moderationRes.data?.length ?? 0;
   const bugReports          = bugReportsRes.data?.length  ?? 0;
 
   // Support-Tickets: pro Thread (ticket_number) pruefen ob irgendeine
@@ -94,7 +104,7 @@ export async function GET(req: Request) {
   }
   const tickets = unreadTicketThreads.size;
 
-  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures + bugReports + tickets;
+  const total = works + talents + experiences + momente + recReports + impactApplications + scoreFailures + moderation + bugReports + tickets;
 
   // CACHE-BUST-001 (2026-08-21): Vercel liefert veraltete Badge-Zähler.
   // Force no-store + immutable response um Edge-Caching zu verhindern.
@@ -106,6 +116,7 @@ export async function GET(req: Request) {
     recReports,
     impactApplications,
     scoreFailures,
+    moderation,
     bugReports,
     tickets,
     total,

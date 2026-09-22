@@ -34,6 +34,7 @@ export type PendingCounts = {
   recReports:         number;
   impactApplications: number;
   scoreFailures:      number;
+  moderation:         number;
   bugReports:         number;
   tickets:            number;
   total:              number;
@@ -41,7 +42,7 @@ export type PendingCounts = {
 
 const EMPTY: PendingCounts = {
   works: 0, talents: 0, experiences: 0, momente: 0, recReports: 0,
-  impactApplications: 0, scoreFailures: 0, bugReports: 0, tickets: 0, total: 0,
+  impactApplications: 0, scoreFailures: 0, moderation: 0, bugReports: 0, tickets: 0, total: 0,
 };
 
 const STORAGE_KEY = 'sadb_seen_counts';
@@ -70,6 +71,7 @@ const HREF_TO_KEY: Record<string, keyof PendingCounts> = {
   '/recommendation-reports':  'recReports',
   '/impact-projekte':        'impactApplications',
   '/score-failures':         'scoreFailures',
+  '/moderation':             'moderation',
   '/bug-reports':            'bugReports',
   '/tickets':                'tickets',
   '/employee/works':                  'works',
@@ -176,6 +178,11 @@ export function usePendingCounts(intervalMs = 30_000) {
         )
         .on(
           'postgres_changes',
+          { event: '*', schema: 'public', table: 'content_moderation' },
+          () => refresh()
+        )
+        .on(
+          'postgres_changes',
           { event: '*', schema: 'public', table: 'bug_reports' },
           () => refresh()
         )
@@ -215,6 +222,10 @@ export function usePendingCounts(intervalMs = 30_000) {
     if (!key) return 0;
     const actual = counts[key] ?? 0;
     if (key === 'tickets') return actual; // SSOT = read_by_admin, keine Client-Daempfung
+    // MODERATION-BADGE-001: Die Zahl muss den echten offenen Moderationsbestand
+    // zeigen (1, 2, 3 ...), nicht nach einem bloßen Nav-Klick verschwinden.
+    // admin_status/is_flagged ist bereits die serverseitige Bearbeitet-SSOT.
+    if (key === 'moderation') return actual;
     const seen = getSeenCounts()[href] ?? 0;
     return Math.max(0, actual - seen);
   }, [counts]);
@@ -234,7 +245,7 @@ export function usePendingCounts(intervalMs = 30_000) {
     // der Ticket-Badge kennt kein Client-"gesehen", nur den Server-Read-Status.
     markSeen: (href: string) => {
       const key = HREF_TO_KEY[href];
-      if (key === 'tickets') return;
+      if (key === 'tickets' || key === 'moderation') return;
       markSeen(href, counts[key] ?? 0);
     },
   };
